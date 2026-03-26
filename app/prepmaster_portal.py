@@ -66,6 +66,35 @@ def read_json(path: Path, default: dict) -> dict:
         return default
 
 
+def inspect_pmtiles_file(path: Path) -> dict[str, object]:
+    info: dict[str, object] = {
+        "exists": path.exists(),
+        "size_bytes": path.stat().st_size if path.exists() else 0,
+        "valid": False,
+        "error": "File not found",
+    }
+    if not path.exists() or not path.is_file():
+        return info
+
+    try:
+        header = path.read_bytes()[:64]
+    except OSError as exc:
+        info["error"] = str(exc)
+        return info
+
+    if header.startswith(b"version https://git-lfs.github.com/spec/"):
+        info["error"] = "Git LFS pointer file downloaded instead of PMTiles archive"
+        return info
+
+    if header.startswith(b"PMTiles") or header[:2] == b"PM":
+        info["valid"] = True
+        info["error"] = None
+        return info
+
+    info["error"] = "Wrong magic number for PMTiles archive"
+    return info
+
+
 class PortalState:
     def __init__(self, repo_root: Path, data_dir: Path) -> None:
         self.repo_root = repo_root
@@ -121,15 +150,37 @@ class PortalState:
         env = self.maps_env()
         return env.get("PREPMASTER_MAP_PMTILES_FILE", "basemap.pmtiles")
 
-    def list_pmtiles_packages(self) -> list[str]:
+    def list_pmtiles_packages(self, valid_only: bool = False) -> list[str]:
         root = self.maps_root()
         if not root.exists():
             return []
-        return sorted(
-            path.name
-            for path in root.iterdir()
-            if path.is_file() and path.suffix.lower() == ".pmtiles"
-        )
+        packages: list[str] = []
+        for path in sorted(root.iterdir()):
+            if not path.is_file() or path.suffix.lower() != ".pmtiles":
+                continue
+            if valid_only and not inspect_pmtiles_file(path).get("valid"):
+                continue
+            packages.append(path.name)
+        return packages
+
+    def pmtiles_inventory(self) -> list[dict[str, object]]:
+        root = self.maps_root()
+        if not root.exists():
+            return []
+        inventory: list[dict[str, object]] = []
+        for path in sorted(root.iterdir()):
+            if not path.is_file() or path.suffix.lower() != ".pmtiles":
+                continue
+            details = inspect_pmtiles_file(path)
+            inventory.append(
+                {
+                    "name": path.name,
+                    "size_bytes": details["size_bytes"],
+                    "valid": details["valid"],
+                    "error": details["error"],
+                }
+            )
+        return inventory
 
     def write_maps_runtime_config(self) -> None:
         env = self.maps_env()
@@ -153,13 +204,24 @@ class PortalState:
         root = self.maps_root()
         active_file = env.get("PREPMASTER_MAP_PMTILES_FILE", "basemap.pmtiles")
         active_path = root / active_file
-        packages = self.list_pmtiles_packages()
+        inventory = self.pmtiles_inventory()
+        valid_packages = [item["name"] for item in inventory if item["valid"]]
+        invalid_packages = [
+            {"name": item["name"], "size_bytes": item["size_bytes"], "error": item["error"]}
+            for item in inventory
+            if not item["valid"]
+        ]
+        active_details = inspect_pmtiles_file(active_path)
         return {
             "root": str(root),
             "active_file": active_file,
             "active_url": f"/pmtiles/{active_file}",
-            "active_exists": active_path.exists(),
-            "available_files": packages,
+            "active_exists": bool(active_details["exists"]),
+            "active_valid": bool(active_details["valid"]),
+            "active_error": active_details["error"],
+            "active_size_bytes": active_details["size_bytes"],
+            "available_files": valid_packages,
+            "invalid_files": invalid_packages,
             "flavor": env.get("PREPMASTER_MAP_STYLE_FLAVOR", "dark"),
             "language": env.get("PREPMASTER_MAP_LANGUAGE", "en"),
         }
@@ -192,7 +254,7 @@ class PortalState:
         except error.URLError as exc:
             raise RuntimeError(f"Unable to fetch NOMAD maps catalog: {exc}") from exc
 
-        installed = set(self.list_pmtiles_packages())
+        installed_info = {item["name"]: item for item in self.pmtiles_inventory()}
         active = self.active_pmtiles_file()
         items = []
         for entry in payload:
@@ -207,7 +269,10 @@ class PortalState:
                     "size_bytes": entry.get("size", 0),
                     "download_url": entry.get("download_url"),
                     "html_url": entry.get("html_url"),
-                    "installed": name in installed,
+                    "installed": name in installed_info,
+                    "installed_valid": bool(installed_info.get(name, {}).get("valid")),
+                    "installed_size_bytes": int(installed_info.get(name, {}).get("size_bytes", 0)),
+                    "installed_error": installed_info.get(name, {}).get("error"),
                     "active": name == active,
                 }
             )
@@ -221,9 +286,9 @@ class PortalState:
         if not filename or Path(filename).name != filename or not filename.endswith(".pmtiles"):
             raise ValueError("Invalid PMTiles filename")
 
-        packages = self.list_pmtiles_packages()
+        packages = self.list_pmtiles_packages(valid_only=True)
         if filename not in packages:
-            raise ValueError("PMTiles package not found in map root")
+            raise ValueError("Valid PMTiles package not found in map root")
 
         update_env_file(
             self.prepmaster_env,
@@ -241,9 +306,9 @@ class PortalState:
         if filename is not None:
             if not filename or Path(filename).name != filename or not filename.endswith(".pmtiles"):
                 raise ValueError("Invalid PMTiles filename")
-            packages = self.list_pmtiles_packages()
+            packages = self.list_pmtiles_packages(valid_only=True)
             if filename not in packages:
-                raise ValueError("PMTiles package not found in map root")
+                raise ValueError("Valid PMTiles package not found in map root")
             updates["PREPMASTER_MAP_PMTILES_FILE"] = filename
 
         flavor = payload.get("flavor")
@@ -387,6 +452,16 @@ class PortalState:
                         if result.returncode != 0:
                             raise RuntimeError(f"Download failed for {name}")
 
+                    downloaded_details = inspect_pmtiles_file(destination)
+                    if not downloaded_details["valid"]:
+                        try:
+                            destination.unlink()
+                        except FileNotFoundError:
+                            pass
+                        raise RuntimeError(
+                            f"{name} is not a valid PMTiles archive: {downloaded_details['error']}"
+                        )
+
                     self.save_map_sync_state(
                         {
                             "current_file": name,
@@ -407,7 +482,7 @@ class PortalState:
                         except FileNotFoundError:
                             pass
 
-            installed_after = self.list_pmtiles_packages()
+            installed_after = self.list_pmtiles_packages(valid_only=True)
             active = self.active_pmtiles_file()
             if active not in installed_after:
                 replacement = installed_after[0] if installed_after else "basemap.pmtiles"

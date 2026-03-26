@@ -469,17 +469,20 @@
       flex-wrap: wrap;
       gap: 6px;
       margin-top: 8px;
+      max-height: 52px;
+      overflow: hidden;
+      align-content: flex-start;
     }
 
     .service-chip {
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      padding: 6px 8px;
+      padding: 5px 7px;
       border: 1px solid rgba(255, 255, 255, 0.76);
       background: rgba(7, 17, 31, 0.4);
-      font: 0.68rem/1 var(--ui-display);
-      letter-spacing: 0.08em;
+      font: 0.62rem/1 var(--ui-display);
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       color: #eef5ff;
       white-space: nowrap;
@@ -934,7 +937,7 @@
           ["AP", status.services.hostapd],
           ["DHCP", status.services.dnsmasq],
         ].map(([label, value]) =>
-          `<span class="service-chip ${serviceTone(value)}">${label} ${value}</span>`
+          `<span class="service-chip ${serviceTone(value)}">${label}</span>`
         ).join("");
       } catch (error) {
         diskStatus.textContent = "Unavailable";
@@ -943,7 +946,7 @@
         diskFill.style.width = "0%";
         temperatureFill.style.width = "0%";
         temperatureFill.className = "meter-fill";
-        serviceStatus.innerHTML = '<span class="service-chip error">Status Unavailable</span>';
+        serviceStatus.innerHTML = '<span class="service-chip error">Unavailable</span>';
         kiwixTargetText.textContent = "Kiwix target: unavailable";
       }
     }

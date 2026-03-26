@@ -315,6 +315,12 @@
       font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
+    #maps-catalog-list {
+      max-height: 21rem;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
     .substatus {
       margin-top: 8px;
       color: var(--muted);
@@ -704,8 +710,8 @@
       setStatusChips("maps-status", [
         {
           label: "Archive",
-          value: maps.active_exists ? "Found" : "Missing",
-          tone: maps.active_exists ? "status-chip--ok" : "status-chip--warn"
+          value: maps.active_valid ? "Valid" : (maps.active_exists ? "Invalid" : "Missing"),
+          tone: maps.active_valid ? "status-chip--ok" : (maps.active_exists ? "status-chip--error" : "status-chip--warn")
         },
         {
           label: "Flavor",
@@ -719,20 +725,19 @@
         }
       ]);
       document.getElementById("maps-status-note").textContent = note || (
-        maps.active_exists
+        maps.active_valid
           ? "Active PMTiles archive is ready for the viewer."
-          : "Configured PMTiles archive is missing from the device."
+          : (maps.active_error || "Configured PMTiles archive is unavailable.")
       );
       document.getElementById("map-flavor").value = maps.flavor || "dark";
 
       const select = document.getElementById("map-package");
-      const currentValue = select.value;
       select.innerHTML = "";
 
       if (!maps.available_files.length) {
         const option = document.createElement("option");
         option.value = "";
-        option.textContent = "No PMTiles files found";
+        option.textContent = "No valid PMTiles files found";
         select.appendChild(option);
         select.disabled = true;
       } else {
@@ -741,7 +746,7 @@
           const option = document.createElement("option");
           option.value = file;
           option.textContent = file;
-          if (file === maps.active_file || file === currentValue) {
+          if (file === maps.active_file) {
             option.selected = true;
           }
           select.appendChild(option);
@@ -763,8 +768,15 @@
         const checked = item.installed ? "checked" : "";
         const details = [];
         if (item.installed) details.push("installed");
+        if (item.installed && !item.installed_valid) details.push("invalid");
         if (item.active) details.push("active");
-        if (item.size_bytes) details.push(`${(item.size_bytes / (1024 * 1024)).toFixed(1)} MB`);
+        if (item.installed_size_bytes) {
+          const sizeMb = item.installed_size_bytes / (1024 * 1024);
+          details.push(sizeMb >= 0.1 ? `${sizeMb.toFixed(1)} MB` : `${item.installed_size_bytes} B`);
+        } else if (item.size_bytes) {
+          details.push(`remote ${(item.size_bytes / (1024 * 1024)).toFixed(1)} MB`);
+        }
+        if (item.installed_error) details.push(item.installed_error);
         const detailText = details.length ? ` <span class="muted">(${details.join(" | ")})</span>` : "";
         return `<label style="display:block;margin-bottom:8px;">
           <input type="checkbox" class="map-catalog-checkbox" value="${item.name}" ${checked}>

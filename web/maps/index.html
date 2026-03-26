@@ -515,11 +515,11 @@
       }
       mapFlavorSelect.value = state.flavor || config.flavor || "dark";
       pmtilesUrlStatus.textContent = `Archive source: ${state.active_url || config.pmtilesUrl}`;
-      mapArchiveNote.textContent = state.active_exists
+      mapArchiveNote.textContent = state.active_valid
         ? `Active archive: ${state.active_file}`
-        : "Configured archive is missing or invalid. Select another installed PMTiles package.";
+        : (state.active_error || "Configured archive is missing or invalid. Select another installed PMTiles package.");
       setMapMetaChips([
-        { label: "Archive", value: state.active_exists ? "Found" : "Missing", tone: state.active_exists ? "ok" : "warn" },
+        { label: "Archive", value: state.active_valid ? "Valid" : (state.active_exists ? "Invalid" : "Missing"), tone: state.active_valid ? "ok" : (state.active_exists ? "error" : "warn") },
         { label: "Theme", value: state.flavor || config.flavor || "dark", tone: "muted" },
         { label: "Language", value: state.language || config.language || "en", tone: "muted" }
       ]);
