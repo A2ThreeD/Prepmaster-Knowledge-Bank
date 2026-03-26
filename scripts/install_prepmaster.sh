@@ -32,8 +32,8 @@ install -d -m 0755 "$PREPMASTER_WEB_ROOT"
 install -d -m 0755 "$PREPMASTER_WEB_ROOT/images"
 install -m 0644 "$REPO_ROOT/web/index.html" "$PREPMASTER_WEB_ROOT/index.html"
 install -m 0644 "$REPO_ROOT/index.html.framework" "$PREPMASTER_WEB_ROOT/index.html.framework"
-if [[ -f "$REPO_ROOT/images/prepmaster-hero.png" ]]; then
-  install -m 0644 "$REPO_ROOT/images/prepmaster-hero.png" "$PREPMASTER_WEB_ROOT/images/prepmaster-hero.png"
+if [[ -f "$REPO_ROOT/images/heroimage.png" ]]; then
+  install -m 0644 "$REPO_ROOT/images/heroimage.png" "$PREPMASTER_WEB_ROOT/images/heroimage.png"
 fi
 
 echo "Installing custom stack placeholders..."
