@@ -92,6 +92,66 @@
       font-weight: 600;
     }
 
+    .progress-shell {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.32);
+    }
+
+    .progress-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .progress-label {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .progress-value {
+      font-weight: 700;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 12px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(158, 190, 227, 0.12);
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #5e9dff, #86c0ff);
+      box-shadow: 0 0 20px rgba(123, 183, 255, 0.35);
+      transition: width 0.25s ease;
+    }
+
+    .log-panel {
+      margin-top: 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.4);
+      padding: 12px 14px;
+    }
+
+    .log-panel pre {
+      margin: 8px 0 0;
+      max-height: 240px;
+      overflow: auto;
+      white-space: pre-wrap;
+      color: var(--muted);
+      font: 0.85rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
     code {
       color: var(--accent);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -147,6 +207,20 @@
           <button class="button" id="full-apply-button" type="button">Run Full Apply</button>
         </div>
         <p class="status" id="content-action-status">Content actions: ready</p>
+        <div class="progress-shell">
+          <div class="progress-top">
+            <span class="progress-label" id="progress-label">Waiting for action</span>
+            <span class="progress-value" id="progress-value">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p class="status" id="current-file-status">Current file: none</p>
+        </div>
+        <div class="log-panel">
+          <strong>Recent Log</strong>
+          <pre id="apply-log">No active download log.</pre>
+        </div>
       </section>
       <section class="card">
         <h2>Content Library Mode</h2>
@@ -204,6 +278,20 @@
         `Apply status: ${apply.status}${label}${step}`;
       document.getElementById("content-action-status").textContent =
         `Content actions: ${apply.status}${label}${step}`;
+      document.getElementById("progress-label").textContent =
+        apply.step || "Waiting for action";
+      document.getElementById("progress-value").textContent =
+        `${apply.progress_percent || 0}%`;
+      document.getElementById("progress-fill").style.width =
+        `${apply.progress_percent || 0}%`;
+      document.getElementById("current-file-status").textContent =
+        apply.current_file
+          ? `Current file: ${apply.current_file}${apply.download_current && apply.download_total ? ` (${apply.download_current}/${apply.download_total})` : ""}`
+          : "Current file: none";
+      document.getElementById("apply-log").textContent =
+        apply.log_tail && apply.log_tail.length
+          ? apply.log_tail.join("\n")
+          : "No active download log.";
 
       const running = apply.status === "running";
       document.getElementById("refresh-content-button").disabled = running;

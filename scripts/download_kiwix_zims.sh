@@ -49,13 +49,23 @@ fi
 install -d -m 0755 "$KIWIX_LIBRARY_DIR"
 cd "$KIWIX_LIBRARY_DIR"
 
-while IFS= read -r url; do
-  [[ -z "$url" ]] && continue
-  [[ "$url" =~ ^# ]] && continue
+mapfile -t URLS < <(grep -v '^[[:space:]]*$' "$URL_FILE" | grep -v '^[[:space:]]*#')
+TOTAL_FILES="${#URLS[@]}"
 
+echo "PROGRESS_DOWNLOAD_TOTAL|$TOTAL_FILES"
+
+for i in "${!URLS[@]}"; do
+  url="${URLS[$i]}"
+  file_name="$(basename "$url")"
+  current=$((i + 1))
+
+  echo "PROGRESS_DOWNLOAD_FILE|$current|$TOTAL_FILES|$file_name"
   echo "Downloading or refreshing: $url"
   wget -N -c "$url"
-done < "$URL_FILE"
+  echo "PROGRESS_DOWNLOAD_DONE|$current|$TOTAL_FILES|$file_name"
+done
+
+echo "PROGRESS_DOWNLOAD_COMPLETE|$TOTAL_FILES"
 
 if command -v kiwix-manage >/dev/null 2>&1; then
   "$REPO_ROOT/scripts/rebuild_kiwix_library.sh"

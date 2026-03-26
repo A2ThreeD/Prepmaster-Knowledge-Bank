@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -166,6 +167,8 @@ class PortalState:
             {
                 "status": "idle",
                 "action": "full",
+                "total_steps": None,
+                "current_step_index": None,
                 "started_at": None,
                 "finished_at": None,
                 "step": None,
@@ -174,6 +177,7 @@ class PortalState:
             },
         )
         state["log_tail"] = self.read_log_tail()
+        state.update(self.parse_apply_progress(state))
         return state
 
     def save_apply_state(self, payload: dict) -> dict:
@@ -202,6 +206,8 @@ class PortalState:
                 {
                     "status": "running",
                     "action": action,
+                    "total_steps": len(self.commands_for_action(action)),
+                    "current_step_index": 0,
                     "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     "finished_at": None,
                     "step": "Starting apply workflow",
@@ -286,8 +292,14 @@ class PortalState:
         error_message = None
 
         with self.apply_log_file.open("a", encoding="utf-8") as log_handle:
-            for step, command in commands:
-                self.save_apply_state({"step": step})
+            for index, (step, command) in enumerate(commands, start=1):
+                self.save_apply_state(
+                    {
+                        "step": step,
+                        "current_step_index": index,
+                        "total_steps": len(commands),
+                    }
+                )
                 log_handle.write(f"\n== {step} ==\n")
                 log_handle.flush()
                 result = subprocess.run(
@@ -310,12 +322,97 @@ class PortalState:
             {
                 "status": final_status,
                 "action": action,
+                "current_step_index": len(commands) if exit_code == 0 else index,
+                "total_steps": len(commands),
                 "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "exit_code": exit_code,
                 "error": error_message,
                 "step": None if exit_code == 0 else step,
             }
         )
+
+    def parse_apply_progress(self, state: dict) -> dict:
+        progress = {
+            "progress_percent": 0,
+            "current_file": None,
+            "download_current": None,
+            "download_total": None,
+        }
+
+        total_steps = state.get("total_steps") or 0
+        current_step_index = state.get("current_step_index") or 0
+        status = state.get("status")
+        step = state.get("step") or ""
+
+        if status == "succeeded":
+            progress["progress_percent"] = 100
+        elif total_steps > 0 and current_step_index > 0:
+            progress["progress_percent"] = int(
+                ((current_step_index - 1) / total_steps) * 100
+            )
+
+        if not self.apply_log_file.exists():
+            return progress
+
+        total_pattern = re.compile(r"^PROGRESS_DOWNLOAD_TOTAL\|(\d+)$")
+        file_pattern = re.compile(r"^PROGRESS_DOWNLOAD_FILE\|(\d+)\|(\d+)\|(.+)$")
+        done_pattern = re.compile(r"^PROGRESS_DOWNLOAD_DONE\|(\d+)\|(\d+)\|(.+)$")
+        complete_pattern = re.compile(r"^PROGRESS_DOWNLOAD_COMPLETE\|(\d+)$")
+
+        download_total = None
+        current_file = None
+        current_index = None
+        last_done_index = None
+
+        for line in self.apply_log_file.read_text().splitlines():
+            total_match = total_pattern.match(line)
+            if total_match:
+                download_total = int(total_match.group(1))
+                continue
+
+            file_match = file_pattern.match(line)
+            if file_match:
+                current_index = int(file_match.group(1))
+                download_total = int(file_match.group(2))
+                current_file = file_match.group(3)
+                continue
+
+            done_match = done_pattern.match(line)
+            if done_match:
+                last_done_index = int(done_match.group(1))
+                download_total = int(done_match.group(2))
+                current_file = done_match.group(3)
+                continue
+
+            complete_match = complete_pattern.match(line)
+            if complete_match:
+                download_total = int(complete_match.group(1))
+                last_done_index = download_total
+                current_index = download_total
+                current_file = None
+
+        progress["current_file"] = current_file
+        progress["download_total"] = download_total
+        progress["download_current"] = current_index or last_done_index
+
+        if (
+            status == "running"
+            and step == "Downloading selected Kiwix content"
+            and total_steps > 0
+            and download_total
+        ):
+            completed_within_download = last_done_index or 0
+            if current_index and current_file and completed_within_download < current_index:
+                completed_within_download = max(current_index - 1, 0)
+            progress["progress_percent"] = int(
+                (
+                    ((current_step_index - 1) + (completed_within_download / download_total))
+                    / total_steps
+                )
+                * 100
+            )
+
+        return progress
 
     def read_temperature(self) -> float | None:
         thermal = Path("/sys/class/thermal/thermal_zone0/temp")
