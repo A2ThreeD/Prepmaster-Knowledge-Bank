@@ -494,7 +494,6 @@
           <p class="muted">
             Reopen the setup workflow at any time to change install options, Wikipedia package selection, or other first-start preferences.
           </p>
-          <p class="status" id="apply-status">Apply status: loading</p>
         </section>
         <section class="card">
           <h2>Wireless Access Point</h2>
@@ -504,7 +503,6 @@
           <p class="muted">
             Use <code>PREPMASTER_AP_ENABLED=1</code> in <code>config/prepmaster.env</code>, then run <code>sudo ./scripts/configure_access_point.sh</code>.
           </p>
-          <div class="status-cluster" id="ap-status" aria-live="polite"></div>
         </section>
         <section class="card">
           <h2>System</h2>
@@ -815,13 +813,9 @@
       document.getElementById("system-cpu-status").textContent = "Checking...";
       document.getElementById("system-uptime-status").textContent = "Uptime: checking...";
       try {
-        const { payload } = await fetchJsonWithTimeout("/api/status", {}, 2500);
+        const { payload } = await fetchJsonWithTimeout("/api/system/health", {}, 2000);
         currentStatus = payload;
         renderSystemHealth(currentStatus);
-        setStatusChips("ap-status", [
-          { label: "Hostapd", value: currentStatus.services.hostapd, tone: toneForServiceState(currentStatus.services.hostapd) },
-          { label: "Dnsmasq", value: currentStatus.services.dnsmasq, tone: toneForServiceState(currentStatus.services.dnsmasq) }
-        ]);
       } catch (error) {
         const delayed = error && error.name === "AbortError";
         document.getElementById("system-disk-status").textContent = delayed ? "Delayed" : "Unavailable";
@@ -832,9 +826,6 @@
         document.getElementById("system-cpu-status").textContent = delayed ? "Delayed" : "Unavailable";
         document.getElementById("system-cpu-fill").style.width = "0%";
         document.getElementById("system-uptime-status").textContent = delayed ? "Uptime: delayed" : "Uptime: unavailable";
-        setStatusChips("ap-status", [
-          { label: "AP", value: "Unavailable", tone: "status-chip--error" }
-        ]);
       }
     }
 
@@ -1262,6 +1253,8 @@
     document.getElementById("select-all-maps-button").addEventListener("click", selectAllMaps);
     document.getElementById("refresh-catalog-button").addEventListener("click", refreshCatalog);
     document.getElementById("sync-maps-button").addEventListener("click", syncMapsSelection);
+    document.getElementById("restart-system-button").addEventListener("click", () => requestPowerAction("restart"));
+    document.getElementById("shutdown-system-button").addEventListener("click", () => requestPowerAction("shutdown"));
     document.getElementById("toggle-apply-log-button").addEventListener("click", () => {
       togglePanel("apply-log-panel", "toggle-apply-log-button", "Show Content Log", "Hide Content Log");
     });

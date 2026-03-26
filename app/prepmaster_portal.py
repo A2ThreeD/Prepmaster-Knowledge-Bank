@@ -659,6 +659,19 @@ class PortalState:
             "services": services,
         }
 
+    def system_health(self) -> dict:
+        total, used, free = shutil.disk_usage("/")
+        return {
+            "disk": {
+                "total_gb": round(total / (1024 ** 3), 1),
+                "used_gb": round(used / (1024 ** 3), 1),
+                "free_gb": round(free / (1024 ** 3), 1),
+            },
+            "temperature_c": self.read_temperature(),
+            "cpu": self.read_cpu_load(),
+            "uptime": self.read_uptime(),
+        }
+
     def load_apply_state(self) -> dict:
         state = read_json(
             self.apply_state_file,
@@ -1061,6 +1074,9 @@ class PortalHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/status":
             self.send_json(self.portal_state.status())
+            return
+        if path == "/api/system/health":
+            self.send_json(self.portal_state.system_health())
             return
         if path == "/api/maps":
             self.send_json(self.portal_state.maps_status())
