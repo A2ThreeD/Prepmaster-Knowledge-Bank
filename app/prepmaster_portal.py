@@ -656,7 +656,6 @@ class PortalState:
             "content_mode": read_env_file(self.prepmaster_env).get(
                 "PREPMASTER_ZIM_MODE", "full"
             ),
-            "maps": self.maps_status(),
             "services": services,
         }
 
