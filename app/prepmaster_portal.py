@@ -94,6 +94,7 @@ class PortalState:
                     "PREPMASTER_WIKIPEDIA_OPTION", "top-mini"
                 ),
                 "ap_enabled": prepmaster.get("PREPMASTER_AP_ENABLED", "0") == "1",
+                "zim_mode": prepmaster.get("PREPMASTER_ZIM_MODE", "full"),
             },
         }
 
@@ -101,6 +102,9 @@ class PortalState:
         wikipedia_option = payload.get("wikipedia_option", "top-mini")
         if wikipedia_option not in {"top-mini", "mini", "maxi"}:
             raise ValueError("Invalid wikipedia_option")
+        zim_mode = payload.get("zim_mode", "full")
+        if zim_mode not in {"full", "quick-test"}:
+            raise ValueError("Invalid zim_mode")
 
         install_kolibri = bool(payload.get("install_kolibri", False))
         install_ka_lite = bool(payload.get("install_ka_lite", False))
@@ -122,6 +126,7 @@ class PortalState:
             {
                 "PREPMASTER_WIKIPEDIA_OPTION": wikipedia_option,
                 "PREPMASTER_AP_ENABLED": "1" if ap_enabled else "0",
+                "PREPMASTER_ZIM_MODE": zim_mode,
             },
         )
 
@@ -143,6 +148,9 @@ class PortalState:
             "temperature_c": self.read_temperature(),
             "uptime": self.read_uptime(),
             "kiwix_url": f"http://{self.detect_primary_host()}:{read_env_file(self.prepmaster_env).get('KIWIX_PORT', '8080')}/",
+            "content_mode": read_env_file(self.prepmaster_env).get(
+                "PREPMASTER_ZIM_MODE", "full"
+            ),
             "services": {
                 "portal": self.read_service_status("prepmaster-portal.service"),
                 "kiwix": self.read_service_status("prepmaster-kiwix.service"),
@@ -157,6 +165,7 @@ class PortalState:
             self.apply_state_file,
             {
                 "status": "idle",
+                "action": "full",
                 "started_at": None,
                 "finished_at": None,
                 "step": None,
@@ -179,7 +188,10 @@ class PortalState:
         content = self.apply_log_file.read_text().splitlines()
         return content[-lines:]
 
-    def start_apply(self) -> dict:
+    def start_apply(self, action: str = "full") -> dict:
+        if action not in {"full", "refresh-content", "rebuild-library"}:
+            raise ValueError("Invalid apply action")
+
         with self.apply_lock:
             state = self.load_apply_state()
             if state.get("status") == "running":
@@ -189,6 +201,7 @@ class PortalState:
             self.save_apply_state(
                 {
                     "status": "running",
+                    "action": action,
                     "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     "finished_at": None,
                     "step": "Starting apply workflow",
@@ -198,13 +211,38 @@ class PortalState:
             )
             self.apply_thread = threading.Thread(
                 target=self.run_apply_workflow,
+                args=(action,),
                 daemon=True,
             )
             self.apply_thread.start()
             return self.load_apply_state()
 
-    def run_apply_workflow(self) -> None:
-        commands = [
+    def commands_for_action(self, action: str) -> list[tuple[str, list[str]]]:
+        if action == "refresh-content":
+            return [
+                (
+                    "Downloading selected Kiwix content",
+                    [str(self.repo_root / "scripts" / "download_kiwix_zims.sh")],
+                ),
+                (
+                    "Restarting Kiwix service",
+                    ["systemctl", "restart", "prepmaster-kiwix.service"],
+                ),
+            ]
+
+        if action == "rebuild-library":
+            return [
+                (
+                    "Rebuilding Kiwix library",
+                    [str(self.repo_root / "scripts" / "rebuild_kiwix_library.sh")],
+                ),
+                (
+                    "Restarting Kiwix service",
+                    ["systemctl", "restart", "prepmaster-kiwix.service"],
+                ),
+            ]
+
+        return [
             (
                 "Downloading selected Kiwix content",
                 [str(self.repo_root / "scripts" / "download_kiwix_zims.sh")],
@@ -230,6 +268,9 @@ class PortalState:
                 ["systemctl", "reload", "nginx"],
             ),
         ]
+
+    def run_apply_workflow(self, action: str) -> None:
+        commands = self.commands_for_action(action)
 
         env = dict(os.environ)
         env.update(read_env_file(self.prepmaster_env))
@@ -268,6 +309,7 @@ class PortalState:
         self.save_apply_state(
             {
                 "status": final_status,
+                "action": action,
                 "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "exit_code": exit_code,
                 "error": error_message,
@@ -366,7 +408,10 @@ class PortalHandler(BaseHTTPRequestHandler):
 
         if self.path == "/api/apply":
             try:
-                state = self.portal_state.start_apply()
+                state = self.portal_state.start_apply(payload.get("action", "full"))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
             except RuntimeError as exc:
                 self.send_json({"error": str(exc)}, status=409)
                 return

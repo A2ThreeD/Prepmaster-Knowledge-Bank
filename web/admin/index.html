@@ -96,6 +96,26 @@
       color: var(--accent);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
+
+    .field {
+      margin-top: 14px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+
+    select {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.44);
+      color: var(--text);
+      padding: 12px 14px;
+      font: inherit;
+    }
   </style>
 </head>
 <body>
@@ -115,6 +135,38 @@
           Reopen the setup workflow at any time to change install options, Wikipedia package selection, or other first-start preferences.
         </p>
         <p class="status" id="apply-status">Apply status: loading</p>
+      </section>
+      <section class="card">
+        <h2>Content Actions</h2>
+        <p class="muted">
+          Use these controls to refresh the downloaded library, rebuild Kiwix metadata from files already on disk, or rerun the full configuration workflow.
+        </p>
+        <div class="actions">
+          <button class="button" id="refresh-content-button" type="button">Download Missing Content</button>
+          <button class="button" id="rebuild-library-button" type="button">Rebuild Kiwix Library</button>
+          <button class="button" id="full-apply-button" type="button">Run Full Apply</button>
+        </div>
+        <p class="status" id="content-action-status">Content actions: ready</p>
+      </section>
+      <section class="card">
+        <h2>Content Library Mode</h2>
+        <p class="muted">
+          Quick test mode downloads only a tiny starter library for fast validation. Full mode rebuilds the complete curated manifest.
+        </p>
+        <p class="muted">
+          The category cards on the main page are overview tiles right now. They are not disabled by quick test mode; the full library still opens through Kiwix.
+        </p>
+        <div class="field">
+          <label for="zim-mode">Kiwix Content Mode</label>
+          <select id="zim-mode">
+            <option value="full">Full Curated Library</option>
+            <option value="quick-test">Quick Test Library</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="button" id="save-mode-button" type="button">Save Content Mode</button>
+        </div>
+        <p class="status" id="mode-status">Content mode: loading</p>
       </section>
       <section class="card">
         <h2>Wireless Access Point</h2>
@@ -142,31 +194,125 @@
     </div>
   </main>
   <script>
+    let currentState = null;
+    let applyPollHandle = null;
+
+    function renderApplyState(apply) {
+      const label = apply.action ? ` (${apply.action})` : "";
+      const step = apply.step ? ` | ${apply.step}` : "";
+      document.getElementById("apply-status").textContent =
+        `Apply status: ${apply.status}${label}${step}`;
+      document.getElementById("content-action-status").textContent =
+        `Content actions: ${apply.status}${label}${step}`;
+
+      const running = apply.status === "running";
+      document.getElementById("refresh-content-button").disabled = running;
+      document.getElementById("rebuild-library-button").disabled = running;
+      document.getElementById("full-apply-button").disabled = running;
+
+      if (running && applyPollHandle === null) {
+        applyPollHandle = window.setInterval(loadAdminStatus, 4000);
+      }
+
+      if (!running && applyPollHandle !== null) {
+        window.clearInterval(applyPollHandle);
+        applyPollHandle = null;
+      }
+    }
+
     async function loadAdminStatus() {
       try {
-        const [statusResponse, applyResponse] = await Promise.all([
+        const [stateResponse, statusResponse, applyResponse] = await Promise.all([
+          fetch("/api/state", { cache: "no-store" }),
           fetch("/api/status", { cache: "no-store" }),
           fetch("/api/apply", { cache: "no-store" })
         ]);
 
+        currentState = await stateResponse.json();
         const status = await statusResponse.json();
         const apply = await applyResponse.json();
 
+        document.getElementById("zim-mode").value = currentState.profile.zim_mode || status.content_mode || "full";
+        document.getElementById("mode-status").textContent =
+          `Content mode: ${status.content_mode || currentState.profile.zim_mode || "full"}`;
         document.getElementById("kiwix-target").textContent = `Kiwix target: ${status.kiwix_url}`;
         document.getElementById("kiwix-link").href = status.kiwix_url;
         document.getElementById("kiwix-status").textContent = `Kiwix service: ${status.services.kiwix}`;
         document.getElementById("ap-status").textContent =
           `AP services: hostapd ${status.services.hostapd} | dnsmasq ${status.services.dnsmasq}`;
-        document.getElementById("apply-status").textContent =
-          `Apply status: ${apply.status}${apply.step ? " | " + apply.step : ""}`;
+        renderApplyState(apply);
       } catch (error) {
+        document.getElementById("mode-status").textContent = "Content mode: unavailable";
         document.getElementById("kiwix-target").textContent = "Kiwix target: unavailable";
         document.getElementById("kiwix-status").textContent = "Kiwix service: unavailable";
         document.getElementById("ap-status").textContent = "AP services: unavailable";
         document.getElementById("apply-status").textContent = "Apply status: unavailable";
+        document.getElementById("content-action-status").textContent = "Content actions: unavailable";
       }
     }
 
+    async function saveContentMode() {
+      if (!currentState) {
+        document.getElementById("mode-status").textContent = "Content mode: unavailable";
+        return;
+      }
+
+      const button = document.getElementById("save-mode-button");
+      const selectedMode = document.getElementById("zim-mode").value;
+      button.disabled = true;
+
+      try {
+        const response = await fetch("/api/setup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            install_kolibri: currentState.profile.install_kolibri,
+            install_ka_lite: currentState.profile.install_ka_lite,
+            wikipedia_option: currentState.profile.wikipedia_option,
+            ap_enabled: currentState.profile.ap_enabled,
+            zim_mode: selectedMode,
+            setup_complete: currentState.setup_complete
+          })
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to save content mode");
+        }
+
+        currentState = payload;
+        document.getElementById("mode-status").textContent =
+          `Content mode: ${payload.profile.zim_mode}. Click Apply Configuration from setup when you want downloads refreshed.`;
+      } catch (error) {
+        document.getElementById("mode-status").textContent = `Content mode: ${error.message}`;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function triggerApplyAction(action) {
+      try {
+        const response = await fetch("/api/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action })
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to start action");
+        }
+
+        renderApplyState(payload);
+      } catch (error) {
+        document.getElementById("content-action-status").textContent = `Content actions: ${error.message}`;
+      }
+    }
+
+    document.getElementById("save-mode-button").addEventListener("click", saveContentMode);
+    document.getElementById("refresh-content-button").addEventListener("click", () => triggerApplyAction("refresh-content"));
+    document.getElementById("rebuild-library-button").addEventListener("click", () => triggerApplyAction("rebuild-library"));
+    document.getElementById("full-apply-button").addEventListener("click", () => triggerApplyAction("full"));
     loadAdminStatus();
   </script>
 </body>
