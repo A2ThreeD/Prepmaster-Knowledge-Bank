@@ -48,6 +48,7 @@ Likely implementation options:
 
 - A lightweight local API persists setup state and exposes live Raspberry Pi status
 - The homepage and admin pages use that API to reopen setup preferences and display system metrics
+- The same API now exposes a background apply workflow so the web UI can trigger backend scripts directly
 
 ### 6. Service Routing
 

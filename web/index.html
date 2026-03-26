@@ -381,7 +381,8 @@
             <li>Admin tools and update automation</li>
           </ul>
           <div class="actions">
-            <button class="button success" id="save-setup-button" type="button">Save Setup</button>
+            <button class="button" id="save-setup-button" type="button">Save Preferences</button>
+            <button class="button success" id="apply-config-button" type="button">Apply Configuration</button>
           </div>
         </section>
 
@@ -440,8 +441,10 @@
           <p>Saving writes the selected profile into the project config so install scripts and the dashboard stay in sync.</p>
           <div class="command" id="profile-command">./scripts/select_install_profile.sh --base-only</div>
           <div class="command" id="wikipedia-command">PREPMASTER_WIKIPEDIA_OPTION=top-mini</div>
+          <div class="command" id="apply-status-text">Apply status: idle</div>
+          <div class="command" id="apply-log-text">Apply log will appear here once configuration runs.</div>
           <p class="small">
-            After saving, run <code>sudo ./scripts/install_prepmaster.sh</code> if you want to apply the latest configuration to the system.
+            The appliance flow is: save preferences, apply configuration, then return to the dashboard once services and content are ready.
           </p>
         </section>
       </main>
@@ -544,12 +547,16 @@
     const profileCommand = document.getElementById("profile-command");
     const wikipediaCommand = document.getElementById("wikipedia-command");
     const saveSetupButton = document.getElementById("save-setup-button");
+    const applyConfigButton = document.getElementById("apply-config-button");
     const dashboardProfileText = document.getElementById("dashboard-profile-text");
+    const applyStatusText = document.getElementById("apply-status-text");
+    const applyLogText = document.getElementById("apply-log-text");
 
     const diskStatus = document.getElementById("disk-status");
     const temperatureStatus = document.getElementById("temperature-status");
     const serviceStatus = document.getElementById("service-status");
     const uptimeStatus = document.getElementById("uptime-status");
+    let applyPollHandle = null;
 
     function showMessage(text, isError = false) {
       message.textContent = text;
@@ -597,6 +604,28 @@
         `Wikipedia: ${profile.wikipedia_option}. ${addOns}. ${apText}.`;
     }
 
+    function renderApplyState(state) {
+      const step = state.step ? ` | ${state.step}` : "";
+      const error = state.error ? ` | ${state.error}` : "";
+      applyStatusText.textContent = `Apply status: ${state.status}${step}${error}`;
+      applyLogText.textContent = state.log_tail && state.log_tail.length
+        ? state.log_tail.join("\n")
+        : "Apply log will appear here once configuration runs.";
+
+      const running = state.status === "running";
+      applyConfigButton.disabled = running;
+      saveSetupButton.disabled = running;
+
+      if (running && applyPollHandle === null) {
+        applyPollHandle = window.setInterval(refreshApplyState, 5000);
+      }
+
+      if (!running && applyPollHandle !== null) {
+        window.clearInterval(applyPollHandle);
+        applyPollHandle = null;
+      }
+    }
+
     function renderMode(state) {
       const setupMode = forceSetup || !state.setup_complete;
       setupView.classList.toggle("hidden", !setupMode);
@@ -631,6 +660,7 @@
         serviceStatus.textContent = [
           `Portal ${status.services.portal}`,
           `Nginx ${status.services.nginx}`,
+          `Kiwix ${status.services.kiwix}`,
           `AP ${status.services.hostapd}`,
         ].join(" | ");
       } catch (error) {
@@ -641,10 +671,7 @@
       }
     }
 
-    async function saveSetup() {
-      clearMessage();
-      saveSetupButton.disabled = true;
-
+    async function persistSetup(setupComplete) {
       try {
         const response = await fetch(`${apiBase}/setup`, {
           method: "POST",
@@ -654,7 +681,7 @@
             install_ka_lite: installKaLite.checked,
             wikipedia_option: wikipediaChoice.value,
             ap_enabled: apEnabled.checked,
-            setup_complete: true
+            setup_complete: setupComplete
           })
         });
 
@@ -666,22 +693,79 @@
         renderSetupSummary();
         renderDashboardProfile(payload.profile);
         renderMode(payload);
-        showMessage("Setup saved. The homepage is now in dashboard mode. Re-run the installer if you want to apply updated packages or services.");
+        return payload;
+      } catch (error) {
+        showMessage(error.message, true);
+        throw error;
+      }
+    }
 
-        if (forceSetup) {
-          window.location.assign("/");
-          return;
+    async function saveSetup() {
+      clearMessage();
+      saveSetupButton.disabled = true;
+
+      try {
+        await persistSetup(false);
+        showMessage("Preferences saved. Use Apply Configuration to run downloads, services, and selected add-ons.");
+      } finally {
+        saveSetupButton.disabled = false;
+      }
+    }
+
+    async function refreshApplyState() {
+      try {
+        const response = await fetch(`${apiBase}/apply`, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("Unable to load apply status");
+        }
+        const payload = await response.json();
+        renderApplyState(payload);
+        if (payload.status === "succeeded") {
+          showMessage("Configuration applied successfully. The dashboard is ready.");
+          if (forceSetup) {
+            window.location.assign("/");
+          }
+        } else if (payload.status === "failed") {
+          showMessage(payload.error || "Configuration apply failed. Review the log excerpt below.", true);
         }
       } catch (error) {
         showMessage(error.message, true);
+      }
+    }
+
+    async function applyConfiguration() {
+      clearMessage();
+      applyConfigButton.disabled = true;
+
+      try {
+        await persistSetup(true);
+        const response = await fetch(`${apiBase}/apply`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to start configuration apply");
+        }
+        renderApplyState(payload);
+        showMessage("Configuration apply started. This page will keep updating while downloads and service changes run.");
+      } catch (error) {
+        showMessage(error.message, true);
       } finally {
-        saveSetupButton.disabled = false;
+        if (!applyPollHandle) {
+          applyConfigButton.disabled = false;
+        }
       }
     }
 
     async function initialize() {
       try {
         const state = await loadState();
+        const applyStateResponse = await fetch(`${apiBase}/apply`, { cache: "no-store" });
+        const applyState = applyStateResponse.ok
+          ? await applyStateResponse.json()
+          : { status: "idle", log_tail: [] };
         installKolibri.checked = state.profile.install_kolibri;
         installKaLite.checked = state.profile.install_ka_lite;
         wikipediaChoice.value = state.profile.wikipedia_option || "top-mini";
@@ -689,6 +773,7 @@
         renderSetupSummary();
         renderDashboardProfile(state.profile);
         renderMode(state);
+        renderApplyState(applyState);
         await refreshStatus();
       } catch (error) {
         renderSetupSummary();
@@ -702,6 +787,7 @@
     wikipediaChoice.addEventListener("change", renderSetupSummary);
     apEnabled.addEventListener("change", renderSetupSummary);
     saveSetupButton.addEventListener("click", saveSetup);
+    applyConfigButton.addEventListener("click", applyConfiguration);
 
     initialize();
     window.setInterval(refreshStatus, 30000);

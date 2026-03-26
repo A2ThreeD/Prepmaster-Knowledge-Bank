@@ -7,6 +7,8 @@ ENV_FILE="${PREPMASTER_ENV_FILE:-$REPO_ROOT/config/prepmaster.env}"
 URL_FILE="${PREPMASTER_ZIM_URL_FILE:-$REPO_ROOT/config/kiwix-zim-urls.txt}"
 PROFILE="${PREPMASTER_ZIM_PROFILE:-essential}"
 WIKIPEDIA_OPTION="${PREPMASTER_WIKIPEDIA_OPTION:-top-mini}"
+ZIM_MODE="${PREPMASTER_ZIM_MODE:-full}"
+QUICK_TEST_FILE="$REPO_ROOT/config/kiwix-zim-urls.quick-test.txt"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Please run as root: sudo $0"
@@ -26,13 +28,23 @@ fi
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
-echo "Building Kiwix ZIM manifest from kiwix-categories.json..."
-python3 "$REPO_ROOT/scripts/build_kiwix_zim_manifest.py" \
-  --source "$REPO_ROOT/kiwix-categories.json" \
-  --output "$URL_FILE" \
-  --profile "$PROFILE" \
-  --wikipedia-options "$REPO_ROOT/wikipedia.json" \
-  --wikipedia-choice "$WIKIPEDIA_OPTION"
+if [[ "$ZIM_MODE" == "quick-test" ]]; then
+  if [[ ! -f "$QUICK_TEST_FILE" ]]; then
+    echo "Missing quick-test manifest: $QUICK_TEST_FILE"
+    exit 1
+  fi
+
+  echo "Using quick-test Kiwix manifest..."
+  URL_FILE="$QUICK_TEST_FILE"
+else
+  echo "Building Kiwix ZIM manifest from kiwix-categories.json..."
+  python3 "$REPO_ROOT/scripts/build_kiwix_zim_manifest.py" \
+    --source "$REPO_ROOT/kiwix-categories.json" \
+    --output "$URL_FILE" \
+    --profile "$PROFILE" \
+    --wikipedia-options "$REPO_ROOT/wikipedia.json" \
+    --wikipedia-choice "$WIKIPEDIA_OPTION"
+fi
 
 install -d -m 0755 "$KIWIX_LIBRARY_DIR"
 cd "$KIWIX_LIBRARY_DIR"

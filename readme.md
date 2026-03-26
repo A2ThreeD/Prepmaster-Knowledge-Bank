@@ -31,6 +31,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `config/prepmaster.env` - editable install settings
 - `config/install-profile.env` - first-start install profile
 - `config/kiwix-zim-urls.txt` - generated ZIM manifest
+- `config/kiwix-zim-urls.quick-test.txt` - tiny starter manifest for fast Kiwix validation
 - `wikipedia.json` - selectable Wikipedia ZIM options for the configuration flow
 - `docs/architecture.md` - stack and design notes
 - `docs/software-plan.md` - software checklist for the Pi
@@ -79,8 +80,10 @@ sudo ./scripts/download_kiwix_zims.sh
 - The generated manifest in `config/kiwix-zim-urls.txt` is built from that JSON using `PREPMASTER_ZIM_PROFILE`.
 - The selected Wikipedia variant is controlled by `PREPMASTER_WIKIPEDIA_OPTION` and sourced from `wikipedia.json`.
 - Supported profiles are `essential`, `standard`, and `comprehensive`.
+- Set `PREPMASTER_ZIM_MODE=quick-test` if you want a small validation download before pulling the full content set.
 - The main page is now intended to be a first-start configuration screen with base install selected by default.
 - The main page now switches automatically between first-start setup mode and the normal dashboard based on saved setup state.
+- The setup page can now save preferences and trigger the backend apply workflow directly from the browser.
 - Optional education add-ons are tracked separately: `Kolibri` as a modern add-on, and `KA Lite` as a legacy add-on.
 - `Kolibri` now has install automation in the repo. `KA Lite` requires an explicit legacy override and currently records the request rather than forcing a risky unattended install on modern Raspberry Pi OS.
 - Wireless AP mode can be enabled through `config/prepmaster.env` and applied by the installer or `scripts/configure_access_point.sh`.

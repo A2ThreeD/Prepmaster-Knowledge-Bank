@@ -2,8 +2,10 @@
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -70,6 +72,10 @@ class PortalState:
         self.prepmaster_env = self.repo_root / "config" / "prepmaster.env"
         self.install_profile_env = self.repo_root / "config" / "install-profile.env"
         self.state_file = self.data_dir / "portal-state.json"
+        self.apply_state_file = self.data_dir / "apply-state.json"
+        self.apply_log_file = self.data_dir / "apply.log"
+        self.apply_lock = threading.Lock()
+        self.apply_thread: threading.Thread | None = None
 
     def load_state(self) -> dict:
         prepmaster = read_env_file(self.prepmaster_env)
@@ -138,11 +144,135 @@ class PortalState:
             "uptime": self.read_uptime(),
             "services": {
                 "portal": self.read_service_status("prepmaster-portal.service"),
+                "kiwix": self.read_service_status("prepmaster-kiwix.service"),
                 "hostapd": self.read_service_status("hostapd.service"),
                 "dnsmasq": self.read_service_status("dnsmasq.service"),
                 "nginx": self.read_service_status("nginx.service"),
             },
         }
+
+    def load_apply_state(self) -> dict:
+        state = read_json(
+            self.apply_state_file,
+            {
+                "status": "idle",
+                "started_at": None,
+                "finished_at": None,
+                "step": None,
+                "exit_code": None,
+                "error": None,
+            },
+        )
+        state["log_tail"] = self.read_log_tail()
+        return state
+
+    def save_apply_state(self, payload: dict) -> dict:
+        current = read_json(self.apply_state_file, {})
+        current.update(payload)
+        self.apply_state_file.write_text(json.dumps(current, indent=2) + "\n")
+        return self.load_apply_state()
+
+    def read_log_tail(self, lines: int = 30) -> list[str]:
+        if not self.apply_log_file.exists():
+            return []
+        content = self.apply_log_file.read_text().splitlines()
+        return content[-lines:]
+
+    def start_apply(self) -> dict:
+        with self.apply_lock:
+            state = self.load_apply_state()
+            if state.get("status") == "running":
+                raise RuntimeError("Configuration apply is already running")
+
+            self.apply_log_file.write_text("")
+            self.save_apply_state(
+                {
+                    "status": "running",
+                    "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "finished_at": None,
+                    "step": "Starting apply workflow",
+                    "exit_code": None,
+                    "error": None,
+                }
+            )
+            self.apply_thread = threading.Thread(
+                target=self.run_apply_workflow,
+                daemon=True,
+            )
+            self.apply_thread.start()
+            return self.load_apply_state()
+
+    def run_apply_workflow(self) -> None:
+        commands = [
+            (
+                "Downloading selected Kiwix content",
+                [str(self.repo_root / "scripts" / "download_kiwix_zims.sh")],
+            ),
+            (
+                "Installing optional components",
+                [str(self.repo_root / "scripts" / "install_optional_components.sh")],
+            ),
+            (
+                "Applying wireless AP settings",
+                [str(self.repo_root / "scripts" / "configure_access_point.sh")],
+            ),
+            (
+                "Rebuilding Kiwix library",
+                [str(self.repo_root / "scripts" / "rebuild_kiwix_library.sh")],
+            ),
+            (
+                "Restarting core services",
+                ["systemctl", "restart", "prepmaster-kiwix.service"],
+            ),
+            (
+                "Reloading Nginx",
+                ["systemctl", "reload", "nginx"],
+            ),
+        ]
+
+        env = dict(os.environ)
+        env.update(read_env_file(self.prepmaster_env))
+        env.update(
+            {
+                "PREPMASTER_ENV_FILE": str(self.prepmaster_env),
+                "PREPMASTER_PROFILE_FILE": str(self.install_profile_env),
+                "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            }
+        )
+
+        exit_code = 0
+        error_message = None
+
+        with self.apply_log_file.open("a", encoding="utf-8") as log_handle:
+            for step, command in commands:
+                self.save_apply_state({"step": step})
+                log_handle.write(f"\n== {step} ==\n")
+                log_handle.flush()
+                result = subprocess.run(
+                    command,
+                    cwd=self.repo_root,
+                    env=env,
+                    stdout=log_handle,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    check=False,
+                )
+                log_handle.flush()
+                if result.returncode != 0:
+                    exit_code = result.returncode
+                    error_message = f"{step} failed with exit code {result.returncode}"
+                    break
+
+        final_status = "succeeded" if exit_code == 0 else "failed"
+        self.save_apply_state(
+            {
+                "status": final_status,
+                "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "exit_code": exit_code,
+                "error": error_message,
+                "step": None if exit_code == 0 else step,
+            }
+        )
 
     def read_temperature(self) -> float | None:
         thermal = Path("/sys/class/thermal/thermal_zone0/temp")
@@ -196,26 +326,39 @@ class PortalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/status":
             self.send_json(self.portal_state.status())
             return
+        if self.path == "/api/apply":
+            self.send_json(self.portal_state.load_apply_state())
+            return
         self.send_json({"error": "Not found"}, status=404)
 
     def do_POST(self) -> None:
-        if self.path != "/api/setup":
-            self.send_json({"error": "Not found"}, status=404)
-            return
-
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length)
         try:
             payload = json.loads(raw.decode("utf-8") or "{}")
-            state = self.portal_state.save_setup(payload)
         except json.JSONDecodeError:
             self.send_json({"error": "Invalid JSON"}, status=400)
             return
-        except ValueError as exc:
-            self.send_json({"error": str(exc)}, status=400)
+
+        if self.path == "/api/setup":
+            try:
+                state = self.portal_state.save_setup(payload)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            self.send_json(state)
             return
 
-        self.send_json(state)
+        if self.path == "/api/apply":
+            try:
+                state = self.portal_state.start_apply()
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=409)
+                return
+            self.send_json(state, status=202)
+            return
+
+        self.send_json({"error": "Not found"}, status=404)
 
     def send_json(self, payload: dict, status: int = 200) -> None:
         encoded = json.dumps(payload).encode("utf-8")
