@@ -273,6 +273,7 @@
         </p>
         <p class="muted" id="maps-root">PMTiles root: loading</p>
         <p class="muted" id="active-map-file">Active map: loading</p>
+        <p class="muted" id="maps-catalog-source">Catalog source: loading</p>
         <div class="field">
           <label for="map-package">Available PMTiles Package</label>
           <select id="map-package"></select>
@@ -282,6 +283,19 @@
           <button class="button" id="save-map-button" type="button">Set Active Map</button>
         </div>
         <p class="status" id="maps-status">Maps package status: loading</p>
+        <div class="field">
+          <label>Project NOMAD Map Downloads</label>
+          <div id="maps-catalog-list" class="log-panel muted">Loading map catalog...</div>
+        </div>
+        <div class="actions">
+          <button class="button" id="refresh-catalog-button" type="button">Refresh Catalog</button>
+          <button class="button" id="sync-maps-button" type="button">Update Installed Maps</button>
+        </div>
+        <p class="status" id="maps-sync-status">Map sync: idle</p>
+        <div class="log-panel">
+          <strong>Map Sync Log</strong>
+          <pre id="maps-sync-log">No map sync activity yet.</pre>
+        </div>
       </section>
     </div>
     <div class="actions">
@@ -294,6 +308,8 @@
     let currentState = null;
     let applyPollHandle = null;
     let currentMaps = null;
+    let currentCatalog = null;
+    let mapsSyncPollHandle = null;
 
     function renderApplyState(apply) {
       const label = apply.action ? ` (${apply.action})` : "";
@@ -338,17 +354,19 @@
 
     async function loadAdminStatus() {
       try {
-        const [stateResponse, statusResponse, applyResponse, mapsResponse] = await Promise.all([
+        const [stateResponse, statusResponse, applyResponse, mapsResponse, mapSyncResponse] = await Promise.all([
           fetch("/api/state", { cache: "no-store" }),
           fetch("/api/status", { cache: "no-store" }),
           fetch("/api/apply", { cache: "no-store" }),
-          fetch("/api/maps", { cache: "no-store" })
+          fetch("/api/maps", { cache: "no-store" }),
+          fetch("/api/maps/sync", { cache: "no-store" })
         ]);
 
         currentState = await stateResponse.json();
         const status = await statusResponse.json();
         const apply = await applyResponse.json();
         currentMaps = await mapsResponse.json();
+        const mapSync = await mapSyncResponse.json();
 
         document.getElementById("zim-mode").value = currentState.profile.zim_mode || status.content_mode || "full";
         document.getElementById("mode-status").textContent =
@@ -359,6 +377,7 @@
         document.getElementById("ap-status").textContent =
           `AP services: hostapd ${status.services.hostapd} | dnsmasq ${status.services.dnsmasq}`;
         renderMapsState(currentMaps);
+        renderMapSyncState(mapSync);
         renderApplyState(apply);
       } catch (error) {
         document.getElementById("mode-status").textContent = "Content mode: unavailable";
@@ -366,6 +385,7 @@
         document.getElementById("kiwix-status").textContent = "Kiwix service: unavailable";
         document.getElementById("ap-status").textContent = "AP services: unavailable";
         document.getElementById("maps-status").textContent = "Maps package status: unavailable";
+        document.getElementById("maps-sync-status").textContent = "Map sync: unavailable";
         document.getElementById("apply-status").textContent = "Apply status: unavailable";
         document.getElementById("content-action-status").textContent = "Content actions: unavailable";
       }
@@ -400,6 +420,58 @@
           }
           select.appendChild(option);
         }
+      }
+    }
+
+    function renderCatalog(catalog) {
+      document.getElementById("maps-catalog-source").textContent =
+        `Catalog source: ${catalog.source.owner}/${catalog.source.repo}:${catalog.source.subdir}`;
+      const container = document.getElementById("maps-catalog-list");
+
+      if (!catalog.items.length) {
+        container.innerHTML = "No PMTiles packages were returned by the Project NOMAD catalog.";
+        return;
+      }
+
+      container.innerHTML = catalog.items.map((item) => {
+        const checked = item.installed ? "checked" : "";
+        const details = [];
+        if (item.installed) details.push("installed");
+        if (item.active) details.push("active");
+        if (item.size_bytes) details.push(`${(item.size_bytes / (1024 * 1024)).toFixed(1)} MB`);
+        const detailText = details.length ? ` <span class="muted">(${details.join(" | ")})</span>` : "";
+        return `<label style="display:block;margin-bottom:8px;">
+          <input type="checkbox" class="map-catalog-checkbox" value="${item.name}" ${checked}>
+          ${item.name}${detailText}
+        </label>`;
+      }).join("");
+    }
+
+    function renderMapSyncState(state) {
+      const step = state.current_file ? ` | ${state.current_file}` : "";
+      document.getElementById("maps-sync-status").textContent =
+        `Map sync: ${state.status}${step}`;
+      document.getElementById("maps-sync-log").textContent =
+        state.log_tail && state.log_tail.length
+          ? state.log_tail.join("\n")
+          : "No map sync activity yet.";
+
+      const running = state.status === "running";
+      document.getElementById("sync-maps-button").disabled = running;
+      document.getElementById("refresh-catalog-button").disabled = running;
+
+      const checkboxes = document.querySelectorAll(".map-catalog-checkbox");
+      checkboxes.forEach((checkbox) => {
+        checkbox.disabled = running;
+      });
+
+      if (running && mapsSyncPollHandle === null) {
+        mapsSyncPollHandle = window.setInterval(loadMapSyncState, 4000);
+      }
+
+      if (!running && mapsSyncPollHandle !== null) {
+        window.clearInterval(mapsSyncPollHandle);
+        mapsSyncPollHandle = null;
       }
     }
 
@@ -474,6 +546,34 @@
       }
     }
 
+    async function refreshCatalog() {
+      try {
+        const response = await fetch("/api/maps/catalog", { cache: "no-store" });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to load Project NOMAD catalog");
+        }
+        currentCatalog = payload;
+        renderCatalog(payload);
+      } catch (error) {
+        document.getElementById("maps-catalog-list").textContent = error.message;
+      }
+    }
+
+    async function loadMapSyncState() {
+      try {
+        const response = await fetch("/api/maps/sync", { cache: "no-store" });
+        const payload = await response.json();
+        renderMapSyncState(payload);
+        if (payload.status !== "running") {
+          await refreshMapsList();
+          await refreshCatalog();
+        }
+      } catch (error) {
+        document.getElementById("maps-sync-status").textContent = "Map sync: unavailable";
+      }
+    }
+
     async function saveMapSelection() {
       const select = document.getElementById("map-package");
       const button = document.getElementById("save-map-button");
@@ -506,13 +606,38 @@
       }
     }
 
+    async function syncMapsSelection() {
+      const selectedFiles = Array.from(document.querySelectorAll(".map-catalog-checkbox:checked"))
+        .map((checkbox) => checkbox.value);
+
+      document.getElementById("maps-sync-status").textContent = "Map sync: starting";
+
+      try {
+        const response = await fetch("/api/maps/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ selected_files: selectedFiles })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to start map sync");
+        }
+        renderMapSyncState(payload);
+      } catch (error) {
+        document.getElementById("maps-sync-status").textContent = `Map sync: ${error.message}`;
+      }
+    }
+
     document.getElementById("save-mode-button").addEventListener("click", saveContentMode);
     document.getElementById("refresh-content-button").addEventListener("click", () => triggerApplyAction("refresh-content"));
     document.getElementById("rebuild-library-button").addEventListener("click", () => triggerApplyAction("rebuild-library"));
     document.getElementById("full-apply-button").addEventListener("click", () => triggerApplyAction("full"));
     document.getElementById("refresh-maps-button").addEventListener("click", refreshMapsList);
     document.getElementById("save-map-button").addEventListener("click", saveMapSelection);
+    document.getElementById("refresh-catalog-button").addEventListener("click", refreshCatalog);
+    document.getElementById("sync-maps-button").addEventListener("click", syncMapsSelection);
     loadAdminStatus();
+    refreshCatalog();
   </script>
 </body>
 </html>

@@ -10,6 +10,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib import error, request
 
 
 def parse_args() -> argparse.Namespace:
@@ -75,8 +76,12 @@ class PortalState:
         self.state_file = self.data_dir / "portal-state.json"
         self.apply_state_file = self.data_dir / "apply-state.json"
         self.apply_log_file = self.data_dir / "apply.log"
+        self.map_sync_state_file = self.data_dir / "map-sync-state.json"
+        self.map_sync_log_file = self.data_dir / "map-sync.log"
         self.apply_lock = threading.Lock()
         self.apply_thread: threading.Thread | None = None
+        self.map_sync_lock = threading.Lock()
+        self.map_sync_thread: threading.Thread | None = None
         self.write_maps_runtime_config()
         self.recover_interrupted_apply()
 
@@ -159,6 +164,59 @@ class PortalState:
             "language": env.get("PREPMASTER_MAP_LANGUAGE", "en"),
         }
 
+    def maps_catalog_source(self) -> dict[str, str]:
+        env = self.maps_env()
+        return {
+            "owner": env.get("PREPMASTER_MAP_REPO_OWNER", "Crosstalk-Solutions"),
+            "repo": env.get("PREPMASTER_MAP_REPO_NAME", "project-nomad-maps"),
+            "branch": env.get("PREPMASTER_MAP_REPO_BRANCH", "main"),
+            "subdir": env.get("PREPMASTER_MAP_REPO_SUBDIR", "pmtiles"),
+        }
+
+    def fetch_nomad_maps_catalog(self) -> dict:
+        source = self.maps_catalog_source()
+        api_url = (
+            f"https://api.github.com/repos/{source['owner']}/{source['repo']}"
+            f"/contents/{source['subdir']}?ref={source['branch']}"
+        )
+        req = request.Request(
+            api_url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "SOPR-Portal",
+            },
+        )
+        try:
+            with request.urlopen(req, timeout=30) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except error.URLError as exc:
+            raise RuntimeError(f"Unable to fetch NOMAD maps catalog: {exc}") from exc
+
+        installed = set(self.list_pmtiles_packages())
+        active = self.active_pmtiles_file()
+        items = []
+        for entry in payload:
+            if entry.get("type") != "file":
+                continue
+            name = entry.get("name", "")
+            if not name.endswith(".pmtiles"):
+                continue
+            items.append(
+                {
+                    "name": name,
+                    "size_bytes": entry.get("size", 0),
+                    "download_url": entry.get("download_url"),
+                    "html_url": entry.get("html_url"),
+                    "installed": name in installed,
+                    "active": name == active,
+                }
+            )
+
+        return {
+            "source": source,
+            "items": sorted(items, key=lambda item: item["name"]),
+        }
+
     def select_map_package(self, filename: str) -> dict:
         if not filename or Path(filename).name != filename or not filename.endswith(".pmtiles"):
             raise ValueError("Invalid PMTiles filename")
@@ -175,6 +233,175 @@ class PortalState:
         )
         self.write_maps_runtime_config()
         return self.maps_status()
+
+    def read_map_sync_log_tail(self, lines: int = 30) -> list[str]:
+        if not self.map_sync_log_file.exists():
+            return []
+        return self.map_sync_log_file.read_text().splitlines()[-lines:]
+
+    def load_map_sync_state(self) -> dict:
+        state = read_json(
+            self.map_sync_state_file,
+            {
+                "status": "idle",
+                "started_at": None,
+                "finished_at": None,
+                "current_file": None,
+                "current_index": None,
+                "total_files": None,
+                "progress_percent": 0,
+                "error": None,
+                "selected_files": [],
+            },
+        )
+        state["log_tail"] = self.read_map_sync_log_tail()
+        return state
+
+    def save_map_sync_state(self, payload: dict) -> dict:
+        current = read_json(self.map_sync_state_file, {})
+        current.update(payload)
+        self.map_sync_state_file.write_text(json.dumps(current, indent=2) + "\n")
+        return self.load_map_sync_state()
+
+    def start_map_sync(self, selected_files: list[str]) -> dict:
+        cleaned = []
+        for value in selected_files:
+            name = Path(value).name
+            if name != value or not name.endswith(".pmtiles"):
+                raise ValueError("Invalid PMTiles filename in selection")
+            cleaned.append(name)
+
+        cleaned = sorted(set(cleaned))
+
+        with self.map_sync_lock:
+            current = self.load_map_sync_state()
+            if current.get("status") == "running":
+                raise RuntimeError("Map sync is already running")
+
+            catalog = self.fetch_nomad_maps_catalog()
+            remote_names = {item["name"] for item in catalog["items"]}
+            missing = [name for name in cleaned if name not in remote_names]
+            if missing:
+                raise ValueError(f"Selected PMTiles package is not in catalog: {missing[0]}")
+
+            self.map_sync_log_file.write_text("")
+            self.save_map_sync_state(
+                {
+                    "status": "running",
+                    "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "finished_at": None,
+                    "current_file": None,
+                    "current_index": 0,
+                    "total_files": len(cleaned),
+                    "progress_percent": 0,
+                    "error": None,
+                    "selected_files": cleaned,
+                }
+            )
+            self.map_sync_thread = threading.Thread(
+                target=self.run_map_sync,
+                args=(cleaned,),
+                daemon=True,
+            )
+            self.map_sync_thread.start()
+            return self.load_map_sync_state()
+
+    def run_map_sync(self, selected_files: list[str]) -> None:
+        exit_error = None
+        root = self.maps_root()
+        root.mkdir(parents=True, exist_ok=True)
+
+        try:
+            catalog = self.fetch_nomad_maps_catalog()
+            remote_by_name = {item["name"]: item for item in catalog["items"]}
+            managed_remote_names = set(remote_by_name.keys())
+
+            with self.map_sync_log_file.open("a", encoding="utf-8") as log_handle:
+                log_handle.write("== Syncing Project NOMAD PMTiles packages ==\n")
+                log_handle.flush()
+
+                total_files = len(selected_files)
+                for index, name in enumerate(selected_files, start=1):
+                    item = remote_by_name[name]
+                    destination = root / name
+                    self.save_map_sync_state(
+                        {
+                            "current_file": name,
+                            "current_index": index,
+                            "total_files": total_files,
+                            "progress_percent": int(((index - 1) / max(total_files, 1)) * 100),
+                        }
+                    )
+
+                    log_handle.write(f"\n== Syncing map {index}/{total_files}: {name} ==\n")
+                    log_handle.flush()
+
+                    expected_size = int(item.get("size_bytes") or 0)
+                    if destination.exists() and expected_size and destination.stat().st_size == expected_size:
+                        log_handle.write(f"Already current: {name}\n")
+                        log_handle.flush()
+                    else:
+                        if destination.exists() and expected_size and destination.stat().st_size > expected_size:
+                            destination.unlink()
+
+                        result = subprocess.run(
+                            [
+                                "curl",
+                                "-fL",
+                                "--continue-at",
+                                "-",
+                                "--output",
+                                str(destination),
+                                str(item["download_url"]),
+                            ],
+                            stdout=log_handle,
+                            stderr=subprocess.STDOUT,
+                            text=True,
+                            check=False,
+                        )
+                        log_handle.flush()
+                        if result.returncode != 0:
+                            raise RuntimeError(f"Download failed for {name}")
+
+                    self.save_map_sync_state(
+                        {
+                            "current_file": name,
+                            "current_index": index,
+                            "total_files": total_files,
+                            "progress_percent": int((index / max(total_files, 1)) * 100),
+                        }
+                    )
+
+                installed_now = set(self.list_pmtiles_packages())
+                for name in sorted(installed_now):
+                    if name in managed_remote_names and name not in set(selected_files):
+                        target = root / name
+                        log_handle.write(f"Removing unchecked map: {name}\n")
+                        log_handle.flush()
+                        try:
+                            target.unlink()
+                        except FileNotFoundError:
+                            pass
+
+            installed_after = self.list_pmtiles_packages()
+            active = self.active_pmtiles_file()
+            if active not in installed_after:
+                replacement = installed_after[0] if installed_after else "basemap.pmtiles"
+                update_env_file(self.prepmaster_env, {"PREPMASTER_MAP_PMTILES_FILE": replacement})
+
+            self.write_maps_runtime_config()
+        except Exception as exc:  # noqa: BLE001
+            exit_error = str(exc)
+
+        self.save_map_sync_state(
+            {
+                "status": "failed" if exit_error else "succeeded",
+                "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "error": exit_error,
+                "current_file": None,
+                "progress_percent": 100 if not exit_error else read_json(self.map_sync_state_file, {}).get("progress_percent", 0),
+            }
+        )
 
     def save_setup(self, payload: dict) -> dict:
         wikipedia_option = payload.get("wikipedia_option", "top-mini")
@@ -599,6 +826,15 @@ class PortalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/maps":
             self.send_json(self.portal_state.maps_status())
             return
+        if self.path == "/api/maps/catalog":
+            try:
+                self.send_json(self.portal_state.fetch_nomad_maps_catalog())
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=502)
+            return
+        if self.path == "/api/maps/sync":
+            self.send_json(self.portal_state.load_map_sync_state())
+            return
         if self.path == "/api/apply":
             self.send_json(self.portal_state.load_apply_state())
             return
@@ -641,6 +877,18 @@ class PortalHandler(BaseHTTPRequestHandler):
                 self.send_json({"error": str(exc)}, status=400)
                 return
             self.send_json(state)
+            return
+
+        if self.path == "/api/maps/sync":
+            try:
+                state = self.portal_state.start_map_sync(payload.get("selected_files", []))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=409)
+                return
+            self.send_json(state, status=202)
             return
 
         self.send_json({"error": "Not found"}, status=404)
