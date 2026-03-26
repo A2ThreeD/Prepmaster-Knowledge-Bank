@@ -817,13 +817,8 @@
       document.getElementById("system-temp-status").textContent = "Checking...";
       document.getElementById("system-uptime-status").textContent = "Uptime: checking...";
       try {
-        const [stateResult, statusResult] = await Promise.all([
-          fetchJsonWithTimeout("/api/state"),
-          fetchJsonWithTimeout("/api/status"),
-        ]);
-
-        currentState = stateResult.payload;
-        currentStatus = statusResult.payload;
+        const { payload } = await fetchJsonWithTimeout("/api/status", {}, 2500);
+        currentStatus = payload;
         renderSystemHealth(currentStatus);
         document.getElementById("kiwix-target").textContent = `Kiwix target: ${currentStatus.kiwix_url}`;
         document.getElementById("kiwix-link").href = currentStatus.kiwix_url;
