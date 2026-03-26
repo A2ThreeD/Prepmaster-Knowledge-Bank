@@ -410,6 +410,7 @@
           </select>
         </div>
         <div class="actions">
+          <button class="button secondary" id="refresh-local-state-button" type="button">Refresh Local State</button>
           <button class="button" id="save-map-settings-button" type="button">Apply Map Settings</button>
           <button class="button secondary" id="reload-map-button" type="button">Reload Viewer</button>
         </div>
@@ -461,9 +462,11 @@
     const zoomValue = document.getElementById("zoom-value");
     const mapPackageSelect = document.getElementById("map-package-select");
     const mapFlavorSelect = document.getElementById("map-flavor-select");
+    const refreshLocalStateButton = document.getElementById("refresh-local-state-button");
     const saveMapSettingsButton = document.getElementById("save-map-settings-button");
     const reloadMapButton = document.getElementById("reload-map-button");
     let mapInstance = null;
+    let currentConfigSignature = "";
 
     function setMapMetaChips(items) {
       mapMeta.innerHTML = items.map((item) => {
@@ -477,7 +480,7 @@
       const timeoutHandle = window.setTimeout(() => controller.abort(), 4000);
       let response;
       try {
-        response = await fetch("/api/maps", {
+        response = await fetch("/maps/state.json", {
           cache: "no-store",
           signal: controller.signal
         });
@@ -501,6 +504,22 @@
       } catch (error) {
         return fallbackConfig;
       }
+    }
+
+    function configSignature(config) {
+      return JSON.stringify({
+        pmtilesUrl: config.pmtilesUrl,
+        pmtilesFile: config.pmtilesFile,
+        flavor: config.flavor,
+        language: config.language,
+        defaultLat: config.defaultLat,
+        defaultLon: config.defaultLon,
+        defaultZoom: config.defaultZoom,
+        minZoom: config.minZoom,
+        maxZoom: config.maxZoom,
+        glyphsUrl: config.glyphsUrl,
+        spriteBaseUrl: config.spriteBaseUrl,
+      });
     }
 
     function populateMapControls(state, config) {
@@ -552,6 +571,7 @@
       mapStatus.textContent = "Loading map configuration...";
       mapBanner.classList.add("hidden");
       const config = await loadConfig();
+      currentConfigSignature = configSignature(config);
       populateFallbackControls(config);
 
       latInput.value = config.defaultLat;
@@ -614,8 +634,16 @@
             mapBanner.classList.remove("hidden");
           }
         })
-        .catch(() => {
-          mapArchiveNote.textContent = `Configured archive: ${config.pmtilesFile}`;
+        .catch((error) => {
+          const delayed = error && error.name === "AbortError";
+          mapArchiveNote.textContent = delayed
+            ? `Local state delayed. Configured archive: ${config.pmtilesFile}`
+            : `Configured archive: ${config.pmtilesFile}`;
+          setMapMetaChips([
+            { label: "Archive", value: delayed ? "Delayed" : "Checking", tone: delayed ? "warn" : "warn" },
+            { label: "Theme", value: config.flavor || "dark", tone: "muted" },
+            { label: "Language", value: config.language || "en", tone: "muted" }
+          ]);
         });
 
       fetch(config.pmtilesUrl, { method: "HEAD", cache: "no-store" })
@@ -674,6 +702,33 @@
       zoomValue.textContent = zoomInput.value;
     });
 
+    async function refreshLocalState() {
+      mapStatus.textContent = "Refreshing local map state...";
+      try {
+        const state = await loadMapState();
+        const config = await loadConfig();
+        populateMapControls(state, config);
+        mapStatus.textContent = `Local state refreshed. Active map: ${state.active_file}`;
+      } catch (error) {
+        mapStatus.textContent = error && error.name === "AbortError"
+          ? "Local state refresh timed out."
+          : "Unable to refresh local map state.";
+      }
+    }
+
+    async function syncConfigFromDisk() {
+      try {
+        const config = await loadConfig();
+        const nextSignature = configSignature(config);
+        if (nextSignature !== currentConfigSignature) {
+          mapStatus.textContent = `Detected updated map configuration for ${config.pmtilesFile}. Reloading viewer...`;
+          await buildMap();
+        }
+      } catch (error) {
+        // Ignore periodic sync failures and keep the current map view.
+      }
+    }
+
     document.getElementById("go-button").addEventListener("click", () => {
       const lat = Number.parseFloat(latInput.value);
       const lon = Number.parseFloat(lonInput.value);
@@ -685,6 +740,7 @@
       }
     });
 
+    refreshLocalStateButton.addEventListener("click", refreshLocalState);
     saveMapSettingsButton.addEventListener("click", saveMapSettings);
     reloadMapButton.addEventListener("click", () => {
       buildMap().catch((error) => {
@@ -697,6 +753,7 @@
       mapBanner.textContent = `Map startup error: ${error.message}`;
       mapBanner.classList.remove("hidden");
     });
+    window.setInterval(syncConfigFromDisk, 15000);
   </script>
 </body>
 </html>

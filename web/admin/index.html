@@ -767,6 +767,22 @@
       }).join("");
     }
 
+    async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 5000) {
+      const controller = new AbortController();
+      const timeoutHandle = window.setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, {
+          cache: "no-store",
+          ...options,
+          signal: controller.signal
+        });
+        const payload = await response.json();
+        return { response, payload };
+      } finally {
+        window.clearTimeout(timeoutHandle);
+      }
+    }
+
     function renderSystemHealth(status) {
       const diskUsedPercent = status.disk.total_gb > 0
         ? Math.max(0, Math.min(100, Math.round((status.disk.used_gb / status.disk.total_gb) * 100)))
@@ -801,14 +817,17 @@
     }
 
     async function loadSystemPanelData() {
+      document.getElementById("system-disk-status").textContent = "Checking...";
+      document.getElementById("system-temp-status").textContent = "Checking...";
+      document.getElementById("system-uptime-status").textContent = "Uptime: checking...";
       try {
-        const [stateResponse, statusResponse] = await Promise.all([
-          fetch("/api/state", { cache: "no-store" }),
-          fetch("/api/status", { cache: "no-store" }),
+        const [stateResult, statusResult] = await Promise.all([
+          fetchJsonWithTimeout("/api/state"),
+          fetchJsonWithTimeout("/api/status"),
         ]);
 
-        currentState = await stateResponse.json();
-        currentStatus = await statusResponse.json();
+        currentState = stateResult.payload;
+        currentStatus = statusResult.payload;
         renderSystemHealth(currentStatus);
         document.getElementById("kiwix-target").textContent = `Kiwix target: ${currentStatus.kiwix_url}`;
         document.getElementById("kiwix-link").href = currentStatus.kiwix_url;
@@ -820,14 +839,15 @@
           { label: "Dnsmasq", value: currentStatus.services.dnsmasq, tone: toneForServiceState(currentStatus.services.dnsmasq) }
         ]);
       } catch (error) {
-        document.getElementById("system-disk-status").textContent = "Unavailable";
+        const delayed = error && error.name === "AbortError";
+        document.getElementById("system-disk-status").textContent = delayed ? "Delayed" : "Unavailable";
         document.getElementById("system-disk-fill").style.width = "0%";
-        document.getElementById("system-temp-status").textContent = "Unavailable";
+        document.getElementById("system-temp-status").textContent = delayed ? "Delayed" : "Unavailable";
         document.getElementById("system-temp-fill").style.width = "0%";
         document.getElementById("system-temp-fill").className = "meter-fill";
-        document.getElementById("system-uptime-status").textContent = "Uptime: unavailable";
+        document.getElementById("system-uptime-status").textContent = delayed ? "Uptime: delayed" : "Uptime: unavailable";
         setStatusChips("system-service-status", [
-          { label: "System", value: "Unavailable", tone: "status-chip--error" }
+          { label: "System", value: delayed ? "Delayed" : "Unavailable", tone: delayed ? "status-chip--warn" : "status-chip--error" }
         ]);
         document.getElementById("kiwix-target").textContent = "Kiwix target: unavailable";
         setStatusChips("kiwix-status", [
@@ -841,14 +861,14 @@
 
     async function loadContentPanelData() {
       try {
-        const [stateResponse, statusResponse, applyResponse] = await Promise.all([
-          fetch("/api/state", { cache: "no-store" }),
-          fetch("/api/status", { cache: "no-store" }),
-          fetch("/api/apply", { cache: "no-store" })
+        const [stateResult, statusResult, applyResult] = await Promise.all([
+          fetchJsonWithTimeout("/api/state"),
+          fetchJsonWithTimeout("/api/status"),
+          fetchJsonWithTimeout("/api/apply")
         ]);
-        currentState = await stateResponse.json();
-        currentStatus = await statusResponse.json();
-        const apply = await applyResponse.json();
+        currentState = stateResult.payload;
+        currentStatus = statusResult.payload;
+        const apply = applyResult.payload;
         document.getElementById("zim-mode").value = currentState.profile.zim_mode || currentStatus.content_mode || "full";
         document.getElementById("mode-status").textContent =
           `Content mode: ${currentStatus.content_mode || currentState.profile.zim_mode || "full"}`;
@@ -862,8 +882,7 @@
 
     async function loadApplyStateOnly() {
       try {
-        const response = await fetch("/api/apply", { cache: "no-store" });
-        const payload = await response.json();
+        const { payload } = await fetchJsonWithTimeout("/api/apply");
         renderApplyState(payload);
       } catch (error) {
         document.getElementById("apply-status").textContent = "Apply status: unavailable";
@@ -872,13 +891,15 @@
     }
 
     async function loadMapsPanelData() {
+      document.getElementById("maps-root").textContent = "PMTiles root: checking local storage...";
+      document.getElementById("active-map-file").textContent = "Active map: checking local storage...";
       try {
-        const [mapsResponse, mapSyncResponse] = await Promise.all([
-          fetch("/api/maps", { cache: "no-store" }),
-          fetch("/api/maps/sync", { cache: "no-store" })
+        const [mapsResult, mapSyncResult] = await Promise.all([
+          fetchJsonWithTimeout("/api/maps"),
+          fetchJsonWithTimeout("/api/maps/sync")
         ]);
-        currentMaps = await mapsResponse.json();
-        const mapSync = await mapSyncResponse.json();
+        currentMaps = mapsResult.payload;
+        const mapSync = mapSyncResult.payload;
         renderMapsState(currentMaps);
         renderMapSyncState(mapSync);
         if (currentCatalog) {
@@ -893,8 +914,11 @@
         setStatusChips("maps-status", [
           { label: "Archive", value: "Unavailable", tone: "status-chip--error" }
         ]);
-        document.getElementById("maps-status-note").textContent = "Map package status is unavailable.";
-        document.getElementById("maps-sync-status").textContent = "Map sync: unavailable";
+        const delayed = error && error.name === "AbortError";
+        document.getElementById("maps-root").textContent = delayed ? "PMTiles root: local check delayed" : "PMTiles root: unavailable";
+        document.getElementById("active-map-file").textContent = delayed ? "Active map: local check delayed" : "Active map: unavailable";
+        document.getElementById("maps-status-note").textContent = delayed ? "Local map state is taking too long to respond." : "Map package status is unavailable.";
+        document.getElementById("maps-sync-status").textContent = delayed ? "Map sync: local check delayed" : "Map sync: unavailable";
       }
     }
 
@@ -1116,8 +1140,7 @@
 
     async function refreshMapsList() {
       try {
-        const response = await fetch("/api/maps", { cache: "no-store" });
-        const payload = await response.json();
+        const { payload } = await fetchJsonWithTimeout("/api/maps");
         currentMaps = payload;
         renderMapsState(payload);
       } catch (error) {
@@ -1130,8 +1153,11 @@
 
     async function refreshCatalog(forceRefresh = true) {
       try {
-        const response = await fetch(forceRefresh ? "/api/maps/catalog?refresh=1" : "/api/maps/catalog", { cache: "no-store" });
-        const payload = await response.json();
+        const { response, payload } = await fetchJsonWithTimeout(
+          forceRefresh ? "/api/maps/catalog?refresh=1" : "/api/maps/catalog",
+          {},
+          12000
+        );
         if (!response.ok) {
           throw new Error(payload.error || "Unable to load Project NOMAD catalog");
         }
@@ -1144,8 +1170,7 @@
 
     async function loadMapSyncState() {
       try {
-        const response = await fetch("/api/maps/sync", { cache: "no-store" });
-        const payload = await response.json();
+        const { payload } = await fetchJsonWithTimeout("/api/maps/sync");
         renderMapSyncState(payload);
         if (payload.status !== "running" && currentPanel === "maps") {
           await refreshMapsList();
@@ -1174,12 +1199,11 @@
 
       button.disabled = true;
       try {
-        const response = await fetch("/api/maps/settings", {
+        const { response, payload } = await fetchJsonWithTimeout("/api/maps/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ filename, flavor })
         });
-        const payload = await response.json();
         if (!response.ok) {
           throw new Error(payload.error || "Unable to select map package");
         }
@@ -1218,12 +1242,11 @@
       document.getElementById("maps-sync-status").textContent = "Map sync: starting";
 
       try {
-        const response = await fetch("/api/maps/sync", {
+        const { response, payload } = await fetchJsonWithTimeout("/api/maps/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ selected_files: selectedFiles })
-        });
-        const payload = await response.json();
+        }, 12000);
         if (!response.ok) {
           throw new Error(payload.error || "Unable to start map sync");
         }

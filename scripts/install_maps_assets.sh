@@ -102,6 +102,22 @@ cat > "$PREPMASTER_MAPS_ROOT/config.json" <<EOF
 }
 EOF
 
+cat > "$PREPMASTER_MAPS_ROOT/state.json" <<EOF
+{
+  "root": "${PREPMASTER_MAP_PMTILES_ROOT}",
+  "active_file": "${PREPMASTER_MAP_PMTILES_FILE}",
+  "active_url": "/pmtiles/${PREPMASTER_MAP_PMTILES_FILE}",
+  "active_exists": false,
+  "active_valid": false,
+  "active_error": "Local state has not been refreshed by the portal yet.",
+  "active_size_bytes": 0,
+  "available_files": [],
+  "invalid_files": [],
+  "flavor": "${PREPMASTER_MAP_STYLE_FLAVOR:-dark}",
+  "language": "${PREPMASTER_MAP_LANGUAGE:-en}"
+}
+EOF
+
 echo "MapLibre assets installed to $PREPMASTER_MAPS_ROOT/vendor/maplibre-gl"
 echo "PMTiles assets installed to $PREPMASTER_MAPS_ROOT/vendor/pmtiles"
 echo "Protomaps basemap assets installed to $PREPMASTER_MAPS_ROOT/assets"

@@ -187,6 +187,7 @@ class PortalState:
         env = self.maps_env()
         maps_web_root = self.maps_web_root()
         maps_web_root.mkdir(parents=True, exist_ok=True)
+        status = self.maps_status()
         config = {
             "pmtilesUrl": f"/pmtiles/{env.get('PREPMASTER_MAP_PMTILES_FILE', 'basemap.pmtiles')}",
             "pmtilesFile": env.get("PREPMASTER_MAP_PMTILES_FILE", "basemap.pmtiles"),
@@ -199,6 +200,7 @@ class PortalState:
             "maxZoom": int(env.get("PREPMASTER_MAP_MAX_ZOOM", "14")),
         }
         (maps_web_root / "config.json").write_text(json.dumps(config, indent=2) + "\n")
+        (maps_web_root / "state.json").write_text(json.dumps(status, indent=2) + "\n")
 
     def maps_status(self) -> dict:
         env = self.maps_env()
