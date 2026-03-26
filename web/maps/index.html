@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SOPR Offline Maps</title>
-  <link rel="stylesheet" href="/maps/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/maps/vendor/maplibre-gl/maplibre-gl.css">
   <style>
     :root {
       --bg: #07111f;
@@ -201,7 +201,7 @@
       <span class="tag">SOPR Navigation</span>
       <h1>Offline Maps</h1>
       <p class="muted">
-        This map view uses Leaflet with a local PMTiles basemap. It is designed for packaged offline archives, including Project NOMAD regional map files.
+        This map view uses MapLibre with a local PMTiles basemap. It is designed for packaged offline archives, including Project NOMAD regional map files.
       </p>
 
       <div class="actions">
@@ -255,8 +255,9 @@
     </main>
   </div>
 
-  <script src="/maps/vendor/leaflet/leaflet.js"></script>
-  <script src="/maps/vendor/protomaps-leaflet/protomaps-leaflet.js"></script>
+  <script src="/maps/vendor/maplibre-gl/maplibre-gl.js"></script>
+  <script src="/maps/vendor/pmtiles/pmtiles.js"></script>
+  <script src="/maps/vendor/basemaps/basemaps.js"></script>
   <script>
     const fallbackConfig = {
       pmtilesUrl: "/pmtiles/basemap.pmtiles",
@@ -268,6 +269,8 @@
       defaultZoom: 4,
       minZoom: 2,
       maxZoom: 14,
+      glyphsUrl: "/maps/assets/fonts/{fontstack}/{range}.pbf",
+      spriteBaseUrl: "/maps/assets/sprites/v4/dark",
     };
 
     const mapStatus = document.getElementById("map-status");
@@ -300,11 +303,38 @@
       lonInput.value = config.defaultLon;
       zoomInput.value = config.defaultZoom;
 
-      const map = L.map("map", {
-        zoomControl: true,
+      const protocol = new pmtiles.Protocol();
+      maplibregl.addProtocol("pmtiles", protocol.tile);
+      const pmtilesSource = new pmtiles.PMTiles(window.location.origin + config.pmtilesUrl);
+      protocol.add(pmtilesSource);
+
+      const map = new maplibregl.Map({
+        container: "map",
+        center: [config.defaultLon, config.defaultLat],
+        zoom: config.defaultZoom,
         minZoom: config.minZoom,
         maxZoom: config.maxZoom,
-      }).setView([config.defaultLat, config.defaultLon], config.defaultZoom);
+        attributionControl: true,
+        style: {
+          version: 8,
+          glyphs: window.location.origin + config.glyphsUrl,
+          sprite: window.location.origin + config.spriteBaseUrl,
+          sources: {
+            protomaps: {
+              type: "vector",
+              url: `pmtiles://${window.location.origin}${config.pmtilesUrl}`,
+              attribution: 'Protomaps © OpenStreetMap'
+            }
+          },
+          layers: basemaps.layers(
+            "protomaps",
+            basemaps.namedFlavor(config.flavor),
+            { lang: config.language }
+          )
+        }
+      });
+
+      map.addControl(new maplibregl.NavigationControl(), "top-right");
 
       document.getElementById("go-button").addEventListener("click", () => {
         const lat = Number.parseFloat(latInput.value);
@@ -312,7 +342,7 @@
         const zoom = Number.parseInt(zoomInput.value, 10);
 
         if (Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(zoom)) {
-          map.setView([lat, lon], zoom);
+          map.flyTo({ center: [lon, lat], zoom });
           mapStatus.textContent = `Centered on ${lat.toFixed(4)}, ${lon.toFixed(4)} at zoom ${zoom}.`;
         }
       });
@@ -322,19 +352,20 @@
         if (!response.ok) {
           throw new Error(`archive returned ${response.status}`);
         }
-
-        protomapsL.leafletLayer({
-          url: config.pmtilesUrl,
-          flavor: config.flavor,
-          lang: config.language,
-        }).addTo(map);
-
         mapStatus.textContent = `Offline PMTiles archive detected. ${config.pmtilesFile} is ready for disconnected use.`;
         mapBanner.classList.add("hidden");
       } catch (error) {
         mapStatus.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
         mapBanner.classList.remove("hidden");
       }
+
+      map.on("error", (event) => {
+        const errorMessage = event && event.error && event.error.message
+          ? event.error.message
+          : "MapLibre could not render the active PMTiles archive.";
+        mapStatus.textContent = `Map error: ${errorMessage}`;
+        mapBanner.classList.remove("hidden");
+      });
     }
 
     initMap();

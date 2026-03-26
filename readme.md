@@ -38,7 +38,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `docs/software-plan.md` - software checklist for the Pi
 - `index.html.framework` - backup design-language reference for the UI
 - `web/admin/index.html` - starter admin page placeholder
-- `web/maps/index.html` - offline PMTiles maps viewer
+- `web/maps/index.html` - offline PMTiles maps viewer powered by MapLibre
 
 ## Intended Software Stack
 
@@ -87,7 +87,7 @@ sudo ./scripts/download_kiwix_zims.sh
 - The setup page can now save preferences and trigger the backend apply workflow directly from the browser.
 - Kiwix now runs on a dedicated port, and the dashboard/admin views expose the real Kiwix target URL.
 - If no Kiwix library exists yet, the dedicated Kiwix port serves a placeholder page instead of crash-looping.
-- `/maps` now expects a local PMTiles archive under the configured PMTiles root instead of a raster `z/x/y.png` tile tree.
+- `/maps` now expects a local PMTiles archive under the configured PMTiles root and renders it through MapLibre instead of a raster `z/x/y.png` tile tree.
 - Optional education add-ons are tracked separately: `Kolibri` as a modern add-on, and `KA Lite` as a legacy add-on.
 - `Kolibri` now has install automation in the repo. `KA Lite` requires an explicit legacy override and currently records the request rather than forcing a risky unattended install on modern Raspberry Pi OS.
 - Wireless AP mode can be enabled through `config/prepmaster.env` and applied by the installer or `scripts/configure_access_point.sh`.
