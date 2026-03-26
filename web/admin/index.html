@@ -1319,6 +1319,12 @@
         return;
       }
 
+      const confirmationMessage = `Remove ${selected.length} selected map package${selected.length === 1 ? "" : "s"} from local storage?\n\n${selected.join("\n")}`;
+      if (!window.confirm(confirmationMessage)) {
+        document.getElementById("maps-status-note").textContent = "Map removal canceled.";
+        return;
+      }
+
       button.disabled = true;
       button.textContent = "Removing...";
       try {
@@ -1332,6 +1338,7 @@
         }
         currentMaps = payload;
         renderMapsState(payload, `Removed ${selected.length} local map package${selected.length === 1 ? "" : "s"}.`);
+        await refreshMapsList();
       } catch (error) {
         document.getElementById("maps-status-note").textContent = error.message;
       } finally {
