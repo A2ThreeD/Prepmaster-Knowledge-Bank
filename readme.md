@@ -1,1 +1,87 @@
-Initial commit
+# Prepmaster Knowledge Bank
+
+Prepmaster Knowledge Bank is an offline-first Raspberry Pi project for serving emergency preparedness, medical, survival, and general reference material on a local network.
+
+The current plan is to build on a fresh Raspberry Pi OS Lite install and automate:
+
+- Base OS preparation
+- Required package installation
+- Directory layout for content and site assets
+- Custom web, admin, and maps scaffold
+- Kiwix ZIM downloads into `/library/zims/content`
+- ZIM selection generated from Project NOMAD's `kiwix-categories.json`
+
+## Current Repository Layout
+
+- `instructions.md` - original project requirements
+- `scripts/bootstrap_pi.sh` - prepares a clean Raspberry Pi OS Lite system
+- `scripts/install_prepmaster.sh` - top-level installer for the project
+- `scripts/build_kiwix_zim_manifest.py` - generates the ZIM manifest from Project NOMAD categories
+- `scripts/download_kiwix_zims.sh` - curated Kiwix ZIM downloader
+- `scripts/select_install_profile.sh` - records first-start install choices for optional education add-ons
+- `scripts/install_optional_components.sh` - installs optional education components from the selected profile
+- `scripts/install_kolibri.sh` - installs Kolibri from Learning Equality's package source
+- `scripts/install_ka_lite_legacy.sh` - guarded legacy path for KA Lite requests
+- `scripts/configure_access_point.sh` - configures the Pi as a wireless access point for direct client access
+- `scripts/install_portal_service.sh` - installs the local portal API service for setup state and live status
+- `scripts/install_kiwix_service.sh` - installs and enables the local `kiwix-serve` systemd service
+- `scripts/rebuild_kiwix_library.sh` - rebuilds the Kiwix `library.xml` from downloaded ZIM files
+- `scripts/install_nginx_site.sh` - installs the Nginx site that serves `/`, `/kiwix`, `/maps`, `/admin`, and `/api`
+- `app/prepmaster_portal.py` - lightweight API for persisted setup state and Raspberry Pi status
+- `config/prepmaster.env` - editable install settings
+- `config/install-profile.env` - first-start install profile
+- `config/kiwix-zim-urls.txt` - generated ZIM manifest
+- `wikipedia.json` - selectable Wikipedia ZIM options for the configuration flow
+- `docs/architecture.md` - stack and design notes
+- `docs/software-plan.md` - software checklist for the Pi
+- `index.html.framework` - backup design-language reference for the UI
+- `web/admin/index.html` - starter admin page placeholder
+- `web/maps/index.html` - starter maps page placeholder
+
+## Intended Software Stack
+
+- Raspberry Pi OS Lite
+- Kiwix / `kiwix-serve`
+- Nginx as the outer landing page / reverse proxy layer
+- Avahi for local `.local` discovery on LAN
+- Optional wireless AP mode for direct client access
+- Custom admin and maps components built in-repo
+
+This is an initial scaffold for a fully custom stack. It is designed to give us a repeatable starting point on a fresh Pi while keeping the web layer, admin flow, and future maps integration under our control.
+
+## Fresh Pi Workflow
+
+On the Raspberry Pi:
+
+```bash
+git clone <this-repo-url> prepmaster
+cd prepmaster
+cp config/prepmaster.env.example config/prepmaster.env
+sudo ./scripts/install_prepmaster.sh
+```
+
+If you want to only prepare the OS first:
+
+```bash
+sudo ./scripts/bootstrap_pi.sh
+```
+
+To fetch the current starter content set:
+
+```bash
+sudo ./scripts/download_kiwix_zims.sh
+```
+
+## Notes
+
+- The installer now assumes a custom stack with no IIAB dependency.
+- `kiwix-categories.json` from Project NOMAD is now the source of truth for curated ZIM selection.
+- The generated manifest in `config/kiwix-zim-urls.txt` is built from that JSON using `PREPMASTER_ZIM_PROFILE`.
+- The selected Wikipedia variant is controlled by `PREPMASTER_WIKIPEDIA_OPTION` and sourced from `wikipedia.json`.
+- Supported profiles are `essential`, `standard`, and `comprehensive`.
+- The main page is now intended to be a first-start configuration screen with base install selected by default.
+- The main page now switches automatically between first-start setup mode and the normal dashboard based on saved setup state.
+- Optional education add-ons are tracked separately: `Kolibri` as a modern add-on, and `KA Lite` as a legacy add-on.
+- `Kolibri` now has install automation in the repo. `KA Lite` requires an explicit legacy override and currently records the request rather than forcing a risky unattended install on modern Raspberry Pi OS.
+- Wireless AP mode can be enabled through `config/prepmaster.env` and applied by the installer or `scripts/configure_access_point.sh`.
+- The installer now provisions `kiwix-serve`, the portal API, and an Nginx site so `/`, `/kiwix`, `/maps`, `/admin`, and `/api` are all served through the same local web entry point.

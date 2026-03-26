@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="${PREPMASTER_ENV_FILE:-$REPO_ROOT/config/prepmaster.env}"
+URL_FILE="${PREPMASTER_ZIM_URL_FILE:-$REPO_ROOT/config/kiwix-zim-urls.txt}"
+PROFILE="${PREPMASTER_ZIM_PROFILE:-essential}"
+WIKIPEDIA_OPTION="${PREPMASTER_WIKIPEDIA_OPTION:-top-mini}"
+
+if [[ $EUID -ne 0 ]]; then
+  echo "Please run as root: sudo $0"
+  exit 1
+fi
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Missing config file: $ENV_FILE"
+  exit 1
+fi
+
+if [[ ! -f "$URL_FILE" ]]; then
+  echo "Missing URL manifest: $URL_FILE"
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+
+echo "Building Kiwix ZIM manifest from kiwix-categories.json..."
+python3 "$REPO_ROOT/scripts/build_kiwix_zim_manifest.py" \
+  --source "$REPO_ROOT/kiwix-categories.json" \
+  --output "$URL_FILE" \
+  --profile "$PROFILE" \
+  --wikipedia-options "$REPO_ROOT/wikipedia.json" \
+  --wikipedia-choice "$WIKIPEDIA_OPTION"
+
+install -d -m 0755 "$KIWIX_LIBRARY_DIR"
+cd "$KIWIX_LIBRARY_DIR"
+
+while IFS= read -r url; do
+  [[ -z "$url" ]] && continue
+  [[ "$url" =~ ^# ]] && continue
+
+  echo "Downloading or refreshing: $url"
+  wget -N -c "$url"
+done < "$URL_FILE"
+
+if command -v kiwix-manage >/dev/null 2>&1; then
+  "$REPO_ROOT/scripts/rebuild_kiwix_library.sh"
+fi
+
+echo "ZIM sync complete in $KIWIX_LIBRARY_DIR"

@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prepmaster Command Center</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-deep: #030916;
+      --panel: #102238;
+      --panel-2: #16304d;
+      --text: #edf4fb;
+      --muted: #9bb0c7;
+      --accent: #7bb7ff;
+      --accent-soft: rgba(123, 183, 255, 0.18);
+      --accent-strong: #c8ddff;
+      --border: rgba(158, 190, 227, 0.22);
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+      --legacy: #d5b6b6;
+      --ok: #a9d4ba;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(1000px 540px at 50% -5%, rgba(76, 123, 181, 0.28), transparent 62%),
+        radial-gradient(900px 400px at 100% 0%, rgba(47, 84, 138, 0.18), transparent 55%),
+        linear-gradient(180deg, #091426 0%, var(--bg) 46%, var(--bg-deep) 100%);
+      font-family: "Segoe UI", "Noto Sans", sans-serif;
+      line-height: 1.45;
+      min-height: 100vh;
+      padding: 26px 16px 72px;
+    }
+
+    .shell {
+      max-width: 1220px;
+      margin: 0 auto;
+    }
+
+    .masthead {
+      text-align: center;
+      padding: 10px 12px 26px;
+    }
+
+    .badge {
+      width: 86px;
+      height: 86px;
+      margin: 0 auto 14px;
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+        var(--panel);
+      display: grid;
+      place-items: center;
+      box-shadow: var(--shadow);
+      color: var(--accent-strong);
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .kicker {
+      margin: 0;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 12px;
+    }
+
+    h1 {
+      margin: 8px 0 10px;
+      font-size: clamp(2.1rem, 4vw, 3.35rem);
+      line-height: 1.05;
+    }
+
+    .intro {
+      width: min(780px, 100%);
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .rule {
+      height: 1px;
+      margin: 18px auto 0;
+      width: min(980px, 100%);
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+
+    .message {
+      display: none;
+      margin: 0 auto 18px;
+      max-width: 980px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(16, 34, 56, 0.72);
+      color: var(--accent-strong);
+      padding: 14px 16px;
+    }
+
+    .message.error {
+      color: #ffd2d2;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .tile {
+      position: relative;
+      min-height: 206px;
+      padding: 24px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+        linear-gradient(135deg, rgba(26, 54, 86, 0.96), rgba(14, 31, 51, 0.98));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .tile::after {
+      content: "";
+      position: absolute;
+      inset: auto -30px -36px auto;
+      width: 120px;
+      height: 120px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(123, 183, 255, 0.12), transparent 70%);
+      pointer-events: none;
+    }
+
+    .tile.wide {
+      grid-column: span 2;
+    }
+
+    .tile.legacy {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+        linear-gradient(135deg, rgba(56, 41, 58, 0.96), rgba(26, 22, 39, 0.98));
+    }
+
+    .tile-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: var(--accent-soft);
+      border: 1px solid rgba(174, 207, 241, 0.16);
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      margin-bottom: 18px;
+      color: var(--accent-strong);
+    }
+
+    .tile.legacy .tile-icon {
+      color: #efd5d5;
+      background: rgba(205, 162, 162, 0.12);
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .tile h2 {
+      margin: 0 0 8px;
+      font-size: 1.45rem;
+      line-height: 1.12;
+    }
+
+    .tile p,
+    .tile li,
+    .status-text {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .tile ul {
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .tile li + li {
+      margin-top: 6px;
+    }
+
+    .field {
+      margin-top: 18px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .checkbox-row {
+      margin-top: 18px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    input[type="checkbox"] {
+      margin-top: 5px;
+      transform: scale(1.18);
+      accent-color: var(--accent);
+    }
+
+    select {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.44);
+      color: var(--text);
+      padding: 12px 14px;
+      font: inherit;
+    }
+
+    .command {
+      margin-top: 18px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.44);
+      color: var(--accent-strong);
+      padding: 14px 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 168px;
+      padding: 13px 16px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      text-decoration: none;
+      color: var(--text);
+      background: rgba(7, 17, 31, 0.4);
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .button.primary {
+      background: linear-gradient(135deg, rgba(123, 183, 255, 0.22), rgba(123, 183, 255, 0.08));
+    }
+
+    .button.success {
+      background: linear-gradient(135deg, rgba(109, 190, 144, 0.22), rgba(109, 190, 144, 0.08));
+    }
+
+    .small {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .warn {
+      color: var(--legacy);
+    }
+
+    .status-bar {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      padding: 20px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)),
+        rgba(6, 16, 29, 0.5);
+    }
+
+    .metric strong {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .metric .value {
+      display: block;
+      margin-top: 4px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    @media (max-width: 980px) {
+      .grid,
+      .status-bar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .tile.wide {
+        grid-column: span 2;
+      }
+    }
+
+    @media (max-width: 680px) {
+      body {
+        padding-inline: 12px;
+      }
+
+      .grid,
+      .status-bar {
+        grid-template-columns: 1fr;
+      }
+
+      .tile,
+      .tile.wide {
+        grid-column: auto;
+        min-height: auto;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="masthead">
+      <div class="badge">PM</div>
+      <p class="kicker">Offline Emergency Reference System</p>
+      <h1>Command Center</h1>
+      <p class="intro" id="intro-text">
+        Configure this device for calm, reliable offline use. After setup, this page becomes the main dashboard for content, tools, and system status.
+      </p>
+      <div class="rule"></div>
+    </header>
+
+    <div class="message" id="message"></div>
+
+    <section id="setup-view">
+      <main class="grid">
+        <section class="tile wide">
+          <div class="tile-icon">⌘</div>
+          <span class="eyebrow">First-Start Setup</span>
+          <h2>Choose Your Deployment</h2>
+          <p>
+            The base install is always included: Kiwix, OpenStreetMaps support, local web tools, and Raspberry Pi service scaffolding.
+          </p>
+          <ul>
+            <li>Kiwix knowledge library</li>
+            <li>Maps support and direct local access</li>
+            <li>Admin tools and update automation</li>
+          </ul>
+          <div class="actions">
+            <button class="button success" id="save-setup-button" type="button">Save Setup</button>
+          </div>
+        </section>
+
+        <section class="tile">
+          <div class="tile-icon">◫</div>
+          <span class="eyebrow">Education Add-On</span>
+          <h2>Kolibri</h2>
+          <p>Add modern offline learning content and structured channel support.</p>
+          <label class="checkbox-row">
+            <input id="install-kolibri" type="checkbox">
+            <span>Install Kolibri</span>
+          </label>
+        </section>
+
+        <section class="tile legacy">
+          <div class="tile-icon">△</div>
+          <span class="eyebrow">Legacy Add-On</span>
+          <h2>KA Lite</h2>
+          <p class="warn">Compatibility-only path for older offline Khan Academy style deployments.</p>
+          <label class="checkbox-row">
+            <input id="install-ka-lite" type="checkbox">
+            <span>Request legacy KA Lite</span>
+          </label>
+        </section>
+
+        <section class="tile">
+          <div class="tile-icon">W</div>
+          <span class="eyebrow">Wikipedia Package</span>
+          <h2>Select Wikipedia ZIM</h2>
+          <p>Choose the Wikipedia package that best matches your storage budget.</p>
+          <div class="field">
+            <label for="wikipedia-choice">Wikipedia Variant</label>
+            <select id="wikipedia-choice">
+              <option value="top-mini">Quick Reference - 313 MB</option>
+              <option value="mini">Complete Wikipedia (Mini) - 11.4 GB</option>
+              <option value="maxi">Complete Wikipedia (Maxi) - 115 GB</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="tile">
+          <div class="tile-icon">⌁</div>
+          <span class="eyebrow">Network Option</span>
+          <h2>Wireless Access Point</h2>
+          <p>Allow devices to connect directly to the Pi and access content without another router.</p>
+          <label class="checkbox-row">
+            <input id="ap-enabled" type="checkbox">
+            <span>Enable AP mode</span>
+          </label>
+        </section>
+
+        <section class="tile wide">
+          <div class="tile-icon">→</div>
+          <span class="eyebrow">Selected Setup</span>
+          <h2 id="setup-summary">Base Install only.</h2>
+          <p>Saving writes the selected profile into the project config so install scripts and the dashboard stay in sync.</p>
+          <div class="command" id="profile-command">./scripts/select_install_profile.sh --base-only</div>
+          <div class="command" id="wikipedia-command">PREPMASTER_WIKIPEDIA_OPTION=top-mini</div>
+          <p class="small">
+            After saving, run <code>sudo ./scripts/install_prepmaster.sh</code> if you want to apply the latest configuration to the system.
+          </p>
+        </section>
+      </main>
+    </section>
+
+    <section id="dashboard-view" class="hidden">
+      <main class="grid">
+        <section class="tile">
+          <div class="tile-icon">⌂</div>
+          <span class="eyebrow">Quick Access</span>
+          <h2>Kiwix Full Library</h2>
+          <p>Browse the offline reference collection for medicine, survival, education, and general knowledge.</p>
+          <div class="actions">
+            <a class="button primary" href="/kiwix">Open Kiwix</a>
+          </div>
+        </section>
+
+        <section class="tile">
+          <div class="tile-icon">⌖</div>
+          <span class="eyebrow">Navigation</span>
+          <h2>Offline Maps</h2>
+          <p>Open maps and field navigation tools prepared for disconnected use.</p>
+          <div class="actions">
+            <a class="button" href="/maps">Open Maps</a>
+          </div>
+        </section>
+
+        <section class="tile">
+          <div class="tile-icon">⚙</div>
+          <span class="eyebrow">System Tools</span>
+          <h2>Admin Portal</h2>
+          <p>Manage services, review health, and reopen the setup interface when settings need to change.</p>
+          <div class="actions">
+            <a class="button" href="/admin">Open Admin</a>
+          </div>
+        </section>
+
+        <section class="tile">
+          <div class="tile-icon">✚</div>
+          <span class="eyebrow">Critical</span>
+          <h2>Medical & First Aid</h2>
+          <p>Fast access to treatment guides, field medicine references, and health information.</p>
+        </section>
+
+        <section class="tile">
+          <div class="tile-icon">⛺</div>
+          <span class="eyebrow">Sustainment</span>
+          <h2>Preparedness & Repair</h2>
+          <p>Water, food, shelter, sanitation, mechanical repair, and practical sustainment knowledge.</p>
+        </section>
+
+        <section class="tile">
+          <div class="tile-icon">⟡</div>
+          <span class="eyebrow">Rebuild</span>
+          <h2>Education & Skills</h2>
+          <p id="dashboard-profile-text">Wikipedia and optional education tools are configured for this device.</p>
+        </section>
+      </main>
+
+      <section class="status-bar">
+        <div class="metric">
+          <strong>Disk Status</strong>
+          <span class="status-text">Used / free capacity</span>
+          <span class="value" id="disk-status">Loading</span>
+        </div>
+        <div class="metric">
+          <strong>System Temperature</strong>
+          <span class="status-text">Raspberry Pi thermal state</span>
+          <span class="value" id="temperature-status">Loading</span>
+        </div>
+        <div class="metric">
+          <strong>Service Health</strong>
+          <span class="status-text">Portal, AP, and web services</span>
+          <span class="value" id="service-status">Loading</span>
+        </div>
+        <div class="metric">
+          <strong>Uptime</strong>
+          <span class="status-text">Current device availability</span>
+          <span class="value" id="uptime-status">Loading</span>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <script>
+    const apiBase = "/api";
+    const params = new URLSearchParams(window.location.search);
+    const forceSetup = params.get("mode") === "setup";
+
+    const message = document.getElementById("message");
+    const setupView = document.getElementById("setup-view");
+    const dashboardView = document.getElementById("dashboard-view");
+    const introText = document.getElementById("intro-text");
+
+    const installKolibri = document.getElementById("install-kolibri");
+    const installKaLite = document.getElementById("install-ka-lite");
+    const wikipediaChoice = document.getElementById("wikipedia-choice");
+    const apEnabled = document.getElementById("ap-enabled");
+    const setupSummary = document.getElementById("setup-summary");
+    const profileCommand = document.getElementById("profile-command");
+    const wikipediaCommand = document.getElementById("wikipedia-command");
+    const saveSetupButton = document.getElementById("save-setup-button");
+    const dashboardProfileText = document.getElementById("dashboard-profile-text");
+
+    const diskStatus = document.getElementById("disk-status");
+    const temperatureStatus = document.getElementById("temperature-status");
+    const serviceStatus = document.getElementById("service-status");
+    const uptimeStatus = document.getElementById("uptime-status");
+
+    function showMessage(text, isError = false) {
+      message.textContent = text;
+      message.classList.remove("hidden");
+      message.style.display = "block";
+      message.classList.toggle("error", isError);
+    }
+
+    function clearMessage() {
+      message.textContent = "";
+      message.style.display = "none";
+      message.classList.remove("error");
+    }
+
+    function renderSetupSummary() {
+      const parts = ["Base Install"];
+      const flags = [];
+
+      if (installKolibri.checked) {
+        parts.push("Kolibri");
+        flags.push("--enable-kolibri");
+      }
+
+      if (installKaLite.checked) {
+        parts.push("KA Lite");
+        flags.push("--enable-ka-lite");
+      }
+
+      if (flags.length === 0) {
+        flags.push("--base-only");
+      }
+
+      setupSummary.textContent = parts.join(" + ") + ".";
+      profileCommand.textContent = "./scripts/select_install_profile.sh " + flags.join(" ");
+      wikipediaCommand.textContent = "PREPMASTER_WIKIPEDIA_OPTION=" + wikipediaChoice.value;
+    }
+
+    function renderDashboardProfile(profile) {
+      const labels = [];
+      if (profile.install_kolibri) labels.push("Kolibri");
+      if (profile.install_ka_lite) labels.push("KA Lite");
+      const addOns = labels.length ? labels.join(", ") : "No education add-ons selected";
+      const apText = profile.ap_enabled ? "AP mode enabled" : "AP mode disabled";
+      dashboardProfileText.textContent =
+        `Wikipedia: ${profile.wikipedia_option}. ${addOns}. ${apText}.`;
+    }
+
+    function renderMode(state) {
+      const setupMode = forceSetup || !state.setup_complete;
+      setupView.classList.toggle("hidden", !setupMode);
+      dashboardView.classList.toggle("hidden", setupMode);
+      introText.textContent = setupMode
+        ? "Configure this device for calm, reliable offline use. After setup, this page becomes the main dashboard for content, tools, and system status."
+        : "The system is configured. Use this dashboard for content access, system tools, and live Raspberry Pi status.";
+    }
+
+    async function loadState() {
+      const response = await fetch(`${apiBase}/state`, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("Unable to load setup state");
+      }
+      return response.json();
+    }
+
+    async function loadStatus() {
+      const response = await fetch(`${apiBase}/status`, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("Unable to load status");
+      }
+      return response.json();
+    }
+
+    async function refreshStatus() {
+      try {
+        const status = await loadStatus();
+        diskStatus.textContent = `${status.disk.used_gb} GB used / ${status.disk.free_gb} GB free`;
+        temperatureStatus.textContent = status.temperature_c === null ? "Unavailable" : `${status.temperature_c} C`;
+        uptimeStatus.textContent = status.uptime || "Unavailable";
+        serviceStatus.textContent = [
+          `Portal ${status.services.portal}`,
+          `Nginx ${status.services.nginx}`,
+          `AP ${status.services.hostapd}`,
+        ].join(" | ");
+      } catch (error) {
+        diskStatus.textContent = "Unavailable";
+        temperatureStatus.textContent = "Unavailable";
+        uptimeStatus.textContent = "Unavailable";
+        serviceStatus.textContent = "Unavailable";
+      }
+    }
+
+    async function saveSetup() {
+      clearMessage();
+      saveSetupButton.disabled = true;
+
+      try {
+        const response = await fetch(`${apiBase}/setup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            install_kolibri: installKolibri.checked,
+            install_ka_lite: installKaLite.checked,
+            wikipedia_option: wikipediaChoice.value,
+            ap_enabled: apEnabled.checked,
+            setup_complete: true
+          })
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to save setup");
+        }
+
+        renderSetupSummary();
+        renderDashboardProfile(payload.profile);
+        renderMode(payload);
+        showMessage("Setup saved. The homepage is now in dashboard mode. Re-run the installer if you want to apply updated packages or services.");
+
+        if (forceSetup) {
+          window.location.assign("/");
+          return;
+        }
+      } catch (error) {
+        showMessage(error.message, true);
+      } finally {
+        saveSetupButton.disabled = false;
+      }
+    }
+
+    async function initialize() {
+      try {
+        const state = await loadState();
+        installKolibri.checked = state.profile.install_kolibri;
+        installKaLite.checked = state.profile.install_ka_lite;
+        wikipediaChoice.value = state.profile.wikipedia_option || "top-mini";
+        apEnabled.checked = state.profile.ap_enabled;
+        renderSetupSummary();
+        renderDashboardProfile(state.profile);
+        renderMode(state);
+        await refreshStatus();
+      } catch (error) {
+        renderSetupSummary();
+        renderMode({ setup_complete: false });
+        showMessage("Portal API is not reachable yet. Run sudo ./scripts/install_prepmaster.sh on the Pi to install the local portal service.", true);
+      }
+    }
+
+    installKolibri.addEventListener("change", renderSetupSummary);
+    installKaLite.addEventListener("change", renderSetupSummary);
+    wikipediaChoice.addEventListener("change", renderSetupSummary);
+    apEnabled.addEventListener("change", renderSetupSummary);
+    saveSetupButton.addEventListener("click", saveSetup);
+
+    initialize();
+    window.setInterval(refreshStatus, 30000);
+  </script>
+</body>
+</html>

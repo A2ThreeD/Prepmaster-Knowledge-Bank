@@ -1,0 +1,61 @@
+# Generated from kiwix-categories.json
+# Profile: essential
+# Resource count: 17
+
+# Medicine
+# Essential | Medical Library | 67 MB
+https://download.kiwix.org/zim/other/zimgit-medicine_en_2024-08.zim
+
+# Essential | NHS Medicines A to Z | 16 MB
+https://download.kiwix.org/zim/zimit/nhs.uk_en_medicines_2025-12.zim
+
+# Essential | Military Medicine | 78 MB
+https://download.kiwix.org/zim/zimit/fas-military-medicine_en_2025-06.zim
+
+# Essential | CDC Health Information | 170 MB
+https://download.kiwix.org/zim/zimit/wwwnc.cdc.gov_en_all_2024-11.zim
+
+# Survival & Preparedness
+# Essential | Canadian Prepper: Winter Prepping | 1340 MB
+https://download.kiwix.org/zim/videos/canadian_prepper_winterprepping_en_2025-11.zim
+
+# Essential | Canadian Prepper: Bug Out Roll | 975 MB
+https://download.kiwix.org/zim/videos/canadian_prepper_bugoutroll_en_2025-08.zim
+
+# Education & Reference
+# Essential | Wikibooks | 3100 MB
+https://download.kiwix.org/zim/wikibooks/wikibooks_en_all_nopic_2025-10.zim
+
+# DIY & Repair
+# Essential | Woodworking Q&A | 99 MB
+https://download.kiwix.org/zim/stack_exchange/woodworking.stackexchange.com_en_all_2025-12.zim
+
+# Essential | Motor Vehicle Maintenance Q&A | 321 MB
+https://download.kiwix.org/zim/stack_exchange/mechanics.stackexchange.com_en_all_2025-12.zim
+
+# Agriculture & Food
+# Essential | FOSS Cooking | 24 MB
+https://download.kiwix.org/zim/zimit/foss.cooking_en_all_2025-11.zim
+
+# Essential | Based.Cooking | 16 MB
+https://download.kiwix.org/zim/zimit/based.cooking_en_all_2025-11.zim
+
+# Computing & Technology
+# Essential | freeCodeCamp | 8 MB
+https://download.kiwix.org/zim/freecodecamp/freecodecamp_en_all_2025-11.zim
+
+# Essential | Python Documentation | 4 MB
+https://download.kiwix.org/zim/devdocs/devdocs_en_python_2026-01.zim
+
+# Essential | JavaScript Documentation | 3 MB
+https://download.kiwix.org/zim/devdocs/devdocs_en_javascript_2026-01.zim
+
+# Essential | HTML Documentation | 2 MB
+https://download.kiwix.org/zim/devdocs/devdocs_en_html_2026-01.zim
+
+# Essential | CSS Documentation | 5 MB
+https://download.kiwix.org/zim/devdocs/devdocs_en_css_2026-01.zim
+
+# Wikipedia
+# Selected Option | Quick Reference | 313 MB
+https://download.kiwix.org/zim/wikipedia/wikipedia_en_top_mini_2025-12.zim
