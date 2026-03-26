@@ -448,6 +448,7 @@
     const saveMapSettingsButton = document.getElementById("save-map-settings-button");
     let mapInstance = null;
     let currentConfigSignature = "";
+    let mapReloadInProgress = false;
 
     function setMapMetaChips(items) {
       mapMeta.innerHTML = items.map((item) => {
@@ -541,6 +542,7 @@
     }
 
     async function buildMap() {
+      mapReloadInProgress = true;
       mapStatus.textContent = "Loading map configuration...";
       mapBanner.classList.add("hidden");
       const config = await loadConfig();
@@ -595,6 +597,7 @@
       });
       mapInstance.once("idle", () => {
         mapStatus.textContent = `Map ready. ${config.pmtilesFile} is active.`;
+        mapReloadInProgress = false;
       });
 
       loadMapState()
@@ -626,6 +629,7 @@
           mapStatus.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
           mapBanner.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
           mapBanner.classList.remove("hidden");
+          mapReloadInProgress = false;
         });
 
       mapInstance.on("error", (event) => {
@@ -635,6 +639,7 @@
         mapStatus.textContent = `Map error: ${errorMessage}`;
         mapBanner.textContent = `Map error: ${errorMessage}`;
         mapBanner.classList.remove("hidden");
+        mapReloadInProgress = false;
       });
     }
 
@@ -646,7 +651,10 @@
       }
 
       saveMapSettingsButton.disabled = true;
+      mapPackageSelect.disabled = true;
+      saveMapSettingsButton.textContent = "Applying...";
       try {
+        mapStatus.textContent = `Applying ${filename}...`;
         const response = await fetch("/api/maps/select", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -658,12 +666,18 @@
         if (!response.ok) {
           throw new Error(payload.error || "Unable to set active map");
         }
-        mapStatus.textContent = `Active map updated to ${payload.active_file}. Reloading viewer...`;
+        if (payload && payload.active_file) {
+          mapPackageSelect.value = payload.active_file;
+        }
+        mapStatus.textContent = `Active map saved as ${payload.active_file}. Reloading viewer...`;
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
         await buildMap();
       } catch (error) {
         mapStatus.textContent = `Map settings error: ${error.message}`;
       } finally {
         saveMapSettingsButton.disabled = false;
+        mapPackageSelect.disabled = false;
+        saveMapSettingsButton.textContent = "Apply / Refresh";
       }
     }
 
@@ -673,6 +687,9 @@
 
     async function syncConfigFromDisk() {
       try {
+        if (mapReloadInProgress) {
+          return;
+        }
         const config = await loadConfig();
         const nextSignature = configSignature(config);
         if (nextSignature !== currentConfigSignature) {
