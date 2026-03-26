@@ -21,10 +21,9 @@ This is the current recommended install set for a new Raspberry Pi OS Lite deplo
 
 ## Software We Still Need To Automate Next
 
-- `kiwix-serve` installation and service configuration
 - Offline maps package/data provisioning
-- Systemd services for Kiwix and site status collection
-- Nginx site configuration for `/`, `/kiwix`, `/maps`, and `/admin`
+- richer systemd/health behavior for Kiwix and site status collection
+- a richer admin/settings experience for `/maps` and wireless AP controls
 - A settings workflow for toggling and managing wireless AP mode from the admin experience
 
 ## Kiwix Content Source
@@ -51,6 +50,7 @@ For first-run validation, `PREPMASTER_ZIM_MODE=quick-test` uses `config/kiwix-zi
 - `prepmaster-portal.service` for setup state and live status APIs
 - Nginx reverse proxy route for `/api`
 - Nginx redirect from `/kiwix` to the dedicated Kiwix port
+- Placeholder content on the dedicated Kiwix port until a library is built
 
 ## Browser-Driven Apply Flow
 
@@ -93,3 +93,4 @@ Prepmaster will own:
 - the local reverse-proxy layout for the full appliance-style site
 
 Kiwix will remain the dedicated offline library engine behind `/kiwix`.
+In practice, the main site redirects `/kiwix` to the dedicated Kiwix port.

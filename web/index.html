@@ -458,8 +458,9 @@
           <h2>Kiwix Full Library</h2>
           <p>Browse the offline reference collection for medicine, survival, education, and general knowledge.</p>
           <div class="actions">
-            <a class="button primary" href="/kiwix">Open Kiwix</a>
+            <a class="button primary" id="kiwix-link" href="/kiwix">Open Kiwix</a>
           </div>
+          <p class="small" id="kiwix-target-text">Kiwix target: loading</p>
         </section>
 
         <section class="tile">
@@ -551,6 +552,8 @@
     const dashboardProfileText = document.getElementById("dashboard-profile-text");
     const applyStatusText = document.getElementById("apply-status-text");
     const applyLogText = document.getElementById("apply-log-text");
+    const kiwixLink = document.getElementById("kiwix-link");
+    const kiwixTargetText = document.getElementById("kiwix-target-text");
 
     const diskStatus = document.getElementById("disk-status");
     const temperatureStatus = document.getElementById("temperature-status");
@@ -657,17 +660,23 @@
         diskStatus.textContent = `${status.disk.used_gb} GB used / ${status.disk.free_gb} GB free`;
         temperatureStatus.textContent = status.temperature_c === null ? "Unavailable" : `${status.temperature_c} C`;
         uptimeStatus.textContent = status.uptime || "Unavailable";
+        if (status.kiwix_url) {
+          kiwixLink.href = status.kiwix_url;
+          kiwixTargetText.textContent = `Kiwix target: ${status.kiwix_url}`;
+        }
         serviceStatus.textContent = [
           `Portal ${status.services.portal}`,
           `Nginx ${status.services.nginx}`,
           `Kiwix ${status.services.kiwix}`,
           `AP ${status.services.hostapd}`,
+          `DHCP ${status.services.dnsmasq}`,
         ].join(" | ");
       } catch (error) {
         diskStatus.textContent = "Unavailable";
         temperatureStatus.textContent = "Unavailable";
         uptimeStatus.textContent = "Unavailable";
         serviceStatus.textContent = "Unavailable";
+        kiwixTargetText.textContent = "Kiwix target: unavailable";
       }
     }
 

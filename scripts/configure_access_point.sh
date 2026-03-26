@@ -20,7 +20,13 @@ source "$ENV_FILE"
 
 if [[ "${PREPMASTER_AP_ENABLED:-0}" != "1" ]]; then
   echo "Access point mode is disabled in config/prepmaster.env."
-  echo "Set PREPMASTER_AP_ENABLED=1 and review the SSID, passphrase, and subnet settings first."
+  echo "Stopping and disabling AP-related services."
+  systemctl stop hostapd 2>/dev/null || true
+  systemctl stop dnsmasq 2>/dev/null || true
+  systemctl stop prepmaster-ap-network.service 2>/dev/null || true
+  systemctl disable hostapd 2>/dev/null || true
+  systemctl disable dnsmasq 2>/dev/null || true
+  systemctl disable prepmaster-ap-network.service 2>/dev/null || true
   exit 0
 fi
 

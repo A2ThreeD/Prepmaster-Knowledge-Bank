@@ -142,6 +142,7 @@ class PortalState:
             },
             "temperature_c": self.read_temperature(),
             "uptime": self.read_uptime(),
+            "kiwix_url": f"http://{self.detect_primary_host()}:{read_env_file(self.prepmaster_env).get('KIWIX_PORT', '8080')}/",
             "services": {
                 "portal": self.read_service_status("prepmaster-portal.service"),
                 "kiwix": self.read_service_status("prepmaster-kiwix.service"),
@@ -307,6 +308,20 @@ class PortalState:
             return "unknown"
         status = result.stdout.strip()
         return status or "unknown"
+
+    def detect_primary_host(self) -> str:
+        try:
+            result = subprocess.run(
+                ["hostname", "-I"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            return "127.0.0.1"
+
+        candidates = [value for value in result.stdout.split() if "." in value]
+        return candidates[0] if candidates else "127.0.0.1"
 
 
 class PortalHandler(BaseHTTPRequestHandler):

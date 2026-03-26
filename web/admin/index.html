@@ -86,6 +86,12 @@
       color: var(--muted);
     }
 
+    .status {
+      margin-top: 12px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
     code {
       color: var(--accent);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -108,6 +114,7 @@
         <p class="muted">
           Reopen the setup workflow at any time to change install options, Wikipedia package selection, or other first-start preferences.
         </p>
+        <p class="status" id="apply-status">Apply status: loading</p>
       </section>
       <section class="card">
         <h2>Wireless Access Point</h2>
@@ -117,13 +124,50 @@
         <p class="muted">
           Use <code>PREPMASTER_AP_ENABLED=1</code> in <code>config/prepmaster.env</code>, then run <code>sudo ./scripts/configure_access_point.sh</code>.
         </p>
+        <p class="status" id="ap-status">AP services: loading</p>
+      </section>
+      <section class="card">
+        <h2>Kiwix Library</h2>
+        <p class="muted">
+          Kiwix runs on its own dedicated port for better compatibility than a subpath reverse proxy.
+        </p>
+        <p class="muted" id="kiwix-target">Kiwix target: loading</p>
+        <p class="status" id="kiwix-status">Kiwix service: loading</p>
       </section>
     </div>
     <div class="actions">
       <a class="button" href="/">Return to main page</a>
       <a class="button" href="/?mode=setup">Open Setup Preferences</a>
-      <a class="button" href="/kiwix">Open Kiwix</a>
+      <a class="button" id="kiwix-link" href="/kiwix">Open Kiwix</a>
     </div>
   </main>
+  <script>
+    async function loadAdminStatus() {
+      try {
+        const [statusResponse, applyResponse] = await Promise.all([
+          fetch("/api/status", { cache: "no-store" }),
+          fetch("/api/apply", { cache: "no-store" })
+        ]);
+
+        const status = await statusResponse.json();
+        const apply = await applyResponse.json();
+
+        document.getElementById("kiwix-target").textContent = `Kiwix target: ${status.kiwix_url}`;
+        document.getElementById("kiwix-link").href = status.kiwix_url;
+        document.getElementById("kiwix-status").textContent = `Kiwix service: ${status.services.kiwix}`;
+        document.getElementById("ap-status").textContent =
+          `AP services: hostapd ${status.services.hostapd} | dnsmasq ${status.services.dnsmasq}`;
+        document.getElementById("apply-status").textContent =
+          `Apply status: ${apply.status}${apply.step ? " | " + apply.step : ""}`;
+      } catch (error) {
+        document.getElementById("kiwix-target").textContent = "Kiwix target: unavailable";
+        document.getElementById("kiwix-status").textContent = "Kiwix service: unavailable";
+        document.getElementById("ap-status").textContent = "AP services: unavailable";
+        document.getElementById("apply-status").textContent = "Apply status: unavailable";
+      }
+    }
+
+    loadAdminStatus();
+  </script>
 </body>
 </html>

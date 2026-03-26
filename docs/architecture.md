@@ -56,6 +56,7 @@ Likely implementation options:
 - `/kiwix` redirects the browser to the dedicated Kiwix server port
 - `/api` proxies to the local portal API
 - `/admin` and `/maps` are served as static app sections
+- The dedicated Kiwix port serves either the real Kiwix library or a placeholder page if no library is available yet
 
 ## Suggested Install Phases
 

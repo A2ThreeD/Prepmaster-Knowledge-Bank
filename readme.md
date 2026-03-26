@@ -26,6 +26,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `scripts/install_portal_service.sh` - installs the local portal API service for setup state and live status
 - `scripts/install_kiwix_service.sh` - installs and enables the local `kiwix-serve` systemd service
 - `scripts/rebuild_kiwix_library.sh` - rebuilds the Kiwix `library.xml` from downloaded ZIM files
+- `scripts/run_kiwix_service.sh` - runtime wrapper that starts Kiwix or a placeholder page when the library is empty
 - `scripts/install_nginx_site.sh` - installs the Nginx site that serves `/`, `/kiwix`, `/maps`, `/admin`, and `/api`
 - `app/prepmaster_portal.py` - lightweight API for persisted setup state and Raspberry Pi status
 - `config/prepmaster.env` - editable install settings
@@ -84,6 +85,8 @@ sudo ./scripts/download_kiwix_zims.sh
 - The main page is now intended to be a first-start configuration screen with base install selected by default.
 - The main page now switches automatically between first-start setup mode and the normal dashboard based on saved setup state.
 - The setup page can now save preferences and trigger the backend apply workflow directly from the browser.
+- Kiwix now runs on a dedicated port, and the dashboard/admin views expose the real Kiwix target URL.
+- If no Kiwix library exists yet, the dedicated Kiwix port serves a placeholder page instead of crash-looping.
 - Optional education add-ons are tracked separately: `Kolibri` as a modern add-on, and `KA Lite` as a legacy add-on.
 - `Kolibri` now has install automation in the repo. `KA Lite` requires an explicit legacy override and currently records the request rather than forcing a risky unattended install on modern Raspberry Pi OS.
 - Wireless AP mode can be enabled through `config/prepmaster.env` and applied by the installer or `scripts/configure_access_point.sh`.

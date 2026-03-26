@@ -18,28 +18,14 @@ fi
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
-resolve_kiwix_bind_address() {
-  if [[ "${KIWIX_BIND_ADDRESS:-auto}" != "auto" ]]; then
-    echo "$KIWIX_BIND_ADDRESS"
-    return
-  fi
-
-  local detected
-  detected="$(ip -4 addr show scope global up | awk '/inet / {sub(/\/.*/, "", $2); print $2; exit}')"
-
-  if [[ -n "$detected" ]]; then
-    echo "$detected"
-  else
-    echo "127.0.0.1"
-  fi
-}
-
-KIWIX_EFFECTIVE_BIND_ADDRESS="$(resolve_kiwix_bind_address)"
-
 echo "Installing Kiwix tools..."
 apt install -y kiwix-tools
 
 install -d -m 0755 "$(dirname "$KIWIX_LIBRARY_XML")"
+install -d -m 0755 "$PREPMASTER_ROOT/app"
+install -d -m 0755 "$PREPMASTER_WEB_ROOT/kiwix-placeholder"
+install -m 0755 "$REPO_ROOT/scripts/run_kiwix_service.sh" "$PREPMASTER_ROOT/app/run_kiwix_service.sh"
+install -m 0644 "$REPO_ROOT/web/kiwix-placeholder/index.html" "$PREPMASTER_WEB_ROOT/kiwix-placeholder/index.html"
 
 cat > /etc/systemd/system/prepmaster-kiwix.service <<EOF
 [Unit]
@@ -48,7 +34,8 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/kiwix-serve --address=$KIWIX_EFFECTIVE_BIND_ADDRESS --port=$KIWIX_PORT --library $KIWIX_LIBRARY_XML
+Environment=PREPMASTER_ENV_FILE=$ENV_FILE
+ExecStart=$PREPMASTER_ROOT/app/run_kiwix_service.sh
 Restart=on-failure
 RestartSec=3
 
@@ -65,4 +52,4 @@ fi
 
 systemctl restart prepmaster-kiwix.service || systemctl start prepmaster-kiwix.service
 
-echo "Kiwix service installed on $KIWIX_EFFECTIVE_BIND_ADDRESS:$KIWIX_PORT"
+echo "Kiwix service installed on port $KIWIX_PORT"
