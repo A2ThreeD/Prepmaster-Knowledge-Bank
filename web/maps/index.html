@@ -473,7 +473,17 @@
     }
 
     async function loadMapState() {
-      const response = await fetch("/api/maps", { cache: "no-store" });
+      const controller = new AbortController();
+      const timeoutHandle = window.setTimeout(() => controller.abort(), 4000);
+      let response;
+      try {
+        response = await fetch("/api/maps", {
+          cache: "no-store",
+          signal: controller.signal
+        });
+      } finally {
+        window.clearTimeout(timeoutHandle);
+      }
       if (!response.ok) {
         throw new Error("Unable to load map package state");
       }
@@ -525,28 +535,29 @@
       ]);
     }
 
+    function populateFallbackControls(config) {
+      mapPackageSelect.innerHTML = `<option value="${config.pmtilesFile}">${config.pmtilesFile}</option>`;
+      mapPackageSelect.disabled = true;
+      mapFlavorSelect.value = config.flavor || "dark";
+      pmtilesUrlStatus.textContent = `Archive source: ${config.pmtilesUrl}`;
+      mapArchiveNote.textContent = `Configured archive: ${config.pmtilesFile}`;
+      setMapMetaChips([
+        { label: "Archive", value: "Checking", tone: "warn" },
+        { label: "Theme", value: config.flavor || "dark", tone: "muted" },
+        { label: "Language", value: config.language || "en", tone: "muted" }
+      ]);
+    }
+
     async function buildMap() {
       mapStatus.textContent = "Loading map configuration...";
       mapBanner.classList.add("hidden");
-      const [config, state] = await Promise.all([loadConfig(), loadMapState()]);
-      populateMapControls(state, config);
+      const config = await loadConfig();
+      populateFallbackControls(config);
 
       latInput.value = config.defaultLat;
       lonInput.value = config.defaultLon;
       zoomInput.value = config.defaultZoom;
       zoomValue.textContent = String(config.defaultZoom);
-
-      if (!state.active_valid) {
-        const problem = state.active_error || "Configured archive is missing or invalid.";
-        mapStatus.textContent = `Map archive issue: ${problem}`;
-        mapBanner.textContent = `Map archive issue: ${problem}`;
-        mapBanner.classList.remove("hidden");
-        if (mapInstance) {
-          mapInstance.remove();
-          mapInstance = null;
-        }
-        return;
-      }
 
       if (mapInstance) {
         mapInstance.remove();
@@ -592,6 +603,20 @@
       mapInstance.once("idle", () => {
         mapStatus.textContent = `Map ready. ${config.pmtilesFile} is active.`;
       });
+
+      loadMapState()
+        .then((state) => {
+          populateMapControls(state, config);
+          if (!state.active_valid) {
+            const problem = state.active_error || "Configured archive is missing or invalid.";
+            mapStatus.textContent = `Map archive issue: ${problem}`;
+            mapBanner.textContent = `Map archive issue: ${problem}`;
+            mapBanner.classList.remove("hidden");
+          }
+        })
+        .catch(() => {
+          mapArchiveNote.textContent = `Configured archive: ${config.pmtilesFile}`;
+        });
 
       fetch(config.pmtilesUrl, { method: "HEAD", cache: "no-store" })
         .then((response) => {
