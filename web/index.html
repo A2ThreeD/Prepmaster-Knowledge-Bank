@@ -345,8 +345,8 @@
 
     .status-bar {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
     }
 
     .status-section {
@@ -363,7 +363,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
     .status-heading {
@@ -382,13 +382,13 @@
     .status-summary {
       margin: 0;
       color: var(--muted);
-      max-width: 460px;
-      font-size: 0.9rem;
+      max-width: 360px;
+      font-size: 0.82rem;
     }
 
     .status-shell {
-      padding: 14px 16px;
-      border-radius: 20px;
+      padding: 10px 12px;
+      border-radius: 18px;
       border: 1px solid rgba(138, 183, 234, 0.28);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)),
@@ -399,8 +399,8 @@
     }
 
     .metric {
-      padding: 14px 14px 12px;
-      border-radius: 16px;
+      padding: 10px 12px 9px;
+      border-radius: 14px;
       border: 1px solid rgba(137, 181, 231, 0.18);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
@@ -409,22 +409,23 @@
 
     .metric strong {
       display: block;
-      margin-bottom: 4px;
-      font-size: 0.92rem;
+      margin-bottom: 2px;
+      font-size: 0.84rem;
+      line-height: 1.1;
     }
 
     .metric .value {
       display: block;
-      margin-top: 2px;
       color: var(--text);
       font-weight: 600;
-      font-size: 0.96rem;
+      font-size: 0.84rem;
+      line-height: 1.15;
     }
 
     @media (max-width: 980px) {
       .grid,
       .status-bar {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
       }
 
       .status-header {
@@ -641,30 +642,22 @@
             <h2 class="status-heading">Live Raspberry Pi Health</h2>
           </div>
           <p class="status-summary">
-            Storage, temperature, uptime, and service state stay visible while you move through the dashboard.
+            Storage, temperature, and service state stay visible while you move through the dashboard.
           </p>
         </div>
         <div class="status-shell">
           <div class="status-bar">
             <div class="metric">
-              <strong>Disk Status</strong>
-              <span class="status-text">Used / free capacity</span>
+              <strong>Disk</strong>
               <span class="value" id="disk-status">Loading</span>
             </div>
             <div class="metric">
-              <strong>System Temperature</strong>
-              <span class="status-text">Raspberry Pi thermal state</span>
+              <strong>Temp</strong>
               <span class="value" id="temperature-status">Loading</span>
             </div>
             <div class="metric">
-              <strong>Service Health</strong>
-              <span class="status-text">Portal, AP, and web services</span>
+              <strong>Services</strong>
               <span class="value" id="service-status">Loading</span>
-            </div>
-            <div class="metric">
-              <strong>Uptime</strong>
-              <span class="status-text">Current device availability</span>
-              <span class="value" id="uptime-status">Loading</span>
             </div>
           </div>
         </div>
@@ -700,7 +693,6 @@
     const diskStatus = document.getElementById("disk-status");
     const temperatureStatus = document.getElementById("temperature-status");
     const serviceStatus = document.getElementById("service-status");
-    const uptimeStatus = document.getElementById("uptime-status");
     let applyPollHandle = null;
 
     function showMessage(text, isError = false) {
@@ -801,7 +793,6 @@
         const status = await loadStatus();
         diskStatus.textContent = `${status.disk.used_gb} GB used / ${status.disk.free_gb} GB free`;
         temperatureStatus.textContent = status.temperature_c === null ? "Unavailable" : `${status.temperature_c} C`;
-        uptimeStatus.textContent = status.uptime || "Unavailable";
         if (status.kiwix_url) {
           kiwixLink.href = status.kiwix_url;
           kiwixTargetText.textContent = `Kiwix target: ${status.kiwix_url}`;
@@ -816,7 +807,6 @@
       } catch (error) {
         diskStatus.textContent = "Unavailable";
         temperatureStatus.textContent = "Unavailable";
-        uptimeStatus.textContent = "Unavailable";
         serviceStatus.textContent = "Unavailable";
         kiwixTargetText.textContent = "Kiwix target: unavailable";
       }
