@@ -543,104 +543,109 @@
 
     async function buildMap() {
       mapReloadInProgress = true;
-      mapStatus.textContent = "Loading map configuration...";
-      mapBanner.classList.add("hidden");
-      const config = await loadConfig();
-      currentConfigSignature = configSignature(config);
-      populateFallbackControls(config);
+      try {
+        mapStatus.textContent = "Loading map configuration...";
+        mapBanner.classList.add("hidden");
+        const config = await loadConfig();
+        currentConfigSignature = configSignature(config);
+        populateFallbackControls(config);
 
-      latInput.value = config.defaultLat;
-      lonInput.value = config.defaultLon;
-      zoomInput.value = config.defaultZoom;
-      zoomValue.textContent = String(config.defaultZoom);
+        latInput.value = config.defaultLat;
+        lonInput.value = config.defaultLon;
+        zoomInput.value = config.defaultZoom;
+        zoomValue.textContent = String(config.defaultZoom);
 
-      if (mapInstance) {
-        mapInstance.remove();
-        mapInstance = null;
-      }
-
-      const protocol = new pmtiles.Protocol();
-      maplibregl.addProtocol("pmtiles", protocol.tile);
-      const pmtilesSource = new pmtiles.PMTiles(window.location.origin + config.pmtilesUrl);
-      protocol.add(pmtilesSource);
-      mapStatus.textContent = `Initializing renderer for ${config.pmtilesFile}...`;
-
-      mapInstance = new maplibregl.Map({
-        container: "map",
-        center: [config.defaultLon, config.defaultLat],
-        zoom: config.defaultZoom,
-        minZoom: config.minZoom,
-        maxZoom: config.maxZoom,
-        attributionControl: true,
-        style: {
-          version: 8,
-          glyphs: window.location.origin + config.glyphsUrl,
-          sprite: window.location.origin + config.spriteBaseUrl,
-          sources: {
-            protomaps: {
-              type: "vector",
-              url: `pmtiles://${window.location.origin}${config.pmtilesUrl}`,
-              attribution: 'Protomaps © OpenStreetMap'
-            }
-          },
-          layers: basemaps.layers(
-            "protomaps",
-            basemaps.namedFlavor(config.flavor),
-            { lang: config.language }
-          )
+        if (mapInstance) {
+          mapInstance.remove();
+          mapInstance = null;
         }
-      });
 
-      mapInstance.addControl(new maplibregl.NavigationControl(), "top-right");
-      mapInstance.once("load", () => {
-        mapStatus.textContent = `Map loaded. ${config.pmtilesFile} is ready for navigation.`;
-      });
-      mapInstance.once("idle", () => {
-        mapStatus.textContent = `Map ready. ${config.pmtilesFile} is active.`;
-        mapReloadInProgress = false;
-      });
+        const protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol("pmtiles", protocol.tile);
+        const pmtilesSource = new pmtiles.PMTiles(window.location.origin + config.pmtilesUrl);
+        protocol.add(pmtilesSource);
+        mapStatus.textContent = `Initializing renderer for ${config.pmtilesFile}...`;
 
-      loadMapState()
-        .then((state) => {
-          populateMapControls(state, config);
-          if (!state.active_valid) {
-            const problem = state.active_error || "Configured archive is missing or invalid.";
-            mapStatus.textContent = `Map archive issue: ${problem}`;
-            mapBanner.textContent = `Map archive issue: ${problem}`;
-            mapBanner.classList.remove("hidden");
+        mapInstance = new maplibregl.Map({
+          container: "map",
+          center: [config.defaultLon, config.defaultLat],
+          zoom: config.defaultZoom,
+          minZoom: config.minZoom,
+          maxZoom: config.maxZoom,
+          attributionControl: true,
+          style: {
+            version: 8,
+            glyphs: window.location.origin + config.glyphsUrl,
+            sprite: window.location.origin + config.spriteBaseUrl,
+            sources: {
+              protomaps: {
+                type: "vector",
+                url: `pmtiles://${window.location.origin}${config.pmtilesUrl}`,
+                attribution: 'Protomaps © OpenStreetMap'
+              }
+            },
+            layers: basemaps.layers(
+              "protomaps",
+              basemaps.namedFlavor(config.flavor),
+              { lang: config.language }
+            )
           }
-        })
-        .catch((error) => {
-          const delayed = error && error.name === "AbortError";
-          setMapMetaChips([
-            { label: "Archive", value: delayed ? "Delayed" : "Checking", tone: delayed ? "warn" : "warn" },
-            { label: "Theme", value: config.flavor || "dark", tone: "muted" },
-            { label: "Language", value: config.language || "en", tone: "muted" }
-          ]);
         });
 
-      fetch(config.pmtilesUrl, { method: "HEAD", cache: "no-store" })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`archive returned ${response.status}`);
-          }
-        })
-        .catch(() => {
-          mapStatus.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
-          mapBanner.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
-          mapBanner.classList.remove("hidden");
+        mapInstance.addControl(new maplibregl.NavigationControl(), "top-right");
+        mapInstance.once("load", () => {
+          mapStatus.textContent = `Map loaded. ${config.pmtilesFile} is ready for navigation.`;
+        });
+        mapInstance.once("idle", () => {
+          mapStatus.textContent = `Map ready. ${config.pmtilesFile} is active.`;
           mapReloadInProgress = false;
         });
 
-      mapInstance.on("error", (event) => {
-        const errorMessage = event && event.error && event.error.message
-          ? event.error.message
-          : "MapLibre could not render the active PMTiles archive.";
-        mapStatus.textContent = `Map error: ${errorMessage}`;
-        mapBanner.textContent = `Map error: ${errorMessage}`;
-        mapBanner.classList.remove("hidden");
+        loadMapState()
+          .then((state) => {
+            populateMapControls(state, config);
+            if (!state.active_valid) {
+              const problem = state.active_error || "Configured archive is missing or invalid.";
+              mapStatus.textContent = `Map archive issue: ${problem}`;
+              mapBanner.textContent = `Map archive issue: ${problem}`;
+              mapBanner.classList.remove("hidden");
+            }
+          })
+          .catch((error) => {
+            const delayed = error && error.name === "AbortError";
+            setMapMetaChips([
+              { label: "Archive", value: delayed ? "Delayed" : "Checking", tone: delayed ? "warn" : "warn" },
+              { label: "Theme", value: config.flavor || "dark", tone: "muted" },
+              { label: "Language", value: config.language || "en", tone: "muted" }
+            ]);
+          });
+
+        fetch(config.pmtilesUrl, { method: "HEAD", cache: "no-store" })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`archive returned ${response.status}`);
+            }
+          })
+          .catch(() => {
+            mapStatus.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
+            mapBanner.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
+            mapBanner.classList.remove("hidden");
+            mapReloadInProgress = false;
+          });
+
+        mapInstance.on("error", (event) => {
+          const errorMessage = event && event.error && event.error.message
+            ? event.error.message
+            : "MapLibre could not render the active PMTiles archive.";
+          mapStatus.textContent = `Map error: ${errorMessage}`;
+          mapBanner.textContent = `Map error: ${errorMessage}`;
+          mapBanner.classList.remove("hidden");
+          mapReloadInProgress = false;
+        });
+      } catch (error) {
         mapReloadInProgress = false;
-      });
+        throw error;
+      }
     }
 
     async function saveMapSettings() {
