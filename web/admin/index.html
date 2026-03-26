@@ -28,7 +28,7 @@
     }
 
     main {
-      max-width: 860px;
+      max-width: 980px;
       margin: 0 auto;
       padding: 24px;
       border: 1px solid var(--border);
@@ -39,20 +39,6 @@
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
     }
 
-    .grid {
-      display: grid;
-      gap: 14px;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      margin-top: 22px;
-    }
-
-    .card {
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 18px;
-      background: var(--panel-2);
-    }
-
     .tag {
       display: inline-block;
       margin-bottom: 10px;
@@ -60,6 +46,24 @@
       text-transform: uppercase;
       letter-spacing: 0.12em;
       font-size: 12px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      margin-top: 18px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      background: var(--panel-2);
     }
 
     .actions {
@@ -81,6 +85,7 @@
       padding: 12px 16px;
       background: var(--panel-2);
       cursor: pointer;
+      font: inherit;
     }
 
     .button:disabled {
@@ -88,8 +93,32 @@
       opacity: 0.6;
     }
 
-    .muted {
-      color: var(--muted);
+    .section-tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    .tab-button {
+      min-width: 0;
+      background: rgba(4, 10, 19, 0.38);
+    }
+
+    .tab-button.active {
+      background: var(--accent);
+      color: #04101e;
+      border-color: rgba(123, 183, 255, 0.6);
+      font-weight: 700;
+    }
+
+    .panel-group {
+      display: none;
+      margin-top: 10px;
+    }
+
+    .panel-group.active {
+      display: block;
     }
 
     .status {
@@ -191,113 +220,139 @@
     <p class="muted">
       Survival Operations Plan Response system controls, content updates, and maintenance actions.
     </p>
-    <div class="grid">
-      <section class="card">
-        <h2>Settings</h2>
-        <p class="muted">
-          The settings area should manage device-level options such as hostname, content paths, and service preferences.
-        </p>
-        <p class="muted">
-          Reopen the setup workflow at any time to change install options, Wikipedia package selection, or other first-start preferences.
-        </p>
-        <p class="status" id="apply-status">Apply status: loading</p>
-      </section>
-      <section class="card">
-        <h2>Content Actions</h2>
-        <p class="muted">
-          Use these controls to refresh the downloaded library, rebuild Kiwix metadata from files already on disk, or rerun the full configuration workflow.
-        </p>
-        <div class="actions">
-          <button class="button" id="refresh-content-button" type="button">Download Missing Content</button>
-          <button class="button" id="rebuild-library-button" type="button">Rebuild Kiwix Library</button>
-          <button class="button" id="full-apply-button" type="button">Run Full Apply</button>
-        </div>
-        <p class="status" id="content-action-status">Content actions: ready</p>
-        <div class="progress-shell">
-          <div class="progress-top">
-            <span class="progress-label" id="progress-label">Waiting for action</span>
-            <span class="progress-value" id="progress-value">0%</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" id="progress-fill"></div>
-          </div>
-          <p class="status" id="current-file-status">Current file: none</p>
-        </div>
-        <div class="log-panel">
-          <strong>Recent Log</strong>
-          <pre id="apply-log">No active download log.</pre>
-        </div>
-      </section>
-      <section class="card">
-        <h2>Content Library Mode</h2>
-        <p class="muted">
-          Quick test mode downloads only a tiny starter library for fast validation. Full mode rebuilds the complete curated manifest.
-        </p>
-        <p class="muted">
-          The category cards on the main page are overview tiles right now. They are not disabled by quick test mode; the full library still opens through Kiwix.
-        </p>
-        <div class="field">
-          <label for="zim-mode">Kiwix Content Mode</label>
-          <select id="zim-mode">
-            <option value="full">Full Curated Library</option>
-            <option value="quick-test">Quick Test Library</option>
-          </select>
-        </div>
-        <div class="actions">
-          <button class="button" id="save-mode-button" type="button">Save Content Mode</button>
-        </div>
-        <p class="status" id="mode-status">Content mode: loading</p>
-      </section>
-      <section class="card">
-        <h2>Wireless Access Point</h2>
-        <p class="muted">
-          Configure and enable direct Wi-Fi access so phones, tablets, and laptops can join the Pi and reach local content without another router.
-        </p>
-        <p class="muted">
-          Use <code>PREPMASTER_AP_ENABLED=1</code> in <code>config/prepmaster.env</code>, then run <code>sudo ./scripts/configure_access_point.sh</code>.
-        </p>
-        <p class="status" id="ap-status">AP services: loading</p>
-      </section>
-      <section class="card">
-        <h2>Kiwix Library</h2>
-        <p class="muted">
-          Kiwix runs on its own dedicated port for better compatibility than a subpath reverse proxy.
-        </p>
-        <p class="muted" id="kiwix-target">Kiwix target: loading</p>
-        <p class="status" id="kiwix-status">Kiwix service: loading</p>
-      </section>
-      <section class="card">
-        <h2>Offline Maps</h2>
-        <p class="muted">
-          SOPR maps now use MapLibre with a local PMTiles archive. Drop Project NOMAD map files into the PMTiles directory, then select which package should be active.
-        </p>
-        <p class="muted" id="maps-root">PMTiles root: loading</p>
-        <p class="muted" id="active-map-file">Active map: loading</p>
-        <p class="muted" id="maps-catalog-source">Catalog source: loading</p>
-        <div class="field">
-          <label for="map-package">Available PMTiles Package</label>
-          <select id="map-package"></select>
-        </div>
-        <div class="actions">
-          <button class="button" id="refresh-maps-button" type="button">Refresh Map List</button>
-          <button class="button" id="save-map-button" type="button">Set Active Map</button>
-        </div>
-        <p class="status" id="maps-status">Maps package status: loading</p>
-        <div class="field">
-          <label>Project NOMAD Map Downloads</label>
-          <div id="maps-catalog-list" class="log-panel muted">Loading map catalog...</div>
-        </div>
-        <div class="actions">
-          <button class="button" id="refresh-catalog-button" type="button">Refresh Catalog</button>
-          <button class="button" id="sync-maps-button" type="button">Update Installed Maps</button>
-        </div>
-        <p class="status" id="maps-sync-status">Map sync: idle</p>
-        <div class="log-panel">
-          <strong>Map Sync Log</strong>
-          <pre id="maps-sync-log">No map sync activity yet.</pre>
-        </div>
-      </section>
+
+    <div class="section-tabs">
+      <button class="button tab-button active" type="button" data-panel="system">System</button>
+      <button class="button tab-button" type="button" data-panel="content">Content</button>
+      <button class="button tab-button" type="button" data-panel="maps">Maps</button>
     </div>
+
+    <section class="panel-group active" data-panel-group="system">
+      <div class="grid">
+        <section class="card">
+          <h2>Settings</h2>
+          <p class="muted">
+            Device-level controls, install preferences, and high-level system state live here.
+          </p>
+          <p class="muted">
+            Reopen the setup workflow at any time to change install options, Wikipedia package selection, or other first-start preferences.
+          </p>
+          <p class="status" id="apply-status">Apply status: loading</p>
+        </section>
+        <section class="card">
+          <h2>Wireless Access Point</h2>
+          <p class="muted">
+            Configure and enable direct Wi-Fi access so phones, tablets, and laptops can join the Pi and reach local content without another router.
+          </p>
+          <p class="muted">
+            Use <code>PREPMASTER_AP_ENABLED=1</code> in <code>config/prepmaster.env</code>, then run <code>sudo ./scripts/configure_access_point.sh</code>.
+          </p>
+          <p class="status" id="ap-status">AP services: loading</p>
+        </section>
+        <section class="card">
+          <h2>Kiwix Library</h2>
+          <p class="muted">
+            Kiwix runs on its own dedicated port for better compatibility than a subpath reverse proxy.
+          </p>
+          <p class="muted" id="kiwix-target">Kiwix target: loading</p>
+          <p class="status" id="kiwix-status">Kiwix service: loading</p>
+        </section>
+      </div>
+    </section>
+
+    <section class="panel-group" data-panel-group="content">
+      <div class="grid">
+        <section class="card">
+          <h2>Content Actions</h2>
+          <p class="muted">
+            Refresh the downloaded library, rebuild Kiwix metadata from files already on disk, or rerun the full configuration workflow.
+          </p>
+          <div class="actions">
+            <button class="button" id="refresh-content-button" type="button">Download Missing Content</button>
+            <button class="button" id="rebuild-library-button" type="button">Rebuild Kiwix Library</button>
+            <button class="button" id="full-apply-button" type="button">Run Full Apply</button>
+          </div>
+          <p class="status" id="content-action-status">Content actions: ready</p>
+          <div class="progress-shell">
+            <div class="progress-top">
+              <span class="progress-label" id="progress-label">Waiting for action</span>
+              <span class="progress-value" id="progress-value">0%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <p class="status" id="current-file-status">Current file: none</p>
+          </div>
+          <div class="log-panel">
+            <strong>Recent Log</strong>
+            <pre id="apply-log">No active download log.</pre>
+          </div>
+        </section>
+        <section class="card">
+          <h2>Content Library Mode</h2>
+          <p class="muted">
+            Quick test mode downloads a tiny starter library for validation. Full mode rebuilds the complete curated manifest.
+          </p>
+          <p class="muted">
+            The category cards on the main page are overview tiles right now. They are not disabled by quick test mode; the full library still opens through Kiwix.
+          </p>
+          <div class="field">
+            <label for="zim-mode">Kiwix Content Mode</label>
+            <select id="zim-mode">
+              <option value="full">Full Curated Library</option>
+              <option value="quick-test">Quick Test Library</option>
+            </select>
+          </div>
+          <div class="actions">
+            <button class="button" id="save-mode-button" type="button">Save Content Mode</button>
+          </div>
+          <p class="status" id="mode-status">Content mode: loading</p>
+        </section>
+      </div>
+    </section>
+
+    <section class="panel-group" data-panel-group="maps">
+      <div class="grid">
+        <section class="card">
+          <h2>Offline Maps</h2>
+          <p class="muted">
+            SOPR maps use MapLibre with local PMTiles archives. Choose which installed package should be active and manage Project NOMAD map downloads here.
+          </p>
+          <p class="muted" id="maps-root">PMTiles root: loading</p>
+          <p class="muted" id="active-map-file">Active map: loading</p>
+          <p class="muted" id="maps-catalog-source">Catalog source: loading</p>
+          <div class="field">
+            <label for="map-package">Installed PMTiles Package</label>
+            <select id="map-package"></select>
+          </div>
+          <div class="actions">
+            <button class="button" id="refresh-maps-button" type="button">Refresh Installed Maps</button>
+            <button class="button" id="save-map-button" type="button">Set Active Map</button>
+          </div>
+          <p class="status" id="maps-status">Maps package status: loading</p>
+        </section>
+        <section class="card">
+          <h2>Project NOMAD Sync</h2>
+          <p class="muted">
+            Check the PMTiles archives you want on the Pi. Clicking update will download checked maps and remove unchecked Project NOMAD maps.
+          </p>
+          <div class="field">
+            <label>Project NOMAD Map Downloads</label>
+            <div id="maps-catalog-list" class="log-panel muted">Loading map catalog...</div>
+          </div>
+          <div class="actions">
+            <button class="button" id="refresh-catalog-button" type="button">Refresh Catalog</button>
+            <button class="button" id="sync-maps-button" type="button">Update Installed Maps</button>
+          </div>
+          <p class="status" id="maps-sync-status">Map sync: idle</p>
+          <div class="log-panel">
+            <strong>Map Sync Log</strong>
+            <pre id="maps-sync-log">No map sync activity yet.</pre>
+          </div>
+        </section>
+      </div>
+    </section>
+
     <div class="actions">
       <a class="button" href="/">Return to main page</a>
       <a class="button" href="/?mode=setup">Open Setup Preferences</a>
@@ -310,6 +365,15 @@
     let currentMaps = null;
     let currentCatalog = null;
     let mapsSyncPollHandle = null;
+
+    function setActivePanel(panelName) {
+      document.querySelectorAll("[data-panel-group]").forEach((panel) => {
+        panel.classList.toggle("active", panel.dataset.panelGroup === panelName);
+      });
+      document.querySelectorAll(".tab-button").forEach((button) => {
+        button.classList.toggle("active", button.dataset.panel === panelName);
+      });
+    }
 
     function renderApplyState(apply) {
       const label = apply.action ? ` (${apply.action})` : "";
@@ -636,6 +700,9 @@
     document.getElementById("save-map-button").addEventListener("click", saveMapSelection);
     document.getElementById("refresh-catalog-button").addEventListener("click", refreshCatalog);
     document.getElementById("sync-maps-button").addEventListener("click", syncMapsSelection);
+    document.querySelectorAll(".tab-button").forEach((button) => {
+      button.addEventListener("click", () => setActivePanel(button.dataset.panel));
+    });
     loadAdminStatus();
     refreshCatalog();
   </script>

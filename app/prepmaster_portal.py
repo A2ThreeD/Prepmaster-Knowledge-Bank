@@ -169,7 +169,7 @@ class PortalState:
         return {
             "owner": env.get("PREPMASTER_MAP_REPO_OWNER", "Crosstalk-Solutions"),
             "repo": env.get("PREPMASTER_MAP_REPO_NAME", "project-nomad-maps"),
-            "branch": env.get("PREPMASTER_MAP_REPO_BRANCH", "main"),
+            "branch": env.get("PREPMASTER_MAP_REPO_BRANCH", "master"),
             "subdir": env.get("PREPMASTER_MAP_REPO_SUBDIR", "pmtiles"),
         }
 
