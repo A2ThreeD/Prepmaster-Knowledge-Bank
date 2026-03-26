@@ -62,18 +62,18 @@
     .masthead {
       position: relative;
       text-align: center;
-      padding: 20px 22px;
+      width: 100vw;
+      margin-left: calc(50% - 50vw);
+      margin-right: calc(50% - 50vw);
+      padding: 18px 0;
       margin-bottom: 12px;
-      border-radius: 28px;
       overflow: hidden;
-      border: 1px solid rgba(142, 186, 235, 0.24);
       background:
         linear-gradient(180deg, rgba(6, 15, 29, 0.22), rgba(4, 11, 21, 0.8)),
         radial-gradient(circle at 50% 32%, rgba(122, 191, 255, 0.28), transparent 16%),
         radial-gradient(circle at 50% 34%, rgba(79, 143, 239, 0.2), transparent 28%),
         linear-gradient(180deg, rgba(15, 32, 56, 0.34), rgba(7, 15, 28, 0.76)),
         url("/images/heroimage.png") center 50% / cover no-repeat;
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
     }
 
     .title-block {
@@ -466,7 +466,6 @@
     </header>
 
     <section class="title-block">
-      <h1>Command Center</h1>
       <p class="intro" id="intro-text">
         Configure this device for calm, reliable offline use. After setup, this page becomes the main dashboard for content, tools, and system status.
       </p>

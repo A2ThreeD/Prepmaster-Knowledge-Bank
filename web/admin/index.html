@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prepmaster Admin</title>
+  <title>Admin Portal</title>
   <style>
     :root {
       --bg: #07111f;
@@ -80,6 +80,12 @@
       border-radius: 14px;
       padding: 12px 16px;
       background: var(--panel-2);
+      cursor: pointer;
+    }
+
+    .button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
     }
 
     .muted {
@@ -181,7 +187,7 @@
 <body>
   <main>
     <span class="tag">System Tools</span>
-    <h1>Prepmaster Admin</h1>
+    <h1>Admin Portal</h1>
     <p class="muted">
       This is the custom admin placeholder for system controls, content updates, and maintenance actions.
     </p>
@@ -284,10 +290,14 @@
         `${apply.progress_percent || 0}%`;
       document.getElementById("progress-fill").style.width =
         `${apply.progress_percent || 0}%`;
-      document.getElementById("current-file-status").textContent =
-        apply.current_file
-          ? `Current file: ${apply.current_file}${apply.download_current && apply.download_total ? ` (${apply.download_current}/${apply.download_total})` : ""}`
-          : "Current file: none";
+      let currentFileText = "Current file: none";
+      if (apply.current_file) {
+        currentFileText = `Current file: ${apply.current_file}`;
+        if (apply.download_current && apply.download_total) {
+          currentFileText += ` (${apply.download_current}/${apply.download_total})`;
+        }
+      }
+      document.getElementById("current-file-status").textContent = currentFileText;
       document.getElementById("apply-log").textContent =
         apply.log_tail && apply.log_tail.length
           ? apply.log_tail.join("\n")
@@ -379,6 +389,8 @@
     }
 
     async function triggerApplyAction(action) {
+      document.getElementById("content-action-status").textContent =
+        `Content actions: starting ${action}`;
       try {
         const response = await fetch("/api/apply", {
           method: "POST",
