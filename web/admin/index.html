@@ -507,17 +507,9 @@
           <div class="status-cluster" id="ap-status" aria-live="polite"></div>
         </section>
         <section class="card">
-          <h2>Kiwix Library</h2>
+          <h2>System</h2>
           <p class="muted">
-            Kiwix runs on its own dedicated port for better compatibility than a subpath reverse proxy.
-          </p>
-          <p class="muted" id="kiwix-target">Kiwix target: loading</p>
-          <div class="status-cluster" id="kiwix-status" aria-live="polite"></div>
-        </section>
-        <section class="card">
-          <h2>System Status</h2>
-          <p class="muted">
-            Live Raspberry Pi health is shown here now so the homepage can stay focused on navigation.
+            Live Raspberry Pi health and power controls live here so the main page can stay focused on navigation.
           </p>
           <div class="health-grid">
             <div class="health-card">
@@ -528,16 +520,20 @@
             <div class="health-card">
               <strong>Temp</strong>
               <div class="value" id="system-temp-status">Loading</div>
-              <div class="subvalue" id="system-uptime-status">Uptime: loading</div>
               <div class="meter"><div class="meter-track"><div class="meter-fill temp-cool" id="system-temp-fill"></div></div></div>
             </div>
             <div class="health-card">
-              <strong>Services</strong>
-              <div class="status-cluster" id="system-service-status">
-                <span class="status-chip status-chip--muted"><span class="status-chip-key">Loading</span></span>
-              </div>
+              <strong>CPU</strong>
+              <div class="value" id="system-cpu-status">Loading</div>
+              <div class="subvalue" id="system-uptime-status">Uptime: loading</div>
+              <div class="meter"><div class="meter-track"><div class="meter-fill" id="system-cpu-fill"></div></div></div>
             </div>
           </div>
+          <div class="actions">
+            <button class="button secondary" id="restart-system-button" type="button">Restart</button>
+            <button class="button secondary" id="shutdown-system-button" type="button">Shutdown</button>
+          </div>
+          <p class="status" id="system-power-status">Power controls ready.</p>
         </section>
       </div>
     </section>
@@ -661,7 +657,6 @@
     <div class="actions">
       <a class="button" href="/">Return to main page</a>
       <a class="button" href="/?mode=setup">Open Setup Preferences</a>
-      <a class="button" id="kiwix-link" href="/kiwix">Open Kiwix</a>
     </div>
   </main>
   <script>
@@ -802,29 +797,27 @@
         document.getElementById("system-temp-fill").className = `meter-fill ${tempTone}`;
       }
 
+      if (!status.cpu) {
+        document.getElementById("system-cpu-status").textContent = "Unavailable";
+        document.getElementById("system-cpu-fill").style.width = "0%";
+      } else {
+        document.getElementById("system-cpu-status").textContent =
+          `${status.cpu.load_percent}% load`;
+        document.getElementById("system-cpu-fill").style.width = `${status.cpu.load_percent}%`;
+      }
+
       document.getElementById("system-uptime-status").textContent = `Uptime: ${status.uptime}`;
-      setStatusChips("system-service-status", [
-        { label: "API", value: status.services.portal, tone: toneForServiceState(status.services.portal) },
-        { label: "Web", value: status.services.nginx, tone: toneForServiceState(status.services.nginx) },
-        { label: "Zim", value: status.services.kiwix, tone: toneForServiceState(status.services.kiwix) },
-        { label: "AP", value: status.services.hostapd, tone: toneForServiceState(status.services.hostapd) },
-        { label: "DHCP", value: status.services.dnsmasq, tone: toneForServiceState(status.services.dnsmasq) }
-      ]);
     }
 
     async function loadSystemPanelData() {
       document.getElementById("system-disk-status").textContent = "Checking...";
       document.getElementById("system-temp-status").textContent = "Checking...";
+      document.getElementById("system-cpu-status").textContent = "Checking...";
       document.getElementById("system-uptime-status").textContent = "Uptime: checking...";
       try {
         const { payload } = await fetchJsonWithTimeout("/api/status", {}, 2500);
         currentStatus = payload;
         renderSystemHealth(currentStatus);
-        document.getElementById("kiwix-target").textContent = `Kiwix target: ${currentStatus.kiwix_url}`;
-        document.getElementById("kiwix-link").href = currentStatus.kiwix_url;
-        setStatusChips("kiwix-status", [
-          { label: "Kiwix", value: currentStatus.services.kiwix, tone: toneForServiceState(currentStatus.services.kiwix) }
-        ]);
         setStatusChips("ap-status", [
           { label: "Hostapd", value: currentStatus.services.hostapd, tone: toneForServiceState(currentStatus.services.hostapd) },
           { label: "Dnsmasq", value: currentStatus.services.dnsmasq, tone: toneForServiceState(currentStatus.services.dnsmasq) }
@@ -836,17 +829,40 @@
         document.getElementById("system-temp-status").textContent = delayed ? "Delayed" : "Unavailable";
         document.getElementById("system-temp-fill").style.width = "0%";
         document.getElementById("system-temp-fill").className = "meter-fill";
+        document.getElementById("system-cpu-status").textContent = delayed ? "Delayed" : "Unavailable";
+        document.getElementById("system-cpu-fill").style.width = "0%";
         document.getElementById("system-uptime-status").textContent = delayed ? "Uptime: delayed" : "Uptime: unavailable";
-        setStatusChips("system-service-status", [
-          { label: "System", value: delayed ? "Delayed" : "Unavailable", tone: delayed ? "status-chip--warn" : "status-chip--error" }
-        ]);
-        document.getElementById("kiwix-target").textContent = "Kiwix target: unavailable";
-        setStatusChips("kiwix-status", [
-          { label: "Kiwix", value: "Unavailable", tone: "status-chip--error" }
-        ]);
         setStatusChips("ap-status", [
           { label: "AP", value: "Unavailable", tone: "status-chip--error" }
         ]);
+      }
+    }
+
+    async function requestPowerAction(action) {
+      const statusEl = document.getElementById("system-power-status");
+      const restartButton = document.getElementById("restart-system-button");
+      const shutdownButton = document.getElementById("shutdown-system-button");
+      const actionLabel = action === "restart" ? "Restart" : "Shutdown";
+
+      statusEl.textContent = `${actionLabel} requested...`;
+      restartButton.disabled = true;
+      shutdownButton.disabled = true;
+
+      try {
+        const { response, payload } = await fetchJsonWithTimeout("/api/system/power", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action })
+        }, 4000);
+        if (!response.ok) {
+          throw new Error(payload.error || `Unable to ${action}`);
+        }
+        statusEl.textContent = payload.message || `System ${action} requested.`;
+      } catch (error) {
+        statusEl.textContent = `${actionLabel} failed: ${error.message}`;
+      } finally {
+        restartButton.disabled = false;
+        shutdownButton.disabled = false;
       }
     }
 

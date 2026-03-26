@@ -650,6 +650,7 @@ class PortalState:
                 "free_gb": round(free / (1024 ** 3), 1),
             },
             "temperature_c": self.read_temperature(),
+            "cpu": self.read_cpu_load(),
             "uptime": self.read_uptime(),
             "kiwix_url": f"http://{self.detect_primary_host()}:{read_env_file(self.prepmaster_env).get('KIWIX_PORT', '8080')}/",
             "content_mode": read_env_file(self.prepmaster_env).get(
@@ -970,6 +971,20 @@ class PortalState:
         minutes = remainder // 60
         return f"{hours}h {minutes}m"
 
+    def read_cpu_load(self) -> dict[str, float | int] | None:
+        try:
+            load1, _, _ = os.getloadavg()
+        except (AttributeError, OSError):
+            return None
+
+        cpu_count = os.cpu_count() or 1
+        load_percent = max(0, min(100, round((load1 / cpu_count) * 100)))
+        return {
+            "load_1m": round(load1, 2),
+            "cpu_count": cpu_count,
+            "load_percent": load_percent,
+        }
+
     def read_service_statuses(self, services: dict[str, str]) -> dict[str, str]:
         try:
             result = subprocess.run(
@@ -1001,6 +1016,30 @@ class PortalState:
 
         candidates = [value for value in result.stdout.split() if "." in value]
         return candidates[0] if candidates else "127.0.0.1"
+
+    def request_power_action(self, action: str) -> dict:
+        if action not in {"restart", "shutdown"}:
+            raise ValueError("Invalid power action")
+
+        try:
+            result = subprocess.run(
+                ["systemctl", action],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError("systemctl is not available on this system") from exc
+
+        if result.returncode != 0:
+            message = (result.stderr or result.stdout or "").strip() or f"systemctl {action} failed"
+            raise RuntimeError(message)
+
+        return {
+            "status": "accepted",
+            "action": action,
+            "message": f"System {action} requested.",
+        }
 
 
 class PortalHandler(BaseHTTPRequestHandler):
@@ -1098,6 +1137,18 @@ class PortalHandler(BaseHTTPRequestHandler):
                 return
             except RuntimeError as exc:
                 self.send_json({"error": str(exc)}, status=409)
+                return
+            self.send_json(state, status=202)
+            return
+
+        if self.path == "/api/system/power":
+            try:
+                state = self.portal_state.request_power_action(payload.get("action", ""))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=500)
                 return
             self.send_json(state, status=202)
             return
