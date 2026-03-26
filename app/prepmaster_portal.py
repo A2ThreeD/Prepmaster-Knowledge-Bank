@@ -234,6 +234,30 @@ class PortalState:
         self.write_maps_runtime_config()
         return self.maps_status()
 
+    def update_map_settings(self, payload: dict) -> dict:
+        updates: dict[str, str] = {}
+
+        filename = payload.get("filename")
+        if filename is not None:
+            if not filename or Path(filename).name != filename or not filename.endswith(".pmtiles"):
+                raise ValueError("Invalid PMTiles filename")
+            packages = self.list_pmtiles_packages()
+            if filename not in packages:
+                raise ValueError("PMTiles package not found in map root")
+            updates["PREPMASTER_MAP_PMTILES_FILE"] = filename
+
+        flavor = payload.get("flavor")
+        if flavor is not None:
+            if flavor not in {"light", "dark"}:
+                raise ValueError("Invalid map flavor")
+            updates["PREPMASTER_MAP_STYLE_FLAVOR"] = flavor
+
+        if updates:
+            update_env_file(self.prepmaster_env, updates)
+            self.write_maps_runtime_config()
+
+        return self.maps_status()
+
     def read_map_sync_log_tail(self, lines: int = 30) -> list[str]:
         if not self.map_sync_log_file.exists():
             return []
@@ -873,6 +897,15 @@ class PortalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/maps/select":
             try:
                 state = self.portal_state.select_map_package(payload.get("filename", ""))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/maps/settings":
+            try:
+                state = self.portal_state.update_map_settings(payload)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, status=400)
                 return

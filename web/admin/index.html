@@ -373,9 +373,16 @@
             <label for="map-package">Installed PMTiles Package</label>
             <select id="map-package"></select>
           </div>
+          <div class="field">
+            <label for="map-flavor">Map Theme</label>
+            <select id="map-flavor">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+          </div>
           <div class="actions">
             <button class="button" id="refresh-maps-button" type="button">Refresh Installed Maps</button>
-            <button class="button" id="save-map-button" type="button">Set Active Map</button>
+            <button class="button" id="save-map-button" type="button">Save Map Settings</button>
           </div>
           <p class="status" id="maps-status">Maps package status: loading</p>
         </section>
@@ -389,6 +396,7 @@
             <div id="maps-catalog-list" class="log-panel muted">Loading map catalog...</div>
           </div>
           <div class="actions">
+            <button class="button" id="select-all-maps-button" type="button">Select All</button>
             <button class="button" id="refresh-catalog-button" type="button">Refresh Catalog</button>
             <button class="button" id="sync-maps-button" type="button">Update Installed Maps</button>
           </div>
@@ -510,6 +518,7 @@
       document.getElementById("maps-status").textContent = maps.active_exists
         ? `Maps package status: active archive found | flavor ${maps.flavor} | language ${maps.language}`
         : "Maps package status: configured archive is missing";
+      document.getElementById("map-flavor").value = maps.flavor || "dark";
 
       const select = document.getElementById("map-package");
       const currentValue = select.value;
@@ -571,6 +580,7 @@
       const running = state.status === "running";
       document.getElementById("sync-maps-button").disabled = running;
       document.getElementById("refresh-catalog-button").disabled = running;
+      document.getElementById("select-all-maps-button").disabled = running;
 
       const checkboxes = document.querySelectorAll(".map-catalog-checkbox");
       checkboxes.forEach((checkbox) => {
@@ -688,6 +698,7 @@
 
     async function saveMapSelection() {
       const select = document.getElementById("map-package");
+      const flavor = document.getElementById("map-flavor").value;
       const button = document.getElementById("save-map-button");
       const filename = select.value;
 
@@ -698,10 +709,10 @@
 
       button.disabled = true;
       try {
-        const response = await fetch("/api/maps/select", {
+        const response = await fetch("/api/maps/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filename })
+          body: JSON.stringify({ filename, flavor })
         });
         const payload = await response.json();
         if (!response.ok) {
@@ -716,6 +727,15 @@
       } finally {
         button.disabled = false;
       }
+    }
+
+    function selectAllMaps() {
+      const checkboxes = Array.from(document.querySelectorAll(".map-catalog-checkbox"));
+      const allChecked = checkboxes.length > 0 && checkboxes.every((checkbox) => checkbox.checked);
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = !allChecked;
+      });
+      document.getElementById("select-all-maps-button").textContent = allChecked ? "Select All" : "Clear All";
     }
 
     async function syncMapsSelection() {
@@ -746,6 +766,7 @@
     document.getElementById("full-apply-button").addEventListener("click", () => triggerApplyAction("full"));
     document.getElementById("refresh-maps-button").addEventListener("click", refreshMapsList);
     document.getElementById("save-map-button").addEventListener("click", saveMapSelection);
+    document.getElementById("select-all-maps-button").addEventListener("click", selectAllMaps);
     document.getElementById("refresh-catalog-button").addEventListener("click", refreshCatalog);
     document.getElementById("sync-maps-button").addEventListener("click", syncMapsSelection);
     document.querySelectorAll(".tab-button").forEach((button) => {
