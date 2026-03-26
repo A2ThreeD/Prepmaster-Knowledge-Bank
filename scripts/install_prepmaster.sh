@@ -42,6 +42,9 @@ install -d -m 0755 "$PREPMASTER_MAPS_ROOT"
 install -m 0644 "$REPO_ROOT/web/admin/index.html" "$PREPMASTER_ADMIN_ROOT/index.html"
 install -m 0644 "$REPO_ROOT/web/maps/index.html" "$PREPMASTER_MAPS_ROOT/index.html"
 
+echo "Installing offline maps assets..."
+"$REPO_ROOT/scripts/install_maps_assets.sh"
+
 echo "Preparing Kiwix content directory..."
 install -d -m 0755 "$KIWIX_LIBRARY_DIR"
 

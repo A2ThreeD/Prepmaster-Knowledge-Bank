@@ -1,6 +1,6 @@
-# Prepmaster Knowledge Bank
+# SOPR Knowledge Bank
 
-Prepmaster Knowledge Bank is an offline-first Raspberry Pi project for serving emergency preparedness, medical, survival, and general reference material on a local network.
+SOPR, short for Survival Operations Plan Response, is an offline-first Raspberry Pi project for serving emergency preparedness, medical, survival, and general reference material on a local network.
 
 The current plan is to build on a fresh Raspberry Pi OS Lite install and automate:
 

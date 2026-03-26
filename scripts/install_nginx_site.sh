@@ -43,6 +43,13 @@ server {
         try_files \$uri \$uri/ /maps/index.html;
     }
 
+    location /map-tiles/ {
+        alias $PREPMASTER_MAP_TILE_ROOT/;
+        access_log off;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
     location /api/ {
         proxy_pass http://127.0.0.1:$ADMIN_PORT/api/;
         proxy_http_version 1.1;

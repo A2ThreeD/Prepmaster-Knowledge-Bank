@@ -25,6 +25,7 @@ PACKAGES=(
   git
   hostapd
   jq
+  libjs-leaflet
   nginx
   python3
   python3-pip

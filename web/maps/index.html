@@ -3,40 +3,47 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prepmaster Maps</title>
+  <title>SOPR Offline Maps</title>
+  <link rel="stylesheet" href="/maps/vendor/leaflet/leaflet.css">
   <style>
     :root {
       --bg: #07111f;
-      --panel: #102238;
-      --panel-2: #16304d;
+      --panel: rgba(16, 34, 56, 0.9);
+      --panel-2: rgba(22, 48, 77, 0.88);
       --text: #edf4fb;
       --muted: #9bb0c7;
       --accent: #7bb7ff;
       --border: rgba(158, 190, 227, 0.22);
+      --shadow: 0 22px 54px rgba(0, 0, 0, 0.34);
     }
 
     * { box-sizing: border-box; }
 
     body {
       margin: 0;
+      min-height: 100vh;
+      color: var(--text);
       background:
         radial-gradient(900px 420px at 50% -10%, rgba(76, 123, 181, 0.24), transparent 60%),
         linear-gradient(180deg, #091426 0%, var(--bg) 100%);
-      color: var(--text);
       font-family: "Segoe UI", "Noto Sans", sans-serif;
-      padding: 24px;
     }
 
-    main {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 24px;
-      border: 1px solid var(--border);
-      border-radius: 20px;
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      padding: 22px;
+      border-right: 1px solid var(--border);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
-        var(--panel);
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+        rgba(9, 20, 38, 0.94);
+      box-shadow: var(--shadow);
+      position: relative;
+      z-index: 2;
     }
 
     .tag {
@@ -46,6 +53,46 @@
       text-transform: uppercase;
       letter-spacing: 0.12em;
       font-size: 12px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 2.6rem);
+      line-height: 1.02;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .card {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .card p,
+    .card li {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .card ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .card li + li {
+      margin-top: 6px;
     }
 
     .actions {
@@ -59,31 +106,230 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 160px;
-      text-decoration: none;
-      color: var(--text);
-      border: 1px solid var(--border);
+      min-width: 142px;
+      padding: 11px 14px;
       border-radius: 14px;
-      padding: 12px 16px;
+      border: 1px solid var(--border);
       background: var(--panel-2);
+      color: var(--text);
+      text-decoration: none;
+      cursor: pointer;
+      font: inherit;
     }
 
-    .muted {
+    .button.secondary {
+      background: rgba(7, 17, 31, 0.5);
+    }
+
+    .field {
+      margin-top: 14px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
       color: var(--muted);
+    }
+
+    input {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.42);
+      color: var(--text);
+      font: inherit;
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .map-shell {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #map {
+      height: 100%;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    .map-banner {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      right: 18px;
+      z-index: 500;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(7, 17, 31, 0.82);
+      box-shadow: var(--shadow);
+      color: var(--text);
+    }
+
+    .map-banner.hidden {
+      display: none;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .map-shell,
+      #map {
+        min-height: 68vh;
+      }
     }
   </style>
 </head>
 <body>
-  <main>
-    <span class="tag">Navigation</span>
-    <h1>Offline Maps</h1>
-    <p class="muted">
-      This placeholder marks the future custom maps experience. We can drop in a lightweight viewer or local tile service here.
-    </p>
-    <div class="actions">
-      <a class="button" href="/">Return to main page</a>
-      <a class="button" href="/admin">Open Admin Portal</a>
-    </div>
-  </main>
+  <div class="layout">
+    <aside class="sidebar">
+      <span class="tag">SOPR Navigation</span>
+      <h1>Offline Maps</h1>
+      <p class="muted">
+        This map view uses Leaflet with local offline raster tiles. It is designed to stay fully usable without internet access once tiles are present on the device.
+      </p>
+
+      <div class="actions">
+        <a class="button" href="/">Return to Main Page</a>
+        <a class="button secondary" href="/admin">Open Admin Portal</a>
+      </div>
+
+      <section class="card">
+        <h2>Search Position</h2>
+        <div class="field">
+          <label for="lat-input">Latitude</label>
+          <input id="lat-input" type="number" step="any" value="39.8283">
+        </div>
+        <div class="field">
+          <label for="lon-input">Longitude</label>
+          <input id="lon-input" type="number" step="any" value="-98.5795">
+        </div>
+        <div class="field">
+          <label for="zoom-input">Zoom</label>
+          <input id="zoom-input" type="number" min="2" max="14" step="1" value="4">
+        </div>
+        <div class="actions">
+          <button class="button" id="go-button" type="button">Go To Coordinates</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Tile Layout</h2>
+        <p>
+          Place tiles in the server directory using the layout:
+        </p>
+        <ul>
+          <li><code>/srv/prepmaster/maps/tiles/{z}/{x}/{y}.png</code></li>
+          <li>Example: <code>/srv/prepmaster/maps/tiles/6/10/24.png</code></li>
+        </ul>
+        <p class="status" id="tile-url-status">Tile source: /map-tiles/{z}/{x}/{y}.png</p>
+      </section>
+
+      <section class="card">
+        <h2>Map Status</h2>
+        <p class="status" id="map-status">Checking tile availability...</p>
+      </section>
+    </aside>
+
+    <main class="map-shell">
+      <div class="map-banner hidden" id="map-banner">
+        Offline tiles were not found at the current tile source. Add local tiles, then reload this page.
+      </div>
+      <div id="map"></div>
+    </main>
+  </div>
+
+  <script src="/maps/vendor/leaflet/leaflet.js"></script>
+  <script>
+    const tileUrl = "/map-tiles/{z}/{x}/{y}.png";
+    const defaults = {
+      lat: 39.8283,
+      lon: -98.5795,
+      zoom: 4,
+      minZoom: 2,
+      maxZoom: 14,
+    };
+
+    const mapStatus = document.getElementById("map-status");
+    const mapBanner = document.getElementById("map-banner");
+    const latInput = document.getElementById("lat-input");
+    const lonInput = document.getElementById("lon-input");
+    const zoomInput = document.getElementById("zoom-input");
+
+    const map = L.map("map", {
+      zoomControl: true,
+      minZoom: defaults.minZoom,
+      maxZoom: defaults.maxZoom,
+    }).setView([defaults.lat, defaults.lon], defaults.zoom);
+
+    const tileLayer = L.tileLayer(tileUrl, {
+      minZoom: defaults.minZoom,
+      maxZoom: defaults.maxZoom,
+      noWrap: true,
+      attribution: "Offline map tiles",
+    }).addTo(map);
+
+    const marker = L.marker([defaults.lat, defaults.lon]).addTo(map);
+
+    function updateMarker() {
+      marker.setLatLng(map.getCenter());
+    }
+
+    async function checkTiles() {
+      const probeUrl = tileUrl
+        .replace("{z}", String(defaults.zoom))
+        .replace("{x}", "4")
+        .replace("{y}", "6");
+
+      try {
+        const response = await fetch(probeUrl, { method: "HEAD", cache: "no-store" });
+        if (response.ok) {
+          mapStatus.textContent = "Offline tiles detected. Map rendering is active.";
+          mapBanner.classList.add("hidden");
+        } else {
+          mapStatus.textContent = "No local tiles were found for the current source.";
+          mapBanner.classList.remove("hidden");
+        }
+      } catch (error) {
+        mapStatus.textContent = "Tile source could not be reached from the browser.";
+        mapBanner.classList.remove("hidden");
+      }
+    }
+
+    function goToCoordinates() {
+      const lat = Number(latInput.value);
+      const lon = Number(lonInput.value);
+      const zoom = Number(zoomInput.value);
+
+      if (Number.isNaN(lat) || Number.isNaN(lon) || Number.isNaN(zoom)) {
+        mapStatus.textContent = "Enter valid latitude, longitude, and zoom values.";
+        return;
+      }
+
+      map.setView([lat, lon], zoom);
+      marker.setLatLng([lat, lon]);
+      mapStatus.textContent = `Centered on ${lat.toFixed(4)}, ${lon.toFixed(4)} at zoom ${zoom}.`;
+    }
+
+    map.on("moveend", updateMarker);
+    document.getElementById("go-button").addEventListener("click", goToCoordinates);
+
+    checkTiles();
+  </script>
 </body>
 </html>

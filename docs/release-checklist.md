@@ -1,6 +1,6 @@
 # Release Checklist
 
-Use this checklist when validating Prepmaster on a fresh Raspberry Pi or preparing a new release.
+Use this checklist when validating SOPR on a fresh Raspberry Pi or preparing a new release.
 
 ## Source Control
 

@@ -1,4 +1,4 @@
-# Prepmaster Architecture Notes
+# SOPR Architecture Notes
 
 ## Goals
 
@@ -35,7 +35,7 @@ Likely implementation options:
 
 ### 4. Web Experience
 
-- Main page headline: `Prepmaster Emergency Knowledge Hub`
+- Main page headline and branding should reflect `SOPR` and expand to `Survival Operations Plan Response` where helpful
 - First startup should present a basic configuration page before the normal dashboard experience
 - First-start choices should map directly to install-profile flags consumed by the shell installer
 - Once setup is marked complete, `/` should show the dashboard instead of the setup flow

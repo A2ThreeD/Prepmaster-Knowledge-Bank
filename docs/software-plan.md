@@ -82,7 +82,7 @@ KA Lite remains a legacy path because its official project status is deprecated 
 
 ## Custom Stack Direction
 
-Prepmaster will own:
+SOPR will own:
 
 - the landing page
 - the admin UI
