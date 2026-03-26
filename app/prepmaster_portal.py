@@ -404,6 +404,41 @@ class PortalState:
 
         return self.maps_status()
 
+    def remove_map_packages(self, filenames: list[str]) -> dict:
+        if not isinstance(filenames, list) or not filenames:
+            raise ValueError("No PMTiles packages selected")
+
+        root = self.maps_root()
+        inventory = {item["name"]: item for item in self.pmtiles_inventory()}
+        valid_names = {
+            name for name in filenames
+            if isinstance(name, str)
+            and Path(name).name == name
+            and name.endswith(".pmtiles")
+            and name in inventory
+        }
+
+        if not valid_names:
+            raise ValueError("Selected PMTiles packages were not found")
+
+        for name in valid_names:
+            try:
+                (root / name).unlink()
+            except FileNotFoundError:
+                continue
+
+        remaining_valid = self.list_pmtiles_packages(valid_only=True)
+        active = self.active_pmtiles_file()
+        if active in valid_names:
+            replacement = remaining_valid[0] if remaining_valid else "basemap.pmtiles"
+            update_env_file(
+                self.prepmaster_env,
+                {"PREPMASTER_MAP_PMTILES_FILE": replacement},
+            )
+
+        self.write_maps_runtime_config()
+        return self.maps_status()
+
     def read_map_sync_log_tail(self, lines: int = 30) -> list[str]:
         if not self.map_sync_log_file.exists():
             return []
@@ -1138,6 +1173,15 @@ class PortalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/maps/settings":
             try:
                 state = self.portal_state.update_map_settings(payload)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/maps/remove":
+            try:
+                state = self.portal_state.remove_map_packages(payload.get("filenames", []))
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, status=400)
                 return

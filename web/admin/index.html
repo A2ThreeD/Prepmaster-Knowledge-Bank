@@ -315,6 +315,14 @@
       font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
+    #maps-local-list {
+      max-height: 16rem;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.88) rgba(7, 14, 26, 0.58);
+    }
+
     #maps-catalog-list {
       max-height: 21rem;
       overflow-y: auto;
@@ -323,15 +331,18 @@
       scrollbar-color: rgba(255, 255, 255, 0.88) rgba(7, 14, 26, 0.58);
     }
 
+    #maps-local-list::-webkit-scrollbar,
     #maps-catalog-list::-webkit-scrollbar {
       width: 10px;
     }
 
+    #maps-local-list::-webkit-scrollbar-track,
     #maps-catalog-list::-webkit-scrollbar-track {
       background: rgba(7, 14, 26, 0.58);
       border-left: 1px solid rgba(255, 255, 255, 0.18);
     }
 
+    #maps-local-list::-webkit-scrollbar-thumb,
     #maps-catalog-list::-webkit-scrollbar-thumb {
       background: rgba(255, 255, 255, 0.84);
       border: 2px solid rgba(7, 14, 26, 0.58);
@@ -601,17 +612,26 @@
           <p class="muted" id="maps-root">PMTiles root: loading</p>
           <p class="muted" id="active-map-file">Active map: loading</p>
           <p class="muted" id="maps-catalog-source">Catalog source: loading</p>
-        <div class="field">
-          <label for="map-flavor">Map Theme</label>
-          <select id="map-flavor">
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-          </select>
-        </div>
-        <div class="actions">
-          <button class="button" id="refresh-maps-button" type="button">Refresh Installed Maps</button>
-          <button class="button" id="save-map-button" type="button">Save Map Theme</button>
-        </div>
+          <div class="field">
+            <label for="map-flavor">Map Theme</label>
+            <select id="map-flavor">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+          </div>
+          <div class="actions">
+            <button class="button" id="refresh-maps-button" type="button">Refresh Installed Maps</button>
+            <button class="button" id="save-map-button" type="button">Save Map Theme</button>
+          </div>
+          <div class="field">
+            <label>Installed PMTiles Packages</label>
+            <div id="maps-local-list" class="log-panel muted">Checking local PMTiles packages...</div>
+          </div>
+          <div class="actions">
+            <button class="button" id="select-all-local-maps-button" type="button">Select All</button>
+            <button class="button" id="clear-local-maps-button" type="button">Clear All</button>
+            <button class="button" id="remove-local-maps-button" type="button">Remove Selected Maps</button>
+          </div>
           <div class="status-cluster" id="maps-status" aria-live="polite"></div>
           <p class="substatus" id="maps-status-note">Loading map package status.</p>
         </section>
@@ -834,10 +854,14 @@
       const restartButton = document.getElementById("restart-system-button");
       const shutdownButton = document.getElementById("shutdown-system-button");
       const actionLabel = action === "restart" ? "Restart" : "Shutdown";
+      const selectedButton = action === "restart" ? restartButton : shutdownButton;
+      const otherButton = action === "restart" ? shutdownButton : restartButton;
 
-      statusEl.textContent = `${actionLabel} requested...`;
+      statusEl.textContent = `${actionLabel} requested. Waiting for system response...`;
       restartButton.disabled = true;
       shutdownButton.disabled = true;
+      selectedButton.textContent = `${actionLabel} Requested`;
+      otherButton.textContent = action === "restart" ? "Shutdown Disabled" : "Restart Disabled";
 
       try {
         const { response, payload } = await fetchJsonWithTimeout("/api/system/power", {
@@ -848,12 +872,13 @@
         if (!response.ok) {
           throw new Error(payload.error || `Unable to ${action}`);
         }
-        statusEl.textContent = payload.message || `System ${action} requested.`;
+        statusEl.textContent = payload.message || `System ${action} requested. Controls locked until the device changes state.`;
       } catch (error) {
         statusEl.textContent = `${actionLabel} failed: ${error.message}`;
-      } finally {
         restartButton.disabled = false;
         shutdownButton.disabled = false;
+        restartButton.textContent = "Restart";
+        shutdownButton.textContent = "Shutdown";
       }
     }
 
@@ -985,7 +1010,40 @@
           : (maps.active_error || "Configured PMTiles archive is unavailable.")
       );
       document.getElementById("map-flavor").value = maps.flavor || "dark";
+      renderLocalInstalledMaps(maps);
+    }
 
+    function renderLocalInstalledMaps(maps) {
+      const container = document.getElementById("maps-local-list");
+      const inventory = [
+        ...(maps.available_files || []).map((name) => ({
+          name,
+          valid: true,
+          active: name === maps.active_file,
+        })),
+        ...((maps.invalid_files || []).map((item) => ({
+          name: item.name,
+          valid: false,
+          active: item.name === maps.active_file,
+          error: item.error,
+        })))
+      ];
+
+      if (!inventory.length) {
+        container.textContent = "No PMTiles packages found on local storage.";
+        return;
+      }
+
+      container.innerHTML = inventory.map((item) => {
+        const details = [];
+        if (item.active) details.push("active");
+        if (!item.valid) details.push(item.error || "invalid");
+        const detailText = details.length ? ` <span class="muted">(${details.join(" | ")})</span>` : "";
+        return `<label style="display:block;margin-bottom:8px;">
+          <input type="checkbox" class="local-map-checkbox" value="${item.name}">
+          ${item.name}${detailText}
+        </label>`;
+      }).join("");
     }
 
     function renderCatalog(catalog) {
@@ -1054,11 +1112,19 @@
 
       const running = state.status === "running";
       document.getElementById("sync-maps-button").disabled = running;
+      document.getElementById("sync-maps-button").textContent = running ? "Updating..." : "Update Installed Maps";
       document.getElementById("refresh-catalog-button").disabled = running;
       document.getElementById("select-all-maps-button").disabled = running;
+      document.getElementById("remove-local-maps-button").disabled = running;
+      document.getElementById("select-all-local-maps-button").disabled = running;
+      document.getElementById("clear-local-maps-button").disabled = running;
 
       const checkboxes = document.querySelectorAll(".map-catalog-checkbox");
       checkboxes.forEach((checkbox) => {
+        checkbox.disabled = running;
+      });
+      const localCheckboxes = document.querySelectorAll(".local-map-checkbox");
+      localCheckboxes.forEach((checkbox) => {
         checkbox.disabled = running;
       });
 
@@ -1133,10 +1199,14 @@
     }
 
     async function refreshMapsList() {
+      const button = document.getElementById("refresh-maps-button");
+      button.disabled = true;
+      button.textContent = "Refreshing...";
       try {
         const maps = await loadLocalMapsState();
         currentMaps = maps;
         renderMapsState(maps);
+        document.getElementById("maps-status-note").textContent = "Installed PMTiles packages refreshed from local storage.";
       } catch (error) {
         setStatusChips("maps-status", [
           { label: "Archive", value: "Unavailable", tone: "status-chip--error" }
@@ -1146,10 +1216,16 @@
         document.getElementById("active-map-file").textContent = delayed ? "Active map: local check delayed" : "Active map: unavailable";
         document.getElementById("maps-status-note").textContent =
           delayed ? "Local map state is taking too long to respond." : "Map package status is unavailable.";
+      } finally {
+        button.disabled = false;
+        button.textContent = "Refresh Installed Maps";
       }
     }
 
     async function refreshCatalog(forceRefresh = true) {
+      const button = document.getElementById("refresh-catalog-button");
+      button.disabled = true;
+      button.textContent = "Checking...";
       try {
         const { response, payload } = await fetchJsonWithTimeout(
           forceRefresh ? "/api/maps/catalog?refresh=1" : "/api/maps/catalog",
@@ -1163,6 +1239,9 @@
         renderCatalog(payload);
       } catch (error) {
         document.getElementById("maps-catalog-list").textContent = error.message;
+      } finally {
+        button.disabled = false;
+        button.textContent = "Check Online Catalog";
       }
     }
 
@@ -1186,6 +1265,7 @@
       const button = document.getElementById("save-map-button");
 
       button.disabled = true;
+      button.textContent = "Saving...";
       try {
         const { response, payload } = await fetchJsonWithTimeout("/api/maps/settings", {
           method: "POST",
@@ -1204,6 +1284,7 @@
         document.getElementById("maps-status-note").textContent = error.message;
       } finally {
         button.disabled = false;
+        button.textContent = "Save Map Theme";
       }
     }
 
@@ -1216,6 +1297,49 @@
       document.getElementById("select-all-maps-button").textContent = allChecked ? "Select All" : "Clear All";
     }
 
+    function selectAllLocalMaps() {
+      document.querySelectorAll(".local-map-checkbox").forEach((checkbox) => {
+        checkbox.checked = true;
+      });
+    }
+
+    function clearLocalMapsSelection() {
+      document.querySelectorAll(".local-map-checkbox").forEach((checkbox) => {
+        checkbox.checked = false;
+      });
+    }
+
+    async function removeSelectedLocalMaps() {
+      const button = document.getElementById("remove-local-maps-button");
+      const selected = Array.from(document.querySelectorAll(".local-map-checkbox:checked"))
+        .map((checkbox) => checkbox.value);
+
+      if (!selected.length) {
+        document.getElementById("maps-status-note").textContent = "Select one or more local PMTiles packages to remove.";
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Removing...";
+      try {
+        const { response, payload } = await fetchJsonWithTimeout("/api/maps/remove", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filenames: selected })
+        }, 10000);
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to remove selected maps");
+        }
+        currentMaps = payload;
+        renderMapsState(payload, `Removed ${selected.length} local map package${selected.length === 1 ? "" : "s"}.`);
+      } catch (error) {
+        document.getElementById("maps-status-note").textContent = error.message;
+      } finally {
+        button.disabled = false;
+        button.textContent = "Remove Selected Maps";
+      }
+    }
+
     function togglePanel(panelId, buttonId, showLabel, hideLabel) {
       const panel = document.getElementById(panelId);
       const button = document.getElementById(buttonId);
@@ -1226,8 +1350,11 @@
     async function syncMapsSelection() {
       const selectedFiles = Array.from(document.querySelectorAll(".map-catalog-checkbox:checked"))
         .map((checkbox) => checkbox.value);
+      const button = document.getElementById("sync-maps-button");
 
       document.getElementById("maps-sync-status").textContent = "Map sync: starting";
+      button.disabled = true;
+      button.textContent = "Updating...";
 
       try {
         const { response, payload } = await fetchJsonWithTimeout("/api/maps/sync", {
@@ -1241,6 +1368,11 @@
         renderMapSyncState(payload);
       } catch (error) {
         document.getElementById("maps-sync-status").textContent = `Map sync: ${error.message}`;
+      } finally {
+        if (!document.getElementById("maps-sync-status").textContent.includes("running")) {
+          button.disabled = false;
+          button.textContent = "Update Installed Maps";
+        }
       }
     }
 
@@ -1251,6 +1383,9 @@
     document.getElementById("refresh-maps-button").addEventListener("click", refreshMapsList);
     document.getElementById("save-map-button").addEventListener("click", saveMapSelection);
     document.getElementById("select-all-maps-button").addEventListener("click", selectAllMaps);
+    document.getElementById("select-all-local-maps-button").addEventListener("click", selectAllLocalMaps);
+    document.getElementById("clear-local-maps-button").addEventListener("click", clearLocalMapsSelection);
+    document.getElementById("remove-local-maps-button").addEventListener("click", removeSelectedLocalMaps);
     document.getElementById("refresh-catalog-button").addEventListener("click", refreshCatalog);
     document.getElementById("sync-maps-button").addEventListener("click", syncMapsSelection);
     document.getElementById("restart-system-button").addEventListener("click", () => requestPowerAction("restart"));
