@@ -1336,9 +1336,12 @@
         if (!response.ok) {
           throw new Error(payload.error || "Unable to remove selected maps");
         }
-        currentMaps = payload;
-        renderMapsState(payload, `Removed ${selected.length} local map package${selected.length === 1 ? "" : "s"}.`);
-        await refreshMapsList();
+        const refreshedMaps = await loadLocalMapsState();
+        currentMaps = refreshedMaps;
+        renderMapsState(
+          refreshedMaps,
+          `Removed ${selected.length} local map package${selected.length === 1 ? "" : "s"}.`
+        );
       } catch (error) {
         document.getElementById("maps-status-note").textContent = error.message;
       } finally {
