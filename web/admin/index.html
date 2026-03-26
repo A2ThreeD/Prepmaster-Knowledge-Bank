@@ -186,6 +186,67 @@
       font-weight: 600;
     }
 
+    .status-cluster {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.88);
+      background: rgba(7, 14, 26, 0.54);
+      color: #eff5ff;
+      font: 0.76rem/1 var(--ui-display);
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-chip::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border: 1px solid currentColor;
+      background: rgba(255, 255, 255, 0.16);
+      flex: 0 0 auto;
+    }
+
+    .status-chip-key {
+      color: rgba(214, 228, 248, 0.72);
+    }
+
+    .status-chip-value {
+      color: #ffffff;
+    }
+
+    .status-chip--ok {
+      border-color: rgba(179, 255, 210, 0.95);
+      color: #dffff0;
+      box-shadow: inset 0 0 0 1px rgba(121, 255, 180, 0.16);
+    }
+
+    .status-chip--warn {
+      border-color: rgba(255, 216, 154, 0.95);
+      color: #fff0d0;
+      box-shadow: inset 0 0 0 1px rgba(255, 215, 128, 0.16);
+    }
+
+    .status-chip--error {
+      border-color: rgba(255, 178, 178, 0.95);
+      color: #ffe1e1;
+      box-shadow: inset 0 0 0 1px rgba(255, 128, 128, 0.14);
+    }
+
+    .status-chip--muted {
+      border-color: rgba(206, 224, 247, 0.5);
+      color: rgba(232, 240, 251, 0.88);
+    }
+
     .progress-shell {
       margin-top: 14px;
       padding: 14px;
@@ -353,7 +414,7 @@
           <p class="muted">
             Use <code>PREPMASTER_AP_ENABLED=1</code> in <code>config/prepmaster.env</code>, then run <code>sudo ./scripts/configure_access_point.sh</code>.
           </p>
-          <p class="status" id="ap-status">AP services: loading</p>
+          <div class="status-cluster" id="ap-status" aria-live="polite"></div>
         </section>
         <section class="card">
           <h2>Kiwix Library</h2>
@@ -361,7 +422,7 @@
             Kiwix runs on its own dedicated port for better compatibility than a subpath reverse proxy.
           </p>
           <p class="muted" id="kiwix-target">Kiwix target: loading</p>
-          <p class="status" id="kiwix-status">Kiwix service: loading</p>
+          <div class="status-cluster" id="kiwix-status" aria-live="polite"></div>
         </section>
       </div>
     </section>
@@ -446,7 +507,8 @@
             <button class="button" id="refresh-maps-button" type="button">Refresh Installed Maps</button>
             <button class="button" id="save-map-button" type="button">Save Map Settings</button>
           </div>
-          <p class="status" id="maps-status">Maps package status: loading</p>
+          <div class="status-cluster" id="maps-status" aria-live="polite"></div>
+          <p class="substatus" id="maps-status-note">Loading map package status.</p>
         </section>
         <section class="card">
           <h2>Project NOMAD Sync</h2>
@@ -558,6 +620,33 @@
       }
     }
 
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function toneForServiceState(state) {
+      if (state === "active" || state === "enabled") return "status-chip--ok";
+      if (state === "inactive" || state === "disabled") return "status-chip--muted";
+      if (state === "failed" || state === "error" || state === "unavailable") return "status-chip--error";
+      return "status-chip--warn";
+    }
+
+    function setStatusChips(elementId, items) {
+      const container = document.getElementById(elementId);
+      container.innerHTML = items.map((item) => {
+        const tone = item.tone ? ` ${item.tone}` : "";
+        return `<span class="status-chip${tone}">
+          <span class="status-chip-key">${escapeHtml(item.label)}</span>
+          <span class="status-chip-value">${escapeHtml(item.value)}</span>
+        </span>`;
+      }).join("");
+    }
+
     async function loadAdminStatus() {
       try {
         const [stateResponse, statusResponse, applyResponse, mapsResponse, mapSyncResponse] = await Promise.all([
@@ -579,31 +668,61 @@
           `Content mode: ${status.content_mode || currentState.profile.zim_mode || "full"}`;
         document.getElementById("kiwix-target").textContent = `Kiwix target: ${status.kiwix_url}`;
         document.getElementById("kiwix-link").href = status.kiwix_url;
-        document.getElementById("kiwix-status").textContent = `Kiwix service: ${status.services.kiwix}`;
-        document.getElementById("ap-status").textContent =
-          `AP services: hostapd ${status.services.hostapd} | dnsmasq ${status.services.dnsmasq}`;
+        setStatusChips("kiwix-status", [
+          { label: "Kiwix", value: status.services.kiwix, tone: toneForServiceState(status.services.kiwix) }
+        ]);
+        setStatusChips("ap-status", [
+          { label: "Hostapd", value: status.services.hostapd, tone: toneForServiceState(status.services.hostapd) },
+          { label: "Dnsmasq", value: status.services.dnsmasq, tone: toneForServiceState(status.services.dnsmasq) }
+        ]);
         renderMapsState(currentMaps);
         renderMapSyncState(mapSync);
         renderApplyState(apply);
       } catch (error) {
         document.getElementById("mode-status").textContent = "Content mode: unavailable";
         document.getElementById("kiwix-target").textContent = "Kiwix target: unavailable";
-        document.getElementById("kiwix-status").textContent = "Kiwix service: unavailable";
-        document.getElementById("ap-status").textContent = "AP services: unavailable";
-        document.getElementById("maps-status").textContent = "Maps package status: unavailable";
+        setStatusChips("kiwix-status", [
+          { label: "Kiwix", value: "Unavailable", tone: "status-chip--error" }
+        ]);
+        setStatusChips("ap-status", [
+          { label: "AP", value: "Unavailable", tone: "status-chip--error" }
+        ]);
+        setStatusChips("maps-status", [
+          { label: "Archive", value: "Unavailable", tone: "status-chip--error" }
+        ]);
+        document.getElementById("maps-status-note").textContent = "Map package status is unavailable.";
         document.getElementById("maps-sync-status").textContent = "Map sync: unavailable";
         document.getElementById("apply-status").textContent = "Apply status: unavailable";
         document.getElementById("content-action-status").textContent = "Content actions: unavailable";
       }
     }
 
-    function renderMapsState(maps) {
+    function renderMapsState(maps, note = "") {
       document.getElementById("maps-root").textContent = `PMTiles root: ${maps.root}`;
       document.getElementById("active-map-file").textContent =
         `Active map: ${maps.active_file}`;
-      document.getElementById("maps-status").textContent = maps.active_exists
-        ? `Maps package status: active archive found | flavor ${maps.flavor} | language ${maps.language}`
-        : "Maps package status: configured archive is missing";
+      setStatusChips("maps-status", [
+        {
+          label: "Archive",
+          value: maps.active_exists ? "Found" : "Missing",
+          tone: maps.active_exists ? "status-chip--ok" : "status-chip--warn"
+        },
+        {
+          label: "Flavor",
+          value: maps.flavor || "dark",
+          tone: "status-chip--muted"
+        },
+        {
+          label: "Language",
+          value: maps.language || "en",
+          tone: "status-chip--muted"
+        }
+      ]);
+      document.getElementById("maps-status-note").textContent = note || (
+        maps.active_exists
+          ? "Active PMTiles archive is ready for the viewer."
+          : "Configured PMTiles archive is missing from the device."
+      );
       document.getElementById("map-flavor").value = maps.flavor || "dark";
 
       const select = document.getElementById("map-package");
@@ -772,7 +891,10 @@
         currentMaps = payload;
         renderMapsState(payload);
       } catch (error) {
-        document.getElementById("maps-status").textContent = "Maps package status: unavailable";
+        setStatusChips("maps-status", [
+          { label: "Archive", value: "Unavailable", tone: "status-chip--error" }
+        ]);
+        document.getElementById("maps-status-note").textContent = "Map package status is unavailable.";
       }
     }
 
@@ -811,7 +933,10 @@
       const filename = select.value;
 
       if (!filename) {
-        document.getElementById("maps-status").textContent = "Maps package status: choose a PMTiles archive first";
+        setStatusChips("maps-status", [
+          { label: "Archive", value: "Not Selected", tone: "status-chip--warn" }
+        ]);
+        document.getElementById("maps-status-note").textContent = "Choose a PMTiles archive first.";
         return;
       }
 
@@ -827,11 +952,12 @@
           throw new Error(payload.error || "Unable to select map package");
         }
         currentMaps = payload;
-        renderMapsState(payload);
-        document.getElementById("maps-status").textContent =
-          `Maps package status: active archive switched to ${payload.active_file}`;
+        renderMapsState(payload, `Active map updated to ${payload.active_file}.`);
       } catch (error) {
-        document.getElementById("maps-status").textContent = `Maps package status: ${error.message}`;
+        setStatusChips("maps-status", [
+          { label: "Archive", value: "Update Failed", tone: "status-chip--error" }
+        ]);
+        document.getElementById("maps-status-note").textContent = error.message;
       } finally {
         button.disabled = false;
       }

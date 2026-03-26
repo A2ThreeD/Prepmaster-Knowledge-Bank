@@ -187,7 +187,30 @@
       color: var(--muted);
     }
 
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
     input {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.42);
+      color: var(--text);
+      font: inherit;
+      border-radius: 0;
+    }
+
+    input[type="range"] {
+      padding: 0;
+      height: auto;
+      accent-color: #9bc6ff;
+    }
+
+    select {
       width: 100%;
       padding: 11px 12px;
       border: 1px solid var(--border);
@@ -201,6 +224,79 @@
       margin-top: 12px;
       font-size: 0.92rem;
       color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .compact-input {
+      padding: 9px 10px;
+      font-size: 0.94rem;
+    }
+
+    .zoom-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .zoom-value {
+      min-width: 46px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.42);
+      text-align: center;
+      font-family: var(--ui-display);
+      letter-spacing: 0.05em;
+    }
+
+    .status-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.88);
+      background: rgba(7, 14, 26, 0.54);
+      color: #eff5ff;
+      font: 0.76rem/1 var(--ui-display);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-chip::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border: 1px solid currentColor;
+      background: rgba(255, 255, 255, 0.14);
+      flex: 0 0 auto;
+    }
+
+    .status-chip.ok {
+      border-color: rgba(179, 255, 210, 0.95);
+      color: #dffff0;
+    }
+
+    .status-chip.warn {
+      border-color: rgba(255, 216, 154, 0.95);
+      color: #fff0d0;
+    }
+
+    .status-chip.error {
+      border-color: rgba(255, 178, 178, 0.95);
+      color: #ffe1e1;
+    }
+
+    .status-chip.muted {
+      border-color: rgba(206, 224, 247, 0.5);
+      color: rgba(232, 240, 251, 0.88);
     }
 
     .map-shell {
@@ -248,6 +344,12 @@
         min-height: 68vh;
       }
     }
+
+    @media (max-width: 560px) {
+      .field-row {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -269,17 +371,22 @@
 
       <section class="card">
         <h2>Search Position</h2>
-        <div class="field">
-          <label for="lat-input">Latitude</label>
-          <input id="lat-input" type="number" step="any" value="39.8283">
-        </div>
-        <div class="field">
-          <label for="lon-input">Longitude</label>
-          <input id="lon-input" type="number" step="any" value="-98.5795">
+        <div class="field-row">
+          <div class="field">
+            <label for="lat-input">Latitude</label>
+            <input class="compact-input" id="lat-input" type="number" step="any" value="39.8283">
+          </div>
+          <div class="field">
+            <label for="lon-input">Longitude</label>
+            <input class="compact-input" id="lon-input" type="number" step="any" value="-98.5795">
+          </div>
         </div>
         <div class="field">
           <label for="zoom-input">Zoom</label>
-          <input id="zoom-input" type="number" min="2" max="14" step="1" value="4">
+          <div class="zoom-row">
+            <input id="zoom-input" type="range" min="2" max="14" step="1" value="4">
+            <span class="zoom-value" id="zoom-value">4</span>
+          </div>
         </div>
         <div class="actions">
           <button class="button" id="go-button" type="button">Go To Coordinates</button>
@@ -289,19 +396,31 @@
       <section class="card">
         <h2>Map Archive</h2>
         <p>
-          Place a PMTiles archive on the device and let the generated maps config point the viewer at it.
+          Choose the active PMTiles archive and theme directly here. If an archive is invalid, switch to another package and reload the viewer.
         </p>
-        <ul>
-          <li><code>/srv/prepmaster/maps/pmtiles/basemap.pmtiles</code></li>
-          <li>Project NOMAD regional PMTiles bundles are a strong fit for this viewer.</li>
-        </ul>
+        <div class="field">
+          <label for="map-package-select">Installed PMTiles Package</label>
+          <select id="map-package-select"></select>
+        </div>
+        <div class="field">
+          <label for="map-flavor-select">Map Theme</label>
+          <select id="map-flavor-select">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="button" id="save-map-settings-button" type="button">Apply Map Settings</button>
+          <button class="button secondary" id="reload-map-button" type="button">Reload Viewer</button>
+        </div>
         <p class="status" id="pmtiles-url-status">Archive source: loading</p>
+        <p class="status" id="map-archive-note">Project NOMAD regional PMTiles bundles are a strong fit for this viewer.</p>
       </section>
 
       <section class="card">
         <h2>Map Status</h2>
         <p class="status" id="map-status">Checking archive availability...</p>
-        <p class="status" id="map-meta">Map flavor: loading</p>
+        <div class="status-chip-row" id="map-meta"></div>
       </section>
     </aside>
 
@@ -335,9 +454,31 @@
     const mapMeta = document.getElementById("map-meta");
     const mapBanner = document.getElementById("map-banner");
     const pmtilesUrlStatus = document.getElementById("pmtiles-url-status");
+    const mapArchiveNote = document.getElementById("map-archive-note");
     const latInput = document.getElementById("lat-input");
     const lonInput = document.getElementById("lon-input");
     const zoomInput = document.getElementById("zoom-input");
+    const zoomValue = document.getElementById("zoom-value");
+    const mapPackageSelect = document.getElementById("map-package-select");
+    const mapFlavorSelect = document.getElementById("map-flavor-select");
+    const saveMapSettingsButton = document.getElementById("save-map-settings-button");
+    const reloadMapButton = document.getElementById("reload-map-button");
+    let mapInstance = null;
+
+    function setMapMetaChips(items) {
+      mapMeta.innerHTML = items.map((item) => {
+        const tone = item.tone ? ` ${item.tone}` : "";
+        return `<span class="status-chip${tone}">${item.label} ${item.value}</span>`;
+      }).join("");
+    }
+
+    async function loadMapState() {
+      const response = await fetch("/api/maps", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("Unable to load map package state");
+      }
+      return response.json();
+    }
 
     async function loadConfig() {
       try {
@@ -352,21 +493,58 @@
       }
     }
 
-    async function initMap() {
-      const config = await loadConfig();
-      pmtilesUrlStatus.textContent = `Archive source: ${config.pmtilesUrl}`;
-      mapMeta.textContent = `Map flavor: ${config.flavor} | Language: ${config.language}`;
+    function populateMapControls(state, config) {
+      mapPackageSelect.innerHTML = "";
+      if (!state.available_files.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No PMTiles files found";
+        mapPackageSelect.appendChild(option);
+        mapPackageSelect.disabled = true;
+      } else {
+        mapPackageSelect.disabled = false;
+        for (const filename of state.available_files) {
+          const option = document.createElement("option");
+          option.value = filename;
+          option.textContent = filename;
+          if (filename === state.active_file) {
+            option.selected = true;
+          }
+          mapPackageSelect.appendChild(option);
+        }
+      }
+      mapFlavorSelect.value = state.flavor || config.flavor || "dark";
+      pmtilesUrlStatus.textContent = `Archive source: ${state.active_url || config.pmtilesUrl}`;
+      mapArchiveNote.textContent = state.active_exists
+        ? `Active archive: ${state.active_file}`
+        : "Configured archive is missing or invalid. Select another installed PMTiles package.";
+      setMapMetaChips([
+        { label: "Archive", value: state.active_exists ? "Found" : "Missing", tone: state.active_exists ? "ok" : "warn" },
+        { label: "Theme", value: state.flavor || config.flavor || "dark", tone: "muted" },
+        { label: "Language", value: state.language || config.language || "en", tone: "muted" }
+      ]);
+    }
+
+    async function buildMap() {
+      const [config, state] = await Promise.all([loadConfig(), loadMapState()]);
+      populateMapControls(state, config);
 
       latInput.value = config.defaultLat;
       lonInput.value = config.defaultLon;
       zoomInput.value = config.defaultZoom;
+      zoomValue.textContent = String(config.defaultZoom);
+
+      if (mapInstance) {
+        mapInstance.remove();
+        mapInstance = null;
+      }
 
       const protocol = new pmtiles.Protocol();
       maplibregl.addProtocol("pmtiles", protocol.tile);
       const pmtilesSource = new pmtiles.PMTiles(window.location.origin + config.pmtilesUrl);
       protocol.add(pmtilesSource);
 
-      const map = new maplibregl.Map({
+      mapInstance = new maplibregl.Map({
         container: "map",
         center: [config.defaultLon, config.defaultLat],
         zoom: config.defaultZoom,
@@ -392,18 +570,7 @@
         }
       });
 
-      map.addControl(new maplibregl.NavigationControl(), "top-right");
-
-      document.getElementById("go-button").addEventListener("click", () => {
-        const lat = Number.parseFloat(latInput.value);
-        const lon = Number.parseFloat(lonInput.value);
-        const zoom = Number.parseInt(zoomInput.value, 10);
-
-        if (Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(zoom)) {
-          map.flyTo({ center: [lon, lat], zoom });
-          mapStatus.textContent = `Centered on ${lat.toFixed(4)}, ${lon.toFixed(4)} at zoom ${zoom}.`;
-        }
-      });
+      mapInstance.addControl(new maplibregl.NavigationControl(), "top-right");
 
       try {
         const response = await fetch(config.pmtilesUrl, { method: "HEAD", cache: "no-store" });
@@ -417,16 +584,73 @@
         mapBanner.classList.remove("hidden");
       }
 
-      map.on("error", (event) => {
+      mapInstance.on("error", (event) => {
         const errorMessage = event && event.error && event.error.message
           ? event.error.message
           : "MapLibre could not render the active PMTiles archive.";
         mapStatus.textContent = `Map error: ${errorMessage}`;
+        mapBanner.textContent = `Map error: ${errorMessage}`;
         mapBanner.classList.remove("hidden");
       });
     }
 
-    initMap();
+    async function saveMapSettings() {
+      const filename = mapPackageSelect.value;
+      if (!filename) {
+        mapStatus.textContent = "Choose a valid PMTiles archive before applying map settings.";
+        return;
+      }
+
+      saveMapSettingsButton.disabled = true;
+      try {
+        const response = await fetch("/api/maps/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename,
+            flavor: mapFlavorSelect.value
+          })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to save map settings");
+        }
+        mapStatus.textContent = `Map settings updated to ${payload.active_file}. Reloading viewer...`;
+        await buildMap();
+      } catch (error) {
+        mapStatus.textContent = `Map settings error: ${error.message}`;
+      } finally {
+        saveMapSettingsButton.disabled = false;
+      }
+    }
+
+    zoomInput.addEventListener("input", () => {
+      zoomValue.textContent = zoomInput.value;
+    });
+
+    document.getElementById("go-button").addEventListener("click", () => {
+      const lat = Number.parseFloat(latInput.value);
+      const lon = Number.parseFloat(lonInput.value);
+      const zoom = Number.parseInt(zoomInput.value, 10);
+
+      if (mapInstance && Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(zoom)) {
+        mapInstance.flyTo({ center: [lon, lat], zoom });
+        mapStatus.textContent = `Centered on ${lat.toFixed(4)}, ${lon.toFixed(4)} at zoom ${zoom}.`;
+      }
+    });
+
+    saveMapSettingsButton.addEventListener("click", saveMapSettings);
+    reloadMapButton.addEventListener("click", () => {
+      buildMap().catch((error) => {
+        mapStatus.textContent = `Map reload error: ${error.message}`;
+      });
+    });
+
+    buildMap().catch((error) => {
+      mapStatus.textContent = `Map startup error: ${error.message}`;
+      mapBanner.textContent = `Map startup error: ${error.message}`;
+      mapBanner.classList.remove("hidden");
+    });
   </script>
 </body>
 </html>
