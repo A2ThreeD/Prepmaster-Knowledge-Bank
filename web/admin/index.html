@@ -13,6 +13,7 @@
       --muted: #9bb0c7;
       --accent: #7bb7ff;
       --border: rgba(255, 255, 255, 0.88);
+      --ui-display: "Aldrich", "Michroma", "Orbitron", "Eurostile", "Bank Gothic", "Rajdhani", "Segoe UI", sans-serif;
     }
 
     * { box-sizing: border-box; }
@@ -28,7 +29,8 @@
     }
 
     main {
-      max-width: 980px;
+      max-width: none;
+      width: min(1440px, 100%);
       margin: 0 auto;
       padding: 24px;
       border: 1px solid var(--border);
@@ -52,6 +54,7 @@
       text-transform: uppercase;
       letter-spacing: 0.12em;
       font-size: 12px;
+      font-family: var(--ui-display);
     }
 
     .muted {
@@ -61,7 +64,7 @@
     .grid {
       display: grid;
       gap: 14px;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       margin-top: 18px;
     }
 
@@ -100,6 +103,10 @@
         box-shadow 0.14s ease,
         color 0.14s ease,
         transform 0.08s ease;
+      font-family: var(--ui-display);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 0.9rem;
     }
 
     .home-link {
@@ -155,6 +162,13 @@
       color: #04101e;
       border-color: rgba(123, 183, 255, 0.6);
       font-weight: 700;
+    }
+
+    h1,
+    h2 {
+      font-family: var(--ui-display);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
 
     .panel-group {
@@ -223,18 +237,33 @@
       padding: 12px 14px;
     }
 
+    .log-panel.hidden {
+      display: none;
+    }
+
     .log-panel pre {
       margin: 8px 0 0;
       max-height: 240px;
       overflow: auto;
       white-space: pre-wrap;
+      word-break: break-word;
+      color: #dbe7f7;
+      background: rgba(2, 7, 14, 0.58);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 10px 12px;
+      font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .substatus {
+      margin-top: 8px;
       color: var(--muted);
-      font: 0.85rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92rem;
     }
 
     code {
       color: var(--accent);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      word-break: break-word;
     }
 
     .field {
@@ -255,6 +284,35 @@
       color: var(--text);
       padding: 12px 14px;
       font: inherit;
+    }
+
+    .card p,
+    .card li,
+    .status,
+    .muted {
+      overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 14px 10px;
+      }
+
+      main {
+        padding: 16px;
+      }
+
+      .card {
+        padding: 14px;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .button {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -330,8 +388,12 @@
               <div class="progress-fill" id="progress-fill"></div>
             </div>
             <p class="status" id="current-file-status">Current file: none</p>
+            <p class="substatus" id="content-summary-status">No active operation.</p>
           </div>
-          <div class="log-panel">
+          <div class="actions">
+            <button class="button" id="toggle-apply-log-button" type="button">Show Content Log</button>
+          </div>
+          <div class="log-panel hidden" id="apply-log-panel">
             <strong>Recent Log</strong>
             <pre id="apply-log">No active download log.</pre>
           </div>
@@ -401,7 +463,21 @@
             <button class="button" id="sync-maps-button" type="button">Update Installed Maps</button>
           </div>
           <p class="status" id="maps-sync-status">Map sync: idle</p>
-          <div class="log-panel">
+          <div class="progress-shell">
+            <div class="progress-top">
+              <span class="progress-label" id="maps-progress-label">Waiting for map sync</span>
+              <span class="progress-value" id="maps-progress-value">0%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="maps-progress-fill"></div>
+            </div>
+            <p class="status" id="maps-current-file-status">Current map: none</p>
+            <p class="substatus" id="maps-summary-status">No active map sync.</p>
+          </div>
+          <div class="actions">
+            <button class="button" id="toggle-maps-log-button" type="button">Show Map Sync Log</button>
+          </div>
+          <div class="log-panel hidden" id="maps-log-panel">
             <strong>Map Sync Log</strong>
             <pre id="maps-sync-log">No map sync activity yet.</pre>
           </div>
@@ -445,13 +521,23 @@
       document.getElementById("progress-fill").style.width =
         `${apply.progress_percent || 0}%`;
       let currentFileText = "Current file: none";
+      let summaryText = "No active operation.";
       if (apply.current_file) {
         currentFileText = `Current file: ${apply.current_file}`;
         if (apply.download_current && apply.download_total) {
           currentFileText += ` (${apply.download_current}/${apply.download_total})`;
+          summaryText = `Processing item ${apply.download_current} of ${apply.download_total}.`;
         }
       }
       document.getElementById("current-file-status").textContent = currentFileText;
+      if (apply.status === "running" && !apply.current_file && apply.step) {
+        summaryText = apply.step;
+      } else if (apply.status === "succeeded") {
+        summaryText = "Last operation completed successfully.";
+      } else if (apply.status === "failed") {
+        summaryText = apply.error || "Last operation failed.";
+      }
+      document.getElementById("content-summary-status").textContent = summaryText;
       document.getElementById("apply-log").textContent =
         apply.log_tail && apply.log_tail.length
           ? apply.log_tail.join("\n")
@@ -572,6 +658,28 @@
       const step = state.current_file ? ` | ${state.current_file}` : "";
       document.getElementById("maps-sync-status").textContent =
         `Map sync: ${state.status}${step}`;
+      document.getElementById("maps-progress-label").textContent =
+        state.status === "running" ? "Syncing map packages" : "Waiting for map sync";
+      document.getElementById("maps-progress-value").textContent =
+        `${state.progress_percent || 0}%`;
+      document.getElementById("maps-progress-fill").style.width =
+        `${state.progress_percent || 0}%`;
+      let mapCurrentFileText = "Current map: none";
+      let mapSummaryText = "No active map sync.";
+      if (state.current_file) {
+        mapCurrentFileText = `Current map: ${state.current_file}`;
+        if (state.current_index && state.total_files) {
+          mapCurrentFileText += ` (${state.current_index}/${state.total_files})`;
+          mapSummaryText = `Syncing ${state.current_index} of ${state.total_files} selected maps.`;
+        }
+      }
+      if (state.status === "succeeded") {
+        mapSummaryText = "Map sync completed successfully.";
+      } else if (state.status === "failed") {
+        mapSummaryText = state.error || "Map sync failed.";
+      }
+      document.getElementById("maps-current-file-status").textContent = mapCurrentFileText;
+      document.getElementById("maps-summary-status").textContent = mapSummaryText;
       document.getElementById("maps-sync-log").textContent =
         state.log_tail && state.log_tail.length
           ? state.log_tail.join("\n")
@@ -738,6 +846,13 @@
       document.getElementById("select-all-maps-button").textContent = allChecked ? "Select All" : "Clear All";
     }
 
+    function togglePanel(panelId, buttonId, showLabel, hideLabel) {
+      const panel = document.getElementById(panelId);
+      const button = document.getElementById(buttonId);
+      const hidden = panel.classList.toggle("hidden");
+      button.textContent = hidden ? showLabel : hideLabel;
+    }
+
     async function syncMapsSelection() {
       const selectedFiles = Array.from(document.querySelectorAll(".map-catalog-checkbox:checked"))
         .map((checkbox) => checkbox.value);
@@ -769,6 +884,12 @@
     document.getElementById("select-all-maps-button").addEventListener("click", selectAllMaps);
     document.getElementById("refresh-catalog-button").addEventListener("click", refreshCatalog);
     document.getElementById("sync-maps-button").addEventListener("click", syncMapsSelection);
+    document.getElementById("toggle-apply-log-button").addEventListener("click", () => {
+      togglePanel("apply-log-panel", "toggle-apply-log-button", "Show Content Log", "Hide Content Log");
+    });
+    document.getElementById("toggle-maps-log-button").addEventListener("click", () => {
+      togglePanel("maps-log-panel", "toggle-maps-log-button", "Show Map Sync Log", "Hide Map Sync Log");
+    });
     document.querySelectorAll(".tab-button").forEach((button) => {
       button.addEventListener("click", () => setActivePanel(button.dataset.panel));
     });
