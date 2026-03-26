@@ -365,8 +365,7 @@
       </p>
 
       <div class="actions">
-        <a class="button" href="/">Return to Main Page</a>
-        <a class="button secondary" href="/admin">Open Admin Portal</a>
+        <a class="button secondary" href="/admin">⚙ Settings</a>
       </div>
 
       <section class="card">
@@ -394,21 +393,15 @@
       </section>
 
       <section class="card">
-        <h2>Map Archive</h2>
-        <p>
-          Choose the active PMTiles archive here. Map theme is managed in the Admin Portal so the two pages stay in sync.
-        </p>
+        <p>Select an offline map to view.</p>
+        <h2>Map Selection</h2>
         <div class="field">
-          <label for="map-package-select">Installed PMTiles Package</label>
+          <label for="map-package-select">Select Map</label>
           <select id="map-package-select"></select>
         </div>
         <div class="actions">
-          <button class="button secondary" id="refresh-local-state-button" type="button">Refresh Local State</button>
-          <button class="button" id="save-map-settings-button" type="button">Set Active Map</button>
-          <button class="button secondary" id="reload-map-button" type="button">Reload Viewer</button>
+          <button class="button" id="save-map-settings-button" type="button">Apply / Refresh</button>
         </div>
-        <p class="status" id="pmtiles-url-status">Archive source: loading</p>
-        <p class="status" id="map-archive-note">Project NOMAD regional PMTiles bundles are a strong fit for this viewer.</p>
       </section>
 
       <section class="card">
@@ -447,16 +440,12 @@
     const mapStatus = document.getElementById("map-status");
     const mapMeta = document.getElementById("map-meta");
     const mapBanner = document.getElementById("map-banner");
-    const pmtilesUrlStatus = document.getElementById("pmtiles-url-status");
-    const mapArchiveNote = document.getElementById("map-archive-note");
     const latInput = document.getElementById("lat-input");
     const lonInput = document.getElementById("lon-input");
     const zoomInput = document.getElementById("zoom-input");
     const zoomValue = document.getElementById("zoom-value");
     const mapPackageSelect = document.getElementById("map-package-select");
-    const refreshLocalStateButton = document.getElementById("refresh-local-state-button");
     const saveMapSettingsButton = document.getElementById("save-map-settings-button");
-    const reloadMapButton = document.getElementById("reload-map-button");
     let mapInstance = null;
     let currentConfigSignature = "";
 
@@ -534,10 +523,6 @@
           mapPackageSelect.appendChild(option);
         }
       }
-      pmtilesUrlStatus.textContent = `Archive source: ${state.active_url || config.pmtilesUrl}`;
-      mapArchiveNote.textContent = state.active_valid
-        ? `Active archive: ${state.active_file}`
-        : (state.active_error || "Configured archive is missing or invalid. Select another installed PMTiles package.");
       setMapMetaChips([
         { label: "Archive", value: state.active_valid ? "Valid" : (state.active_exists ? "Invalid" : "Missing"), tone: state.active_valid ? "ok" : (state.active_exists ? "error" : "warn") },
         { label: "Theme", value: state.flavor || config.flavor || "dark", tone: "muted" },
@@ -548,8 +533,6 @@
     function populateFallbackControls(config) {
       mapPackageSelect.innerHTML = `<option value="${config.pmtilesFile}">${config.pmtilesFile}</option>`;
       mapPackageSelect.disabled = true;
-      pmtilesUrlStatus.textContent = `Archive source: ${config.pmtilesUrl}`;
-      mapArchiveNote.textContent = `Configured archive: ${config.pmtilesFile}`;
       setMapMetaChips([
         { label: "Archive", value: "Checking", tone: "warn" },
         { label: "Theme", value: config.flavor || "dark", tone: "muted" },
@@ -626,9 +609,6 @@
         })
         .catch((error) => {
           const delayed = error && error.name === "AbortError";
-          mapArchiveNote.textContent = delayed
-            ? `Local state delayed. Configured archive: ${config.pmtilesFile}`
-            : `Configured archive: ${config.pmtilesFile}`;
           setMapMetaChips([
             { label: "Archive", value: delayed ? "Delayed" : "Checking", tone: delayed ? "warn" : "warn" },
             { label: "Theme", value: config.flavor || "dark", tone: "muted" },
@@ -691,20 +671,6 @@
       zoomValue.textContent = zoomInput.value;
     });
 
-    async function refreshLocalState() {
-      mapStatus.textContent = "Refreshing local map state...";
-      try {
-        const state = await loadMapState();
-        const config = await loadConfig();
-        populateMapControls(state, config);
-        mapStatus.textContent = `Local state refreshed. Active map: ${state.active_file}`;
-      } catch (error) {
-        mapStatus.textContent = error && error.name === "AbortError"
-          ? "Local state refresh timed out."
-          : "Unable to refresh local map state.";
-      }
-    }
-
     async function syncConfigFromDisk() {
       try {
         const config = await loadConfig();
@@ -729,13 +695,7 @@
       }
     });
 
-    refreshLocalStateButton.addEventListener("click", refreshLocalState);
     saveMapSettingsButton.addEventListener("click", saveMapSettings);
-    reloadMapButton.addEventListener("click", () => {
-      buildMap().catch((error) => {
-        mapStatus.textContent = `Map reload error: ${error.message}`;
-      });
-    });
 
     buildMap().catch((error) => {
       mapStatus.textContent = `Map startup error: ${error.message}`;
