@@ -53,7 +53,7 @@ Likely implementation options:
 ### 6. Service Routing
 
 - Nginx serves the main site and static sections
-- `/kiwix` proxies to the local `kiwix-serve` service
+- `/kiwix` redirects the browser to the dedicated Kiwix server port
 - `/api` proxies to the local portal API
 - `/admin` and `/maps` are served as static app sections
 

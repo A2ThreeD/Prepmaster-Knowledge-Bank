@@ -18,6 +18,24 @@ fi
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
+resolve_kiwix_bind_address() {
+  if [[ "${KIWIX_BIND_ADDRESS:-auto}" != "auto" ]]; then
+    echo "$KIWIX_BIND_ADDRESS"
+    return
+  fi
+
+  local detected
+  detected="$(ip -4 addr show scope global up | awk '/inet / {sub(/\/.*/, "", $2); print $2; exit}')"
+
+  if [[ -n "$detected" ]]; then
+    echo "$detected"
+  else
+    echo "127.0.0.1"
+  fi
+}
+
+KIWIX_EFFECTIVE_BIND_ADDRESS="$(resolve_kiwix_bind_address)"
+
 echo "Installing Kiwix tools..."
 apt install -y kiwix-tools
 
@@ -30,7 +48,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/kiwix-serve --address=127.0.0.1 --port=$KIWIX_PORT --library $KIWIX_LIBRARY_XML
+ExecStart=/usr/bin/kiwix-serve --address=$KIWIX_EFFECTIVE_BIND_ADDRESS --port=$KIWIX_PORT --library $KIWIX_LIBRARY_XML
 Restart=on-failure
 RestartSec=3
 
@@ -47,4 +65,4 @@ fi
 
 systemctl restart prepmaster-kiwix.service || systemctl start prepmaster-kiwix.service
 
-echo "Kiwix service installed on port $KIWIX_PORT"
+echo "Kiwix service installed on $KIWIX_EFFECTIVE_BIND_ADDRESS:$KIWIX_PORT"

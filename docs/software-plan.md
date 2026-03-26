@@ -49,7 +49,8 @@ For first-run validation, `PREPMASTER_ZIM_MODE=quick-test` uses `config/kiwix-zi
 - `hostapd` when AP mode is enabled
 - `dnsmasq` when AP mode is enabled
 - `prepmaster-portal.service` for setup state and live status APIs
-- Nginx reverse proxy routes for `/kiwix` and `/api`
+- Nginx reverse proxy route for `/api`
+- Nginx redirect from `/kiwix` to the dedicated Kiwix port
 
 ## Browser-Driven Apply Flow
 

@@ -87,4 +87,4 @@ sudo ./scripts/download_kiwix_zims.sh
 - Optional education add-ons are tracked separately: `Kolibri` as a modern add-on, and `KA Lite` as a legacy add-on.
 - `Kolibri` now has install automation in the repo. `KA Lite` requires an explicit legacy override and currently records the request rather than forcing a risky unattended install on modern Raspberry Pi OS.
 - Wireless AP mode can be enabled through `config/prepmaster.env` and applied by the installer or `scripts/configure_access_point.sh`.
-- The installer now provisions `kiwix-serve`, the portal API, and an Nginx site so `/`, `/kiwix`, `/maps`, `/admin`, and `/api` are all served through the same local web entry point.
+- The installer now provisions `kiwix-serve`, the portal API, and an Nginx site so `/`, `/maps`, `/admin`, and `/api` are served on the main site, while `/kiwix` redirects the browser to the dedicated Kiwix port.
