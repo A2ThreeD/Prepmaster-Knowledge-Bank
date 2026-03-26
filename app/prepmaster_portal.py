@@ -1114,6 +1114,7 @@ class PortalHandler(BaseHTTPRequestHandler):
             self.send_json(self.portal_state.system_health())
             return
         if path == "/api/maps":
+            self.portal_state.write_maps_runtime_config()
             self.send_json(self.portal_state.maps_status())
             return
         if path == "/api/maps/catalog":

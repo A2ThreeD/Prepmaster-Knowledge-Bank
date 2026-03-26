@@ -914,20 +914,8 @@
     }
 
     async function loadLocalMapsState() {
-      const [stateResult, configResult] = await Promise.all([
-        fetchJsonWithTimeout("/maps/state.json", {}, 2500),
-        fetchJsonWithTimeout("/maps/config.json", {}, 2500)
-      ]);
-
-      const maps = {
-        ...stateResult.payload,
-        flavor: configResult.payload.flavor || stateResult.payload.flavor || "dark",
-        language: configResult.payload.language || stateResult.payload.language || "en",
-        active_file: configResult.payload.pmtilesFile || stateResult.payload.active_file,
-        active_url: configResult.payload.pmtilesUrl || stateResult.payload.active_url
-      };
-
-      return maps;
+      const { payload } = await fetchJsonWithTimeout("/api/maps", {}, 2500);
+      return payload;
     }
 
     async function loadMapsPanelData() {
