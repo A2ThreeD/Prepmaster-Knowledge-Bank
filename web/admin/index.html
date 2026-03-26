@@ -632,11 +632,11 @@
           </p>
           <div class="field">
             <label>Project NOMAD Map Downloads</label>
-            <div id="maps-catalog-list" class="log-panel muted">Loading map catalog...</div>
+            <div id="maps-catalog-list" class="log-panel muted">Online catalog is idle. Click Check Online Catalog when you want to query Project NOMAD.</div>
           </div>
           <div class="actions">
             <button class="button" id="select-all-maps-button" type="button">Select All</button>
-            <button class="button" id="refresh-catalog-button" type="button">Refresh Catalog</button>
+            <button class="button" id="refresh-catalog-button" type="button">Check Online Catalog</button>
             <button class="button" id="sync-maps-button" type="button">Update Installed Maps</button>
           </div>
           <p class="status" id="maps-sync-status">Map sync: idle</p>
@@ -881,7 +881,14 @@
         const mapSync = await mapSyncResponse.json();
         renderMapsState(currentMaps);
         renderMapSyncState(mapSync);
-        await refreshCatalog(false);
+        if (currentCatalog) {
+          renderCatalog(currentCatalog);
+        } else {
+          document.getElementById("maps-catalog-source").textContent =
+            "Catalog source: online check on demand";
+          document.getElementById("maps-catalog-list").textContent =
+            "Online catalog is idle. Click Check Online Catalog when you want to query Project NOMAD.";
+        }
       } catch (error) {
         setStatusChips("maps-status", [
           { label: "Archive", value: "Unavailable", tone: "status-chip--error" }
@@ -1142,7 +1149,9 @@
         renderMapSyncState(payload);
         if (payload.status !== "running" && currentPanel === "maps") {
           await refreshMapsList();
-          await refreshCatalog(false);
+          if (currentCatalog) {
+            renderCatalog(currentCatalog);
+          }
         }
       } catch (error) {
         document.getElementById("maps-sync-status").textContent = "Map sync: unavailable";

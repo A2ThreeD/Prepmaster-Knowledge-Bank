@@ -632,6 +632,15 @@ class PortalState:
 
     def status(self) -> dict:
         total, used, free = shutil.disk_usage("/")
+        services = self.read_service_statuses(
+            {
+                "portal": "prepmaster-portal.service",
+                "kiwix": "prepmaster-kiwix.service",
+                "hostapd": "hostapd.service",
+                "dnsmasq": "dnsmasq.service",
+                "nginx": "nginx.service",
+            }
+        )
         return {
             "disk": {
                 "total_gb": round(total / (1024 ** 3), 1),
@@ -645,13 +654,7 @@ class PortalState:
                 "PREPMASTER_ZIM_MODE", "full"
             ),
             "maps": self.maps_status(),
-            "services": {
-                "portal": self.read_service_status("prepmaster-portal.service"),
-                "kiwix": self.read_service_status("prepmaster-kiwix.service"),
-                "hostapd": self.read_service_status("hostapd.service"),
-                "dnsmasq": self.read_service_status("dnsmasq.service"),
-                "nginx": self.read_service_status("nginx.service"),
-            },
+            "services": services,
         }
 
     def load_apply_state(self) -> dict:
@@ -965,18 +968,23 @@ class PortalState:
         minutes = remainder // 60
         return f"{hours}h {minutes}m"
 
-    def read_service_status(self, service: str) -> str:
+    def read_service_statuses(self, services: dict[str, str]) -> dict[str, str]:
         try:
             result = subprocess.run(
-                ["systemctl", "is-active", service],
+                ["systemctl", "is-active", *services.values()],
                 capture_output=True,
                 text=True,
                 check=False,
             )
         except FileNotFoundError:
-            return "unknown"
-        status = result.stdout.strip()
-        return status or "unknown"
+            return {name: "unknown" for name in services}
+
+        lines = [line.strip() or "unknown" for line in result.stdout.splitlines()]
+        values = list(services.keys())
+        resolved: dict[str, str] = {}
+        for index, name in enumerate(values):
+            resolved[name] = lines[index] if index < len(lines) else "unknown"
+        return resolved
 
     def detect_primary_host(self) -> str:
         try:
