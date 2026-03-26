@@ -343,6 +343,70 @@
       font-size: 0.92rem;
     }
 
+    .health-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 18px;
+    }
+
+    .health-card {
+      padding: 14px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.32);
+    }
+
+    .health-card strong {
+      display: block;
+      margin-bottom: 4px;
+      font-family: var(--ui-display);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+    }
+
+    .health-card .value {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .health-card .subvalue {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .meter {
+      margin-top: 10px;
+    }
+
+    .meter-track {
+      width: 100%;
+      height: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .meter-fill {
+      width: 0%;
+      height: 100%;
+      transition: width 0.25s ease, background 0.25s ease;
+      background: linear-gradient(90deg, #5a9cff, #9cd1ff);
+    }
+
+    .meter-fill.temp-cool {
+      background: linear-gradient(90deg, #78d7ff, #66e0a6);
+    }
+
+    .meter-fill.temp-warm {
+      background: linear-gradient(90deg, #e4cf72, #ffc86a);
+    }
+
+    .meter-fill.temp-hot {
+      background: linear-gradient(90deg, #ff946f, #ff5d5d);
+    }
+
     code {
       color: var(--accent);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -391,6 +455,10 @@
 
       .actions {
         flex-direction: column;
+      }
+
+      .health-grid {
+        grid-template-columns: 1fr;
       }
 
       .button {
@@ -445,6 +513,31 @@
           </p>
           <p class="muted" id="kiwix-target">Kiwix target: loading</p>
           <div class="status-cluster" id="kiwix-status" aria-live="polite"></div>
+        </section>
+        <section class="card">
+          <h2>System Status</h2>
+          <p class="muted">
+            Live Raspberry Pi health is shown here now so the homepage can stay focused on navigation.
+          </p>
+          <div class="health-grid">
+            <div class="health-card">
+              <strong>Disk</strong>
+              <div class="value" id="system-disk-status">Loading</div>
+              <div class="meter"><div class="meter-track"><div class="meter-fill" id="system-disk-fill"></div></div></div>
+            </div>
+            <div class="health-card">
+              <strong>Temp</strong>
+              <div class="value" id="system-temp-status">Loading</div>
+              <div class="subvalue" id="system-uptime-status">Uptime: loading</div>
+              <div class="meter"><div class="meter-track"><div class="meter-fill temp-cool" id="system-temp-fill"></div></div></div>
+            </div>
+            <div class="health-card">
+              <strong>Services</strong>
+              <div class="status-cluster" id="system-service-status">
+                <span class="status-chip status-chip--muted"><span class="status-chip-key">Loading</span></span>
+              </div>
+            </div>
+          </div>
         </section>
       </div>
     </section>
@@ -577,18 +670,30 @@
   </main>
   <script>
     let currentState = null;
+    let currentStatus = null;
     let applyPollHandle = null;
+    let systemPollHandle = null;
     let currentMaps = null;
     let currentCatalog = null;
     let mapsSyncPollHandle = null;
+    let currentPanel = "system";
 
     function setActivePanel(panelName) {
+      currentPanel = panelName;
       document.querySelectorAll("[data-panel-group]").forEach((panel) => {
         panel.classList.toggle("active", panel.dataset.panelGroup === panelName);
       });
       document.querySelectorAll(".tab-button").forEach((button) => {
         button.classList.toggle("active", button.dataset.panel === panelName);
       });
+      if (panelName === "system") {
+        loadSystemPanelData();
+      } else if (panelName === "content") {
+        loadContentPanelData();
+      } else if (panelName === "maps") {
+        loadMapsPanelData();
+      }
+      updatePolling();
     }
 
     function renderApplyState(apply) {
@@ -632,14 +737,7 @@
       document.getElementById("rebuild-library-button").disabled = running;
       document.getElementById("full-apply-button").disabled = running;
 
-      if (running && applyPollHandle === null) {
-        applyPollHandle = window.setInterval(loadAdminStatus, 4000);
-      }
-
-      if (!running && applyPollHandle !== null) {
-        window.clearInterval(applyPollHandle);
-        applyPollHandle = null;
-      }
+      updatePolling();
     }
 
     function escapeHtml(value) {
@@ -669,39 +767,68 @@
       }).join("");
     }
 
-    async function loadAdminStatus() {
+    function renderSystemHealth(status) {
+      const diskUsedPercent = status.disk.total_gb > 0
+        ? Math.max(0, Math.min(100, Math.round((status.disk.used_gb / status.disk.total_gb) * 100)))
+        : 0;
+      document.getElementById("system-disk-status").textContent =
+        `${status.disk.used_gb} GB used / ${status.disk.free_gb} GB free`;
+      document.getElementById("system-disk-fill").style.width = `${diskUsedPercent}%`;
+
+      if (status.temperature_c === null) {
+        document.getElementById("system-temp-status").textContent = "Unavailable";
+        document.getElementById("system-temp-fill").style.width = "0%";
+        document.getElementById("system-temp-fill").className = "meter-fill";
+      } else {
+        const tempC = Number(status.temperature_c);
+        const tempF = (tempC * 9 / 5) + 32;
+        const tempPercent = Math.max(0, Math.min(100, Math.round(tempC)));
+        const tempTone = tempC >= 75 ? "temp-hot" : tempC >= 60 ? "temp-warm" : "temp-cool";
+        document.getElementById("system-temp-status").textContent =
+          `${tempC.toFixed(1)} C / ${tempF.toFixed(1)} F`;
+        document.getElementById("system-temp-fill").style.width = `${tempPercent}%`;
+        document.getElementById("system-temp-fill").className = `meter-fill ${tempTone}`;
+      }
+
+      document.getElementById("system-uptime-status").textContent = `Uptime: ${status.uptime}`;
+      setStatusChips("system-service-status", [
+        { label: "API", value: status.services.portal, tone: toneForServiceState(status.services.portal) },
+        { label: "Web", value: status.services.nginx, tone: toneForServiceState(status.services.nginx) },
+        { label: "Zim", value: status.services.kiwix, tone: toneForServiceState(status.services.kiwix) },
+        { label: "AP", value: status.services.hostapd, tone: toneForServiceState(status.services.hostapd) },
+        { label: "DHCP", value: status.services.dnsmasq, tone: toneForServiceState(status.services.dnsmasq) }
+      ]);
+    }
+
+    async function loadSystemPanelData() {
       try {
-        const [stateResponse, statusResponse, applyResponse, mapsResponse, mapSyncResponse] = await Promise.all([
+        const [stateResponse, statusResponse] = await Promise.all([
           fetch("/api/state", { cache: "no-store" }),
           fetch("/api/status", { cache: "no-store" }),
-          fetch("/api/apply", { cache: "no-store" }),
-          fetch("/api/maps", { cache: "no-store" }),
-          fetch("/api/maps/sync", { cache: "no-store" })
         ]);
 
         currentState = await stateResponse.json();
-        const status = await statusResponse.json();
-        const apply = await applyResponse.json();
-        currentMaps = await mapsResponse.json();
-        const mapSync = await mapSyncResponse.json();
-
-        document.getElementById("zim-mode").value = currentState.profile.zim_mode || status.content_mode || "full";
-        document.getElementById("mode-status").textContent =
-          `Content mode: ${status.content_mode || currentState.profile.zim_mode || "full"}`;
-        document.getElementById("kiwix-target").textContent = `Kiwix target: ${status.kiwix_url}`;
-        document.getElementById("kiwix-link").href = status.kiwix_url;
+        currentStatus = await statusResponse.json();
+        renderSystemHealth(currentStatus);
+        document.getElementById("kiwix-target").textContent = `Kiwix target: ${currentStatus.kiwix_url}`;
+        document.getElementById("kiwix-link").href = currentStatus.kiwix_url;
         setStatusChips("kiwix-status", [
-          { label: "Kiwix", value: status.services.kiwix, tone: toneForServiceState(status.services.kiwix) }
+          { label: "Kiwix", value: currentStatus.services.kiwix, tone: toneForServiceState(currentStatus.services.kiwix) }
         ]);
         setStatusChips("ap-status", [
-          { label: "Hostapd", value: status.services.hostapd, tone: toneForServiceState(status.services.hostapd) },
-          { label: "Dnsmasq", value: status.services.dnsmasq, tone: toneForServiceState(status.services.dnsmasq) }
+          { label: "Hostapd", value: currentStatus.services.hostapd, tone: toneForServiceState(currentStatus.services.hostapd) },
+          { label: "Dnsmasq", value: currentStatus.services.dnsmasq, tone: toneForServiceState(currentStatus.services.dnsmasq) }
         ]);
-        renderMapsState(currentMaps);
-        renderMapSyncState(mapSync);
-        renderApplyState(apply);
       } catch (error) {
-        document.getElementById("mode-status").textContent = "Content mode: unavailable";
+        document.getElementById("system-disk-status").textContent = "Unavailable";
+        document.getElementById("system-disk-fill").style.width = "0%";
+        document.getElementById("system-temp-status").textContent = "Unavailable";
+        document.getElementById("system-temp-fill").style.width = "0%";
+        document.getElementById("system-temp-fill").className = "meter-fill";
+        document.getElementById("system-uptime-status").textContent = "Uptime: unavailable";
+        setStatusChips("system-service-status", [
+          { label: "System", value: "Unavailable", tone: "status-chip--error" }
+        ]);
         document.getElementById("kiwix-target").textContent = "Kiwix target: unavailable";
         setStatusChips("kiwix-status", [
           { label: "Kiwix", value: "Unavailable", tone: "status-chip--error" }
@@ -709,13 +836,79 @@
         setStatusChips("ap-status", [
           { label: "AP", value: "Unavailable", tone: "status-chip--error" }
         ]);
+      }
+    }
+
+    async function loadContentPanelData() {
+      try {
+        const [stateResponse, statusResponse, applyResponse] = await Promise.all([
+          fetch("/api/state", { cache: "no-store" }),
+          fetch("/api/status", { cache: "no-store" }),
+          fetch("/api/apply", { cache: "no-store" })
+        ]);
+        currentState = await stateResponse.json();
+        currentStatus = await statusResponse.json();
+        const apply = await applyResponse.json();
+        document.getElementById("zim-mode").value = currentState.profile.zim_mode || currentStatus.content_mode || "full";
+        document.getElementById("mode-status").textContent =
+          `Content mode: ${currentStatus.content_mode || currentState.profile.zim_mode || "full"}`;
+        renderApplyState(apply);
+      } catch (error) {
+        document.getElementById("mode-status").textContent = "Content mode: unavailable";
+        document.getElementById("apply-status").textContent = "Apply status: unavailable";
+        document.getElementById("content-action-status").textContent = "Content actions: unavailable";
+      }
+    }
+
+    async function loadApplyStateOnly() {
+      try {
+        const response = await fetch("/api/apply", { cache: "no-store" });
+        const payload = await response.json();
+        renderApplyState(payload);
+      } catch (error) {
+        document.getElementById("apply-status").textContent = "Apply status: unavailable";
+        document.getElementById("content-action-status").textContent = "Content actions: unavailable";
+      }
+    }
+
+    async function loadMapsPanelData() {
+      try {
+        const [mapsResponse, mapSyncResponse] = await Promise.all([
+          fetch("/api/maps", { cache: "no-store" }),
+          fetch("/api/maps/sync", { cache: "no-store" })
+        ]);
+        currentMaps = await mapsResponse.json();
+        const mapSync = await mapSyncResponse.json();
+        renderMapsState(currentMaps);
+        renderMapSyncState(mapSync);
+        await refreshCatalog();
+      } catch (error) {
         setStatusChips("maps-status", [
           { label: "Archive", value: "Unavailable", tone: "status-chip--error" }
         ]);
         document.getElementById("maps-status-note").textContent = "Map package status is unavailable.";
         document.getElementById("maps-sync-status").textContent = "Map sync: unavailable";
-        document.getElementById("apply-status").textContent = "Apply status: unavailable";
-        document.getElementById("content-action-status").textContent = "Content actions: unavailable";
+      }
+    }
+
+    function updatePolling() {
+      if (currentPanel === "system") {
+        if (systemPollHandle === null) {
+          systemPollHandle = window.setInterval(loadSystemPanelData, 15000);
+        }
+      } else if (systemPollHandle !== null) {
+        window.clearInterval(systemPollHandle);
+        systemPollHandle = null;
+      }
+
+      const contentRunning = document.getElementById("content-action-status").textContent.includes("running");
+      if (contentRunning) {
+        if (applyPollHandle === null) {
+          applyPollHandle = window.setInterval(loadApplyStateOnly, 5000);
+        }
+      } else if (applyPollHandle !== null) {
+        window.clearInterval(applyPollHandle);
+        applyPollHandle = null;
       }
     }
 
@@ -947,7 +1140,7 @@
         const response = await fetch("/api/maps/sync", { cache: "no-store" });
         const payload = await response.json();
         renderMapSyncState(payload);
-        if (payload.status !== "running") {
+        if (payload.status !== "running" && currentPanel === "maps") {
           await refreshMapsList();
           await refreshCatalog();
         }
@@ -1049,8 +1242,7 @@
     document.querySelectorAll(".tab-button").forEach((button) => {
       button.addEventListener("click", () => setActivePanel(button.dataset.panel));
     });
-    loadAdminStatus();
-    refreshCatalog();
+    setActivePanel("system");
   </script>
 </body>
 </html>
