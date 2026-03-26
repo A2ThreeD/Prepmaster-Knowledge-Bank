@@ -29,9 +29,8 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `scripts/run_kiwix_service.sh` - runtime wrapper that starts Kiwix or a placeholder page when the library is empty
 - `scripts/install_nginx_site.sh` - installs the Nginx site that serves `/`, `/kiwix`, `/maps`, `/admin`, and `/api`
 - `app/prepmaster_portal.py` - lightweight API for persisted setup state and Raspberry Pi status
-- `config/prepmaster.env` - editable install settings
-- `config/install-profile.env` - first-start install profile
-- `config/kiwix-zim-urls.txt` - generated ZIM manifest
+- `config/prepmaster.env.example` - template for editable install settings
+- `config/install-profile.env.example` - template for first-start install profile defaults
 - `config/kiwix-zim-urls.quick-test.txt` - tiny starter manifest for fast Kiwix validation
 - `wikipedia.json` - selectable Wikipedia ZIM options for the configuration flow
 - `docs/architecture.md` - stack and design notes
