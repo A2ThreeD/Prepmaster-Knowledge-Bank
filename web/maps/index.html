@@ -396,22 +396,15 @@
       <section class="card">
         <h2>Map Archive</h2>
         <p>
-          Choose the active PMTiles archive and theme directly here. If an archive is invalid, switch to another package and reload the viewer.
+          Choose the active PMTiles archive here. Map theme is managed in the Admin Portal so the two pages stay in sync.
         </p>
         <div class="field">
           <label for="map-package-select">Installed PMTiles Package</label>
           <select id="map-package-select"></select>
         </div>
-        <div class="field">
-          <label for="map-flavor-select">Map Theme</label>
-          <select id="map-flavor-select">
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-          </select>
-        </div>
         <div class="actions">
           <button class="button secondary" id="refresh-local-state-button" type="button">Refresh Local State</button>
-          <button class="button" id="save-map-settings-button" type="button">Apply Map Settings</button>
+          <button class="button" id="save-map-settings-button" type="button">Set Active Map</button>
           <button class="button secondary" id="reload-map-button" type="button">Reload Viewer</button>
         </div>
         <p class="status" id="pmtiles-url-status">Archive source: loading</p>
@@ -461,7 +454,6 @@
     const zoomInput = document.getElementById("zoom-input");
     const zoomValue = document.getElementById("zoom-value");
     const mapPackageSelect = document.getElementById("map-package-select");
-    const mapFlavorSelect = document.getElementById("map-flavor-select");
     const refreshLocalStateButton = document.getElementById("refresh-local-state-button");
     const saveMapSettingsButton = document.getElementById("save-map-settings-button");
     const reloadMapButton = document.getElementById("reload-map-button");
@@ -542,7 +534,6 @@
           mapPackageSelect.appendChild(option);
         }
       }
-      mapFlavorSelect.value = state.flavor || config.flavor || "dark";
       pmtilesUrlStatus.textContent = `Archive source: ${state.active_url || config.pmtilesUrl}`;
       mapArchiveNote.textContent = state.active_valid
         ? `Active archive: ${state.active_file}`
@@ -557,7 +548,6 @@
     function populateFallbackControls(config) {
       mapPackageSelect.innerHTML = `<option value="${config.pmtilesFile}">${config.pmtilesFile}</option>`;
       mapPackageSelect.disabled = true;
-      mapFlavorSelect.value = config.flavor || "dark";
       pmtilesUrlStatus.textContent = `Archive source: ${config.pmtilesUrl}`;
       mapArchiveNote.textContent = `Configured archive: ${config.pmtilesFile}`;
       setMapMetaChips([
@@ -677,19 +667,18 @@
 
       saveMapSettingsButton.disabled = true;
       try {
-        const response = await fetch("/api/maps/settings", {
+        const response = await fetch("/api/maps/select", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            filename,
-            flavor: mapFlavorSelect.value
+            filename
           })
         });
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error || "Unable to save map settings");
+          throw new Error(payload.error || "Unable to set active map");
         }
-        mapStatus.textContent = `Map settings updated to ${payload.active_file}. Reloading viewer...`;
+        mapStatus.textContent = `Active map updated to ${payload.active_file}. Reloading viewer...`;
         await buildMap();
       } catch (error) {
         mapStatus.textContent = `Map settings error: ${error.message}`;

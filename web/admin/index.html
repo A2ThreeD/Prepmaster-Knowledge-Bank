@@ -607,21 +607,17 @@
           <p class="muted" id="maps-root">PMTiles root: loading</p>
           <p class="muted" id="active-map-file">Active map: loading</p>
           <p class="muted" id="maps-catalog-source">Catalog source: loading</p>
-          <div class="field">
-            <label for="map-package">Installed PMTiles Package</label>
-            <select id="map-package"></select>
-          </div>
-          <div class="field">
-            <label for="map-flavor">Map Theme</label>
-            <select id="map-flavor">
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-            </select>
-          </div>
-          <div class="actions">
-            <button class="button" id="refresh-maps-button" type="button">Refresh Installed Maps</button>
-            <button class="button" id="save-map-button" type="button">Save Map Settings</button>
-          </div>
+        <div class="field">
+          <label for="map-flavor">Map Theme</label>
+          <select id="map-flavor">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="button" id="refresh-maps-button" type="button">Refresh Installed Maps</button>
+          <button class="button" id="save-map-button" type="button">Save Map Theme</button>
+        </div>
           <div class="status-cluster" id="maps-status" aria-live="polite"></div>
           <p class="substatus" id="maps-status-note">Loading map package status.</p>
         </section>
@@ -890,15 +886,32 @@
       }
     }
 
+    async function loadLocalMapsState() {
+      const [stateResult, configResult] = await Promise.all([
+        fetchJsonWithTimeout("/maps/state.json", {}, 2500),
+        fetchJsonWithTimeout("/maps/config.json", {}, 2500)
+      ]);
+
+      const maps = {
+        ...stateResult.payload,
+        flavor: configResult.payload.flavor || stateResult.payload.flavor || "dark",
+        language: configResult.payload.language || stateResult.payload.language || "en",
+        active_file: configResult.payload.pmtilesFile || stateResult.payload.active_file,
+        active_url: configResult.payload.pmtilesUrl || stateResult.payload.active_url
+      };
+
+      return maps;
+    }
+
     async function loadMapsPanelData() {
       document.getElementById("maps-root").textContent = "PMTiles root: checking local storage...";
       document.getElementById("active-map-file").textContent = "Active map: checking local storage...";
       try {
-        const [mapsResult, mapSyncResult] = await Promise.all([
-          fetchJsonWithTimeout("/api/maps"),
+        const [maps, mapSyncResult] = await Promise.all([
+          loadLocalMapsState(),
           fetchJsonWithTimeout("/api/maps/sync")
         ]);
-        currentMaps = mapsResult.payload;
+        currentMaps = maps;
         const mapSync = mapSyncResult.payload;
         renderMapsState(currentMaps);
         renderMapSyncState(mapSync);
@@ -971,27 +984,6 @@
       );
       document.getElementById("map-flavor").value = maps.flavor || "dark";
 
-      const select = document.getElementById("map-package");
-      select.innerHTML = "";
-
-      if (!maps.available_files.length) {
-        const option = document.createElement("option");
-        option.value = "";
-        option.textContent = "No valid PMTiles files found";
-        select.appendChild(option);
-        select.disabled = true;
-      } else {
-        select.disabled = false;
-        for (const file of maps.available_files) {
-          const option = document.createElement("option");
-          option.value = file;
-          option.textContent = file;
-          if (file === maps.active_file) {
-            option.selected = true;
-          }
-          select.appendChild(option);
-        }
-      }
     }
 
     function renderCatalog(catalog) {
@@ -1140,14 +1132,18 @@
 
     async function refreshMapsList() {
       try {
-        const { payload } = await fetchJsonWithTimeout("/api/maps");
-        currentMaps = payload;
-        renderMapsState(payload);
+        const maps = await loadLocalMapsState();
+        currentMaps = maps;
+        renderMapsState(maps);
       } catch (error) {
         setStatusChips("maps-status", [
           { label: "Archive", value: "Unavailable", tone: "status-chip--error" }
         ]);
-        document.getElementById("maps-status-note").textContent = "Map package status is unavailable.";
+        const delayed = error && error.name === "AbortError";
+        document.getElementById("maps-root").textContent = delayed ? "PMTiles root: local check delayed" : "PMTiles root: unavailable";
+        document.getElementById("active-map-file").textContent = delayed ? "Active map: local check delayed" : "Active map: unavailable";
+        document.getElementById("maps-status-note").textContent =
+          delayed ? "Local map state is taking too long to respond." : "Map package status is unavailable.";
       }
     }
 
@@ -1184,31 +1180,21 @@
     }
 
     async function saveMapSelection() {
-      const select = document.getElementById("map-package");
       const flavor = document.getElementById("map-flavor").value;
       const button = document.getElementById("save-map-button");
-      const filename = select.value;
-
-      if (!filename) {
-        setStatusChips("maps-status", [
-          { label: "Archive", value: "Not Selected", tone: "status-chip--warn" }
-        ]);
-        document.getElementById("maps-status-note").textContent = "Choose a PMTiles archive first.";
-        return;
-      }
 
       button.disabled = true;
       try {
         const { response, payload } = await fetchJsonWithTimeout("/api/maps/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filename, flavor })
+          body: JSON.stringify({ flavor })
         });
         if (!response.ok) {
-          throw new Error(payload.error || "Unable to select map package");
+          throw new Error(payload.error || "Unable to save map theme");
         }
         currentMaps = payload;
-        renderMapsState(payload, `Active map updated to ${payload.active_file}.`);
+        renderMapsState(payload, `Map theme updated to ${payload.flavor || flavor}.`);
       } catch (error) {
         setStatusChips("maps-status", [
           { label: "Archive", value: "Update Failed", tone: "status-chip--error" }
