@@ -1336,7 +1336,19 @@
         if (!response.ok) {
           throw new Error(payload.error || "Unable to remove selected maps");
         }
-        const refreshedMaps = await loadLocalMapsState();
+        let refreshedMaps = payload;
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          refreshedMaps = await loadLocalMapsState();
+          const remainingNames = new Set([
+            ...(refreshedMaps.available_files || []),
+            ...((refreshedMaps.invalid_files || []).map((item) => item.name))
+          ]);
+          const stillPresent = selected.some((name) => remainingNames.has(name));
+          if (!stillPresent) {
+            break;
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 250));
+        }
         currentMaps = refreshedMaps;
         renderMapsState(
           refreshedMaps,
