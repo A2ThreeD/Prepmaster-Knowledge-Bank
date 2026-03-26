@@ -319,6 +319,22 @@
       max-height: 21rem;
       overflow-y: auto;
       overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.88) rgba(7, 14, 26, 0.58);
+    }
+
+    #maps-catalog-list::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    #maps-catalog-list::-webkit-scrollbar-track {
+      background: rgba(7, 14, 26, 0.58);
+      border-left: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    #maps-catalog-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.84);
+      border: 2px solid rgba(7, 14, 26, 0.58);
     }
 
     .substatus {
@@ -773,6 +789,8 @@
         if (item.installed_size_bytes) {
           const sizeMb = item.installed_size_bytes / (1024 * 1024);
           details.push(sizeMb >= 0.1 ? `${sizeMb.toFixed(1)} MB` : `${item.installed_size_bytes} B`);
+        } else if (item.lfs_backed) {
+          details.push("LFS-backed");
         } else if (item.size_bytes) {
           details.push(`remote ${(item.size_bytes / (1024 * 1024)).toFixed(1)} MB`);
         }

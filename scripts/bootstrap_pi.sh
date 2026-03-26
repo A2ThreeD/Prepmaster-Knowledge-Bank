@@ -23,6 +23,7 @@ PACKAGES=(
   ca-certificates
   curl
   git
+  git-lfs
   hostapd
   jq
   libjs-leaflet

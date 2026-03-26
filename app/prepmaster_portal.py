@@ -235,6 +235,65 @@ class PortalState:
             "subdir": env.get("PREPMASTER_MAP_REPO_SUBDIR", "pmtiles"),
         }
 
+    def nomad_repo_cache_root(self) -> Path:
+        return self.data_dir / "nomad-maps-repo"
+
+    def ensure_git_lfs_available(self) -> None:
+        result = subprocess.run(
+            ["git", "lfs", "version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError("git-lfs is not installed on the Pi")
+
+    def ensure_nomad_repo_checkout(self, log_handle) -> Path:
+        self.ensure_git_lfs_available()
+        source = self.maps_catalog_source()
+        repo_url = f"https://github.com/{source['owner']}/{source['repo']}.git"
+        repo_root = self.nomad_repo_cache_root()
+        git_env = os.environ.copy()
+        git_env["GIT_LFS_SKIP_SMUDGE"] = "1"
+
+        if not repo_root.exists():
+            log_handle.write(f"Cloning {repo_url} ({source['branch']})...\n")
+            log_handle.flush()
+            result = subprocess.run(
+                ["git", "clone", "--depth", "1", "--branch", source["branch"], repo_url, str(repo_root)],
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=False,
+                env=git_env,
+            )
+            if result.returncode != 0:
+                raise RuntimeError("Unable to clone Project NOMAD maps repository")
+        else:
+            log_handle.write(f"Refreshing {repo_url} ({source['branch']})...\n")
+            log_handle.flush()
+            commands = [
+                ["git", "remote", "set-url", "origin", repo_url],
+                ["git", "fetch", "origin", source["branch"], "--depth", "1"],
+                ["git", "checkout", "-f", source["branch"]],
+                ["git", "reset", "--hard", f"origin/{source['branch']}"],
+                ["git", "clean", "-fd"],
+            ]
+            for command in commands:
+                result = subprocess.run(
+                    command,
+                    cwd=repo_root,
+                    stdout=log_handle,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    check=False,
+                    env=git_env,
+                )
+                if result.returncode != 0:
+                    raise RuntimeError("Unable to refresh Project NOMAD maps repository")
+
+        return repo_root
+
     def fetch_nomad_maps_catalog(self) -> dict:
         source = self.maps_catalog_source()
         api_url = (
@@ -267,6 +326,7 @@ class PortalState:
                 {
                     "name": name,
                     "size_bytes": entry.get("size", 0),
+                    "lfs_backed": int(entry.get("size", 0) or 0) < 2048,
                     "download_url": entry.get("download_url"),
                     "html_url": entry.get("html_url"),
                     "installed": name in installed_info,
@@ -408,10 +468,12 @@ class PortalState:
             with self.map_sync_log_file.open("a", encoding="utf-8") as log_handle:
                 log_handle.write("== Syncing Project NOMAD PMTiles packages ==\n")
                 log_handle.flush()
+                repo_root = self.ensure_nomad_repo_checkout(log_handle)
+                source = self.maps_catalog_source()
+                subdir = source["subdir"]
 
                 total_files = len(selected_files)
                 for index, name in enumerate(selected_files, start=1):
-                    item = remote_by_name[name]
                     destination = root / name
                     self.save_map_sync_state(
                         {
@@ -425,24 +487,25 @@ class PortalState:
                     log_handle.write(f"\n== Syncing map {index}/{total_files}: {name} ==\n")
                     log_handle.flush()
 
-                    expected_size = int(item.get("size_bytes") or 0)
-                    if destination.exists() and expected_size and destination.stat().st_size == expected_size:
+                    existing_details = inspect_pmtiles_file(destination)
+                    if existing_details["valid"]:
                         log_handle.write(f"Already current: {name}\n")
                         log_handle.flush()
                     else:
-                        if destination.exists() and expected_size and destination.stat().st_size > expected_size:
-                            destination.unlink()
-
+                        include_path = f"{subdir}/{name}"
+                        log_handle.write(f"Fetching via git lfs pull: {include_path}\n")
+                        log_handle.flush()
                         result = subprocess.run(
                             [
-                                "curl",
-                                "-fL",
-                                "--continue-at",
-                                "-",
-                                "--output",
-                                str(destination),
-                                str(item["download_url"]),
+                                "git",
+                                "lfs",
+                                "pull",
+                                "--include",
+                                include_path,
+                                "--exclude",
+                                "",
                             ],
+                            cwd=repo_root,
                             stdout=log_handle,
                             stderr=subprocess.STDOUT,
                             text=True,
@@ -450,7 +513,13 @@ class PortalState:
                         )
                         log_handle.flush()
                         if result.returncode != 0:
-                            raise RuntimeError(f"Download failed for {name}")
+                            raise RuntimeError(f"git lfs pull failed for {name}")
+
+                        source_path = repo_root / subdir / name
+                        if not source_path.exists():
+                            raise RuntimeError(f"Downloaded map is missing from repo checkout: {name}")
+
+                        shutil.copy2(source_path, destination)
 
                     downloaded_details = inspect_pmtiles_file(destination)
                     if not downloaded_details["valid"]:
