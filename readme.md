@@ -34,6 +34,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `config/kiwix-zim-urls.quick-test.txt` - tiny starter manifest for fast Kiwix validation
 - `wikipedia.json` - selectable Wikipedia ZIM options for the configuration flow
 - `docs/architecture.md` - stack and design notes
+- `docs/release-checklist.md` - step-by-step validation list for fresh Pi installs and release testing
 - `docs/software-plan.md` - software checklist for the Pi
 - `index.html.framework` - backup design-language reference for the UI
 - `web/admin/index.html` - starter admin page placeholder
@@ -90,3 +91,7 @@ sudo ./scripts/download_kiwix_zims.sh
 - `Kolibri` now has install automation in the repo. `KA Lite` requires an explicit legacy override and currently records the request rather than forcing a risky unattended install on modern Raspberry Pi OS.
 - Wireless AP mode can be enabled through `config/prepmaster.env` and applied by the installer or `scripts/configure_access_point.sh`.
 - The installer now provisions `kiwix-serve`, the portal API, and an Nginx site so `/`, `/maps`, `/admin`, and `/api` are served on the main site, while `/kiwix` redirects the browser to the dedicated Kiwix port.
+
+## Validation
+
+Use [docs/release-checklist.md](/Volumes/External/Projects/Prepmaster%20Knowledge%20Bank/docs/release-checklist.md) when validating a fresh Pi install or preparing a new release.
