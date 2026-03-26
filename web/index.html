@@ -76,6 +76,12 @@
       box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
     }
 
+    .title-block {
+      text-align: center;
+      padding: 8px 12px 0;
+      margin-bottom: 10px;
+    }
+
     .masthead::before {
       content: "";
       position: absolute;
@@ -108,66 +114,11 @@
       z-index: 1;
       max-width: 980px;
       margin: 0 auto;
-    }
-
-    .badge {
-      width: 120px;
-      height: 104px;
-      margin: 0 auto 18px;
-      clip-path: polygon(25% 6%, 75% 6%, 96% 50%, 75% 94%, 25% 94%, 4% 50%);
-      border: 1px solid rgba(179, 221, 255, 0.42);
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02)),
-        linear-gradient(180deg, rgba(26, 48, 84, 0.96), rgba(11, 22, 40, 0.98));
-      display: grid;
-      place-items: center;
-      box-shadow:
-        0 18px 40px rgba(0, 0, 0, 0.38),
-        0 0 42px rgba(87, 161, 255, 0.2);
-      color: #eef6ff;
-      font-size: 32px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      position: relative;
-      z-index: 1;
-    }
-
-    .kicker {
-      margin: 0;
-      color: rgba(211, 229, 247, 0.88);
-      text-transform: uppercase;
-      letter-spacing: 0.34em;
-      font-size: 14px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .brand-name {
-      margin: 10px 0 8px;
-      font-size: clamp(3rem, 8vw, 5.6rem);
-      line-height: 0.96;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: #eef6ff;
-      text-shadow:
-        0 0 18px rgba(126, 191, 255, 0.24),
-        0 12px 34px rgba(0, 0, 0, 0.3);
-      position: relative;
-      z-index: 1;
-    }
-
-    .brand-subtitle {
-      margin: 0;
-      color: rgba(220, 234, 249, 0.94);
-      text-transform: uppercase;
-      letter-spacing: 0.28em;
-      font-size: clamp(0.78rem, 2vw, 1.2rem);
-      position: relative;
-      z-index: 1;
+      min-height: clamp(220px, 30vw, 360px);
     }
 
     h1 {
-      margin: 36px 0 12px;
+      margin: 0 0 12px;
       font-size: clamp(2.5rem, 5vw, 4rem);
       line-height: 1.05;
       position: relative;
@@ -508,17 +459,16 @@
 <body>
   <div class="shell">
     <header class="masthead">
-      <div class="hero-copy">
-        <div class="badge">PM</div>
-        <h2 class="brand-name">PrepMaster</h2>
-        <p class="brand-subtitle">Offline Emergency Reference System</p>
-        <h1>Command Center</h1>
-        <p class="intro" id="intro-text">
-          Configure this device for calm, reliable offline use. After setup, this page becomes the main dashboard for content, tools, and system status.
-        </p>
-        <div class="rule"></div>
-      </div>
+      <div class="hero-copy" aria-hidden="true"></div>
     </header>
+
+    <section class="title-block">
+      <h1>Command Center</h1>
+      <p class="intro" id="intro-text">
+        Configure this device for calm, reliable offline use. After setup, this page becomes the main dashboard for content, tools, and system status.
+      </p>
+      <div class="rule"></div>
+    </section>
 
     <div class="message" id="message"></div>
 
