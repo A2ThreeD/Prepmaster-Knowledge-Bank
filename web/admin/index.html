@@ -881,7 +881,7 @@
         const mapSync = await mapSyncResponse.json();
         renderMapsState(currentMaps);
         renderMapSyncState(mapSync);
-        await refreshCatalog();
+        await refreshCatalog(false);
       } catch (error) {
         setStatusChips("maps-status", [
           { label: "Archive", value: "Unavailable", tone: "status-chip--error" }
@@ -1121,9 +1121,9 @@
       }
     }
 
-    async function refreshCatalog() {
+    async function refreshCatalog(forceRefresh = true) {
       try {
-        const response = await fetch("/api/maps/catalog", { cache: "no-store" });
+        const response = await fetch(forceRefresh ? "/api/maps/catalog?refresh=1" : "/api/maps/catalog", { cache: "no-store" });
         const payload = await response.json();
         if (!response.ok) {
           throw new Error(payload.error || "Unable to load Project NOMAD catalog");
@@ -1142,7 +1142,7 @@
         renderMapSyncState(payload);
         if (payload.status !== "running" && currentPanel === "maps") {
           await refreshMapsList();
-          await refreshCatalog();
+          await refreshCatalog(false);
         }
       } catch (error) {
         document.getElementById("maps-sync-status").textContent = "Map sync: unavailable";

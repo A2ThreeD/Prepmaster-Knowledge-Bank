@@ -526,6 +526,8 @@
     }
 
     async function buildMap() {
+      mapStatus.textContent = "Loading map configuration...";
+      mapBanner.classList.add("hidden");
       const [config, state] = await Promise.all([loadConfig(), loadMapState()]);
       populateMapControls(state, config);
 
@@ -533,6 +535,18 @@
       lonInput.value = config.defaultLon;
       zoomInput.value = config.defaultZoom;
       zoomValue.textContent = String(config.defaultZoom);
+
+      if (!state.active_valid) {
+        const problem = state.active_error || "Configured archive is missing or invalid.";
+        mapStatus.textContent = `Map archive issue: ${problem}`;
+        mapBanner.textContent = `Map archive issue: ${problem}`;
+        mapBanner.classList.remove("hidden");
+        if (mapInstance) {
+          mapInstance.remove();
+          mapInstance = null;
+        }
+        return;
+      }
 
       if (mapInstance) {
         mapInstance.remove();
@@ -543,6 +557,7 @@
       maplibregl.addProtocol("pmtiles", protocol.tile);
       const pmtilesSource = new pmtiles.PMTiles(window.location.origin + config.pmtilesUrl);
       protocol.add(pmtilesSource);
+      mapStatus.textContent = `Initializing renderer for ${config.pmtilesFile}...`;
 
       mapInstance = new maplibregl.Map({
         container: "map",
@@ -571,18 +586,24 @@
       });
 
       mapInstance.addControl(new maplibregl.NavigationControl(), "top-right");
+      mapInstance.once("load", () => {
+        mapStatus.textContent = `Map loaded. ${config.pmtilesFile} is ready for navigation.`;
+      });
+      mapInstance.once("idle", () => {
+        mapStatus.textContent = `Map ready. ${config.pmtilesFile} is active.`;
+      });
 
-      try {
-        const response = await fetch(config.pmtilesUrl, { method: "HEAD", cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(`archive returned ${response.status}`);
-        }
-        mapStatus.textContent = `Offline PMTiles archive detected. ${config.pmtilesFile} is ready for disconnected use.`;
-        mapBanner.classList.add("hidden");
-      } catch (error) {
-        mapStatus.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
-        mapBanner.classList.remove("hidden");
-      }
+      fetch(config.pmtilesUrl, { method: "HEAD", cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`archive returned ${response.status}`);
+          }
+        })
+        .catch(() => {
+          mapStatus.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
+          mapBanner.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
+          mapBanner.classList.remove("hidden");
+        });
 
       mapInstance.on("error", (event) => {
         const errorMessage = event && event.error && event.error.message

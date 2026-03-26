@@ -10,7 +10,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib import error, request
+from urllib import error, parse, request
 
 
 def parse_args() -> argparse.Namespace:
@@ -107,6 +107,7 @@ class PortalState:
         self.apply_log_file = self.data_dir / "apply.log"
         self.map_sync_state_file = self.data_dir / "map-sync-state.json"
         self.map_sync_log_file = self.data_dir / "map-sync.log"
+        self.maps_catalog_cache_file = self.data_dir / "maps-catalog-cache.json"
         self.apply_lock = threading.Lock()
         self.apply_thread: threading.Thread | None = None
         self.map_sync_lock = threading.Lock()
@@ -295,6 +296,20 @@ class PortalState:
         return repo_root
 
     def fetch_nomad_maps_catalog(self) -> dict:
+        return self.fetch_nomad_maps_catalog_cached(force_refresh=False)
+
+    def fetch_nomad_maps_catalog_cached(self, force_refresh: bool = False) -> dict:
+        cache_ttl_seconds = 600
+        if not force_refresh and self.maps_catalog_cache_file.exists():
+            try:
+                cached = json.loads(self.maps_catalog_cache_file.read_text())
+            except json.JSONDecodeError:
+                cached = None
+            if cached:
+                fetched_at = float(cached.get("fetched_at", 0))
+                if time.time() - fetched_at < cache_ttl_seconds and "payload" in cached:
+                    return cached["payload"]
+
         source = self.maps_catalog_source()
         api_url = (
             f"https://api.github.com/repos/{source['owner']}/{source['repo']}"
@@ -337,10 +352,14 @@ class PortalState:
                 }
             )
 
-        return {
+        payload = {
             "source": source,
             "items": sorted(items, key=lambda item: item["name"]),
         }
+        self.maps_catalog_cache_file.write_text(
+            json.dumps({"fetched_at": time.time(), "payload": payload}, indent=2) + "\n"
+        )
+        return payload
 
     def select_map_package(self, filename: str) -> dict:
         if not filename or Path(filename).name != filename or not filename.endswith(".pmtiles"):
@@ -985,25 +1004,30 @@ class PortalHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:
-        if self.path == "/api/state":
+        parsed = parse.urlparse(self.path)
+        path = parsed.path
+        query = parse.parse_qs(parsed.query)
+
+        if path == "/api/state":
             self.send_json(self.portal_state.load_state())
             return
-        if self.path == "/api/status":
+        if path == "/api/status":
             self.send_json(self.portal_state.status())
             return
-        if self.path == "/api/maps":
+        if path == "/api/maps":
             self.send_json(self.portal_state.maps_status())
             return
-        if self.path == "/api/maps/catalog":
+        if path == "/api/maps/catalog":
             try:
-                self.send_json(self.portal_state.fetch_nomad_maps_catalog())
+                force_refresh = query.get("refresh", ["0"])[0] == "1"
+                self.send_json(self.portal_state.fetch_nomad_maps_catalog_cached(force_refresh=force_refresh))
             except RuntimeError as exc:
                 self.send_json({"error": str(exc)}, status=502)
             return
-        if self.path == "/api/maps/sync":
+        if path == "/api/maps/sync":
             self.send_json(self.portal_state.load_map_sync_state())
             return
-        if self.path == "/api/apply":
+        if path == "/api/apply":
             self.send_json(self.portal_state.load_apply_state())
             return
         self.send_json({"error": "Not found"}, status=404)
