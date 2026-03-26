@@ -77,6 +77,7 @@ class PortalState:
         self.apply_log_file = self.data_dir / "apply.log"
         self.apply_lock = threading.Lock()
         self.apply_thread: threading.Thread | None = None
+        self.recover_interrupted_apply()
 
     def load_state(self) -> dict:
         prepmaster = read_env_file(self.prepmaster_env)
@@ -192,6 +193,47 @@ class PortalState:
         content = self.apply_log_file.read_text().splitlines()
         return content[-lines:]
 
+    def launch_apply(
+        self,
+        action: str,
+        *,
+        clear_log: bool,
+        started_at: str | None = None,
+        resumed: bool = False,
+    ) -> dict:
+        if clear_log:
+            self.apply_log_file.write_text("")
+        else:
+            with self.apply_log_file.open("a", encoding="utf-8") as log_handle:
+                log_handle.write(
+                    "\n== Resuming interrupted apply workflow after restart ==\n"
+                )
+
+        self.save_apply_state(
+            {
+                "status": "running",
+                "action": action,
+                "total_steps": len(self.commands_for_action(action)),
+                "current_step_index": 0,
+                "started_at": started_at
+                or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "finished_at": None,
+                "step": "Resuming interrupted apply workflow"
+                if resumed
+                else "Starting apply workflow",
+                "exit_code": None,
+                "error": None,
+                "resumed_from_interruption": resumed,
+            }
+        )
+        self.apply_thread = threading.Thread(
+            target=self.run_apply_workflow,
+            args=(action,),
+            daemon=True,
+        )
+        self.apply_thread.start()
+        return self.load_apply_state()
+
     def start_apply(self, action: str = "full") -> dict:
         if action not in {"full", "refresh-content", "rebuild-library"}:
             raise ValueError("Invalid apply action")
@@ -201,27 +243,23 @@ class PortalState:
             if state.get("status") == "running":
                 raise RuntimeError("Configuration apply is already running")
 
-            self.apply_log_file.write_text("")
-            self.save_apply_state(
-                {
-                    "status": "running",
-                    "action": action,
-                    "total_steps": len(self.commands_for_action(action)),
-                    "current_step_index": 0,
-                    "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    "finished_at": None,
-                    "step": "Starting apply workflow",
-                    "exit_code": None,
-                    "error": None,
-                }
-            )
-            self.apply_thread = threading.Thread(
-                target=self.run_apply_workflow,
-                args=(action,),
-                daemon=True,
-            )
-            self.apply_thread.start()
-            return self.load_apply_state()
+            return self.launch_apply(action, clear_log=True)
+
+    def recover_interrupted_apply(self) -> None:
+        state = read_json(self.apply_state_file, {})
+        if state.get("status") != "running":
+            return
+
+        action = state.get("action", "full")
+        if action not in {"full", "refresh-content", "rebuild-library"}:
+            return
+
+        self.launch_apply(
+            action,
+            clear_log=False,
+            started_at=state.get("started_at"),
+            resumed=True,
+        )
 
     def commands_for_action(self, action: str) -> list[tuple[str, list[str]]]:
         if action == "refresh-content":
