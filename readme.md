@@ -1,6 +1,6 @@
-# SOPR Knowledge Bank
+# Survival Operations Plan Response
 
-SOPR, short for Survival Operations Plan Response, is an offline-first Raspberry Pi project for serving emergency preparedness, medical, survival, and general reference material on a local network.
+SOPR is an offline-first Raspberry Pi project for serving emergency preparedness, medical, survival, and general reference material on a local network.
 
 The current plan is to build on a fresh Raspberry Pi OS Lite install and automate:
 

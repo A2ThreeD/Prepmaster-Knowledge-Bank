@@ -19,6 +19,8 @@
       --shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
       --legacy: #d5b6b6;
       --ok: #a9d4ba;
+      --chamfer: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px);
+      --chamfer-tight: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
     }
 
     * { box-sizing: border-box; }
@@ -69,11 +71,10 @@
       margin-bottom: 12px;
       overflow: hidden;
       background:
-        linear-gradient(180deg, rgba(6, 15, 29, 0.22), rgba(4, 11, 21, 0.8)),
-        radial-gradient(circle at 50% 32%, rgba(122, 191, 255, 0.28), transparent 16%),
-        radial-gradient(circle at 50% 34%, rgba(79, 143, 239, 0.2), transparent 28%),
-        linear-gradient(180deg, rgba(15, 32, 56, 0.34), rgba(7, 15, 28, 0.76)),
-        url("/images/heroimage.png") center 50% / cover no-repeat;
+        linear-gradient(180deg, rgba(6, 15, 29, 0.08), rgba(4, 11, 21, 0.5)),
+        linear-gradient(180deg, rgba(15, 32, 56, 0.12), rgba(7, 15, 28, 0.4)),
+        url("/images/heroimage.png") center center / contain no-repeat,
+        linear-gradient(180deg, #071322, #071322);
     }
 
     .title-block {
@@ -82,39 +83,12 @@
       margin-bottom: 2px;
     }
 
-    .masthead::before {
-      content: "";
-      position: absolute;
-      inset: -12% 18% 32%;
-      border-radius: 50%;
-      border: 1px solid rgba(145, 204, 255, 0.24);
-      box-shadow:
-        0 0 0 12px rgba(71, 117, 186, 0.12),
-        0 0 0 34px rgba(71, 117, 186, 0.08);
-      pointer-events: none;
-    }
-
-    .masthead::after {
-      content: "";
-      position: absolute;
-      left: 8%;
-      right: 8%;
-      bottom: 14%;
-      height: 18%;
-      border-radius: 50%;
-      background:
-        radial-gradient(ellipse at 50% 18%, rgba(148, 203, 255, 0.26), transparent 54%),
-        linear-gradient(180deg, rgba(115, 169, 230, 0.16), transparent 78%);
-      filter: blur(6px);
-      pointer-events: none;
-    }
-
     .hero-copy {
       position: relative;
       z-index: 1;
       max-width: 980px;
       margin: 0 auto;
-      min-height: clamp(110px, 16vw, 180px);
+      min-height: clamp(130px, 18vw, 220px);
     }
 
     h1 {
@@ -148,11 +122,11 @@
       display: none;
       margin: 0 auto 18px;
       max-width: 980px;
-      border-radius: 16px;
       border: 1px solid var(--border);
       background: rgba(16, 34, 56, 0.72);
       color: var(--accent-strong);
       padding: 14px 16px;
+      clip-path: var(--chamfer-tight);
     }
 
     .message.error {
@@ -174,7 +148,6 @@
       position: relative;
       min-height: 236px;
       padding: 24px 24px 22px;
-      border-radius: 24px;
       border: 1px solid rgba(120, 163, 218, 0.28);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015)),
@@ -184,6 +157,7 @@
         inset 0 1px 0 rgba(205, 227, 255, 0.08);
       backdrop-filter: blur(12px);
       overflow: hidden;
+      clip-path: var(--chamfer);
     }
 
     .tile::after {
@@ -210,7 +184,6 @@
     .tile-icon {
       width: 56px;
       height: 56px;
-      border-radius: 18px;
       background: linear-gradient(180deg, rgba(105, 150, 220, 0.3), rgba(67, 103, 156, 0.18));
       border: 1px solid rgba(174, 207, 241, 0.2);
       display: grid;
@@ -219,6 +192,7 @@
       margin-bottom: 18px;
       color: var(--accent-strong);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      clip-path: var(--chamfer-tight);
     }
 
     .tile.legacy .tile-icon {
@@ -284,23 +258,23 @@
 
     select {
       width: 100%;
-      border-radius: 14px;
       border: 1px solid var(--border);
       background: rgba(4, 10, 19, 0.44);
       color: var(--text);
       padding: 12px 14px;
       font: inherit;
+      clip-path: var(--chamfer-tight);
     }
 
     .command {
       margin-top: 18px;
-      border-radius: 16px;
       border: 1px solid var(--border);
       background: rgba(4, 10, 19, 0.44);
       color: var(--accent-strong);
       padding: 14px 16px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       white-space: pre-wrap;
+      clip-path: var(--chamfer-tight);
     }
 
     .actions {
@@ -316,13 +290,13 @@
       justify-content: center;
       min-width: 168px;
       padding: 13px 16px;
-      border-radius: 14px;
       border: 1px solid var(--border);
       text-decoration: none;
       color: var(--text);
       background: rgba(7, 17, 31, 0.4);
       cursor: pointer;
       font: inherit;
+      clip-path: var(--chamfer-tight);
     }
 
     .button.primary {
@@ -375,7 +349,6 @@
 
     .status-shell {
       padding: 10px 12px;
-      border-radius: 18px;
       border: 1px solid rgba(138, 183, 234, 0.28);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)),
@@ -383,15 +356,16 @@
       box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
       backdrop-filter: blur(18px);
       display: grid;
+      clip-path: var(--chamfer-tight);
     }
 
     .metric {
       padding: 10px 12px 9px;
-      border-radius: 14px;
       border: 1px solid rgba(137, 181, 231, 0.18);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
         rgba(6, 16, 29, 0.38);
+      clip-path: var(--chamfer-tight);
     }
 
     .metric strong {
