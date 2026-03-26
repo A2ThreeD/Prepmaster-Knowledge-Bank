@@ -375,6 +375,10 @@
     }
 
     .status-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
       margin-bottom: 8px;
     }
 
@@ -402,6 +406,16 @@
       border-radius: 0;
     }
 
+    .status-shell.hidden {
+      display: none;
+    }
+
+    .status-toggle {
+      min-width: 0;
+      padding: 8px 10px;
+      font-size: 0.74rem;
+    }
+
     .metric {
       padding: 10px 12px 9px;
       border: 1px solid rgba(255, 255, 255, 0.7);
@@ -424,13 +438,6 @@
       font-weight: 600;
       font-size: 0.84rem;
       line-height: 1.15;
-    }
-
-    .metric .value.secondary {
-      margin-top: 4px;
-      color: var(--muted);
-      font-weight: 500;
-      font-size: 0.76rem;
     }
 
     .meter {
@@ -745,8 +752,9 @@
       <section class="status-section" aria-label="System Status">
         <div class="status-header">
           <h2 class="status-heading">System Status</h2>
+          <button class="button status-toggle" id="status-toggle-button" type="button" aria-expanded="true">Hide</button>
         </div>
-        <div class="status-shell">
+        <div class="status-shell" id="status-shell">
           <div class="status-bar">
             <div class="metric">
               <strong>Disk</strong>
@@ -756,7 +764,6 @@
             <div class="metric">
               <strong>Temp</strong>
               <span class="value" id="temperature-status">Loading</span>
-              <span class="value secondary" id="temperature-status-f">Loading</span>
               <div class="meter"><div class="meter-track"><div class="meter-fill temp-cool" id="temperature-fill"></div></div></div>
             </div>
             <div class="metric">
@@ -796,11 +803,24 @@
 
     const diskStatus = document.getElementById("disk-status");
     const temperatureStatus = document.getElementById("temperature-status");
-    const temperatureStatusF = document.getElementById("temperature-status-f");
     const serviceStatus = document.getElementById("service-status");
     const diskFill = document.getElementById("disk-fill");
     const temperatureFill = document.getElementById("temperature-fill");
+    const statusShell = document.getElementById("status-shell");
+    const statusToggleButton = document.getElementById("status-toggle-button");
     let applyPollHandle = null;
+    let statusRequestInFlight = false;
+
+    function applyStatusPanelVisibility(hidden) {
+      statusShell.classList.toggle("hidden", hidden);
+      statusToggleButton.textContent = hidden ? "Show" : "Hide";
+      statusToggleButton.setAttribute("aria-expanded", hidden ? "false" : "true");
+      try {
+        window.localStorage.setItem("sopr-status-hidden", hidden ? "1" : "0");
+      } catch (error) {
+        // Ignore storage failures and keep the current UI state.
+      }
+    }
 
     function serviceTone(state) {
       if (state === "active") return "ok";
@@ -895,7 +915,17 @@
     }
 
     async function loadStatus() {
-      const response = await fetch(`${apiBase}/status`, { cache: "no-store" });
+      const controller = new AbortController();
+      const timeoutHandle = window.setTimeout(() => controller.abort(), 5000);
+      let response;
+      try {
+        response = await fetch(`${apiBase}/status`, {
+          cache: "no-store",
+          signal: controller.signal
+        });
+      } finally {
+        window.clearTimeout(timeoutHandle);
+      }
       if (!response.ok) {
         throw new Error("Unable to load status");
       }
@@ -903,6 +933,10 @@
     }
 
     async function refreshStatus() {
+      if (statusRequestInFlight) {
+        return;
+      }
+      statusRequestInFlight = true;
       try {
         const status = await loadStatus();
         const diskUsedPercent = status.disk.total_gb > 0
@@ -913,7 +947,6 @@
 
         if (status.temperature_c === null) {
           temperatureStatus.textContent = "Unavailable";
-          temperatureStatusF.textContent = "Unavailable";
           temperatureFill.style.width = "0%";
           temperatureFill.className = "meter-fill";
         } else {
@@ -921,8 +954,7 @@
           const tempF = (tempC * 9 / 5) + 32;
           const tempPercent = Math.max(0, Math.min(100, Math.round((tempC / 100) * 100)));
           const tempTone = tempC >= 75 ? "temp-hot" : tempC >= 60 ? "temp-warm" : "temp-cool";
-          temperatureStatus.textContent = `${tempC.toFixed(1)} C`;
-          temperatureStatusF.textContent = `${tempF.toFixed(1)} F`;
+          temperatureStatus.textContent = `${tempC.toFixed(1)} C / ${tempF.toFixed(1)} F`;
           temperatureFill.style.width = `${tempPercent}%`;
           temperatureFill.className = `meter-fill ${tempTone}`;
         }
@@ -940,15 +972,29 @@
           `<span class="service-chip ${serviceTone(value)}">${label}</span>`
         ).join("");
       } catch (error) {
-        diskStatus.textContent = "Unavailable";
-        temperatureStatus.textContent = "Unavailable";
-        temperatureStatusF.textContent = "Unavailable";
+        const timeoutError = error && error.name === "AbortError";
+        diskStatus.textContent = timeoutError ? "Status delayed" : "Unavailable";
+        temperatureStatus.textContent = timeoutError ? "Status delayed" : "Unavailable";
         diskFill.style.width = "0%";
         temperatureFill.style.width = "0%";
         temperatureFill.className = "meter-fill";
-        serviceStatus.innerHTML = '<span class="service-chip error">Unavailable</span>';
-        kiwixTargetText.textContent = "Kiwix target: unavailable";
+        serviceStatus.innerHTML = timeoutError
+          ? '<span class="service-chip warn">Delayed</span>'
+          : '<span class="service-chip error">Unavailable</span>';
+        kiwixTargetText.textContent = timeoutError ? "Kiwix target: checking..." : "Kiwix target: unavailable";
+      } finally {
+        statusRequestInFlight = false;
       }
+    }
+
+    statusToggleButton.addEventListener("click", () => {
+      applyStatusPanelVisibility(!statusShell.classList.contains("hidden"));
+    });
+
+    try {
+      applyStatusPanelVisibility(window.localStorage.getItem("sopr-status-hidden") === "1");
+    } catch (error) {
+      applyStatusPanelVisibility(false);
     }
 
     async function persistSetup(setupComplete) {
