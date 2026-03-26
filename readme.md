@@ -7,7 +7,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - Base OS preparation
 - Required package installation
 - Directory layout for content and site assets
-- Custom web, admin, and maps scaffold
+- Custom web, admin, and offline PMTiles maps scaffold
 - Kiwix ZIM downloads into `/library/zims/content`
 - ZIM selection generated from Project NOMAD's `kiwix-categories.json`
 
@@ -38,7 +38,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `docs/software-plan.md` - software checklist for the Pi
 - `index.html.framework` - backup design-language reference for the UI
 - `web/admin/index.html` - starter admin page placeholder
-- `web/maps/index.html` - starter maps page placeholder
+- `web/maps/index.html` - offline PMTiles maps viewer
 
 ## Intended Software Stack
 
@@ -47,7 +47,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - Nginx as the outer landing page / reverse proxy layer
 - Avahi for local `.local` discovery on LAN
 - Optional wireless AP mode for direct client access
-- Custom admin and maps components built in-repo
+- Custom admin and PMTiles-based maps components built in-repo
 
 This is an initial scaffold for a fully custom stack. It is designed to give us a repeatable starting point on a fresh Pi while keeping the web layer, admin flow, and future maps integration under our control.
 
@@ -87,6 +87,7 @@ sudo ./scripts/download_kiwix_zims.sh
 - The setup page can now save preferences and trigger the backend apply workflow directly from the browser.
 - Kiwix now runs on a dedicated port, and the dashboard/admin views expose the real Kiwix target URL.
 - If no Kiwix library exists yet, the dedicated Kiwix port serves a placeholder page instead of crash-looping.
+- `/maps` now expects a local PMTiles archive under the configured PMTiles root instead of a raster `z/x/y.png` tile tree.
 - Optional education add-ons are tracked separately: `Kolibri` as a modern add-on, and `KA Lite` as a legacy add-on.
 - `Kolibri` now has install automation in the repo. `KA Lite` requires an explicit legacy override and currently records the request rather than forcing a risky unattended install on modern Raspberry Pi OS.
 - Wireless AP mode can be enabled through `config/prepmaster.env` and applied by the installer or `scripts/configure_access_point.sh`.

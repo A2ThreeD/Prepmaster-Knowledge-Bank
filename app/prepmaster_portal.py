@@ -77,6 +77,7 @@ class PortalState:
         self.apply_log_file = self.data_dir / "apply.log"
         self.apply_lock = threading.Lock()
         self.apply_thread: threading.Thread | None = None
+        self.write_maps_runtime_config()
         self.recover_interrupted_apply()
 
     def load_state(self) -> dict:
@@ -99,6 +100,81 @@ class PortalState:
                 "zim_mode": prepmaster.get("PREPMASTER_ZIM_MODE", "full"),
             },
         }
+
+    def maps_env(self) -> dict[str, str]:
+        return read_env_file(self.prepmaster_env)
+
+    def maps_root(self) -> Path:
+        env = self.maps_env()
+        return Path(env.get("PREPMASTER_MAP_PMTILES_ROOT", "/srv/prepmaster/maps/pmtiles"))
+
+    def maps_web_root(self) -> Path:
+        env = self.maps_env()
+        return Path(env.get("PREPMASTER_MAPS_ROOT", "/srv/prepmaster/www/maps"))
+
+    def active_pmtiles_file(self) -> str:
+        env = self.maps_env()
+        return env.get("PREPMASTER_MAP_PMTILES_FILE", "basemap.pmtiles")
+
+    def list_pmtiles_packages(self) -> list[str]:
+        root = self.maps_root()
+        if not root.exists():
+            return []
+        return sorted(
+            path.name
+            for path in root.iterdir()
+            if path.is_file() and path.suffix.lower() == ".pmtiles"
+        )
+
+    def write_maps_runtime_config(self) -> None:
+        env = self.maps_env()
+        maps_web_root = self.maps_web_root()
+        maps_web_root.mkdir(parents=True, exist_ok=True)
+        config = {
+            "pmtilesUrl": f"/pmtiles/{env.get('PREPMASTER_MAP_PMTILES_FILE', 'basemap.pmtiles')}",
+            "pmtilesFile": env.get("PREPMASTER_MAP_PMTILES_FILE", "basemap.pmtiles"),
+            "flavor": env.get("PREPMASTER_MAP_STYLE_FLAVOR", "dark"),
+            "language": env.get("PREPMASTER_MAP_LANGUAGE", "en"),
+            "defaultLat": float(env.get("PREPMASTER_MAP_DEFAULT_LAT", "39.8283")),
+            "defaultLon": float(env.get("PREPMASTER_MAP_DEFAULT_LON", "-98.5795")),
+            "defaultZoom": int(env.get("PREPMASTER_MAP_DEFAULT_ZOOM", "4")),
+            "minZoom": int(env.get("PREPMASTER_MAP_MIN_ZOOM", "2")),
+            "maxZoom": int(env.get("PREPMASTER_MAP_MAX_ZOOM", "14")),
+        }
+        (maps_web_root / "config.json").write_text(json.dumps(config, indent=2) + "\n")
+
+    def maps_status(self) -> dict:
+        env = self.maps_env()
+        root = self.maps_root()
+        active_file = env.get("PREPMASTER_MAP_PMTILES_FILE", "basemap.pmtiles")
+        active_path = root / active_file
+        packages = self.list_pmtiles_packages()
+        return {
+            "root": str(root),
+            "active_file": active_file,
+            "active_url": f"/pmtiles/{active_file}",
+            "active_exists": active_path.exists(),
+            "available_files": packages,
+            "flavor": env.get("PREPMASTER_MAP_STYLE_FLAVOR", "dark"),
+            "language": env.get("PREPMASTER_MAP_LANGUAGE", "en"),
+        }
+
+    def select_map_package(self, filename: str) -> dict:
+        if not filename or Path(filename).name != filename or not filename.endswith(".pmtiles"):
+            raise ValueError("Invalid PMTiles filename")
+
+        packages = self.list_pmtiles_packages()
+        if filename not in packages:
+            raise ValueError("PMTiles package not found in map root")
+
+        update_env_file(
+            self.prepmaster_env,
+            {
+                "PREPMASTER_MAP_PMTILES_FILE": filename,
+            },
+        )
+        self.write_maps_runtime_config()
+        return self.maps_status()
 
     def save_setup(self, payload: dict) -> dict:
         wikipedia_option = payload.get("wikipedia_option", "top-mini")
@@ -131,6 +207,7 @@ class PortalState:
                 "PREPMASTER_ZIM_MODE": zim_mode,
             },
         )
+        self.write_maps_runtime_config()
 
         state = {
             "setup_complete": setup_complete,
@@ -153,6 +230,7 @@ class PortalState:
             "content_mode": read_env_file(self.prepmaster_env).get(
                 "PREPMASTER_ZIM_MODE", "full"
             ),
+            "maps": self.maps_status(),
             "services": {
                 "portal": self.read_service_status("prepmaster-portal.service"),
                 "kiwix": self.read_service_status("prepmaster-kiwix.service"),
@@ -518,6 +596,9 @@ class PortalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/status":
             self.send_json(self.portal_state.status())
             return
+        if self.path == "/api/maps":
+            self.send_json(self.portal_state.maps_status())
+            return
         if self.path == "/api/apply":
             self.send_json(self.portal_state.load_apply_state())
             return
@@ -551,6 +632,15 @@ class PortalHandler(BaseHTTPRequestHandler):
                 self.send_json({"error": str(exc)}, status=409)
                 return
             self.send_json(state, status=202)
+            return
+
+        if self.path == "/api/maps/select":
+            try:
+                state = self.portal_state.select_map_package(payload.get("filename", ""))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            self.send_json(state)
             return
 
         self.send_json({"error": "Not found"}, status=404)

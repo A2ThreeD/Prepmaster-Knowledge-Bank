@@ -31,7 +31,7 @@
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
       min-height: 100vh;
     }
 
@@ -68,9 +68,9 @@
     .card {
       margin-top: 18px;
       padding: 16px;
-      border-radius: 18px;
       border: 1px solid var(--border);
       background: var(--panel);
+      clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
     }
 
     .card h2 {
@@ -108,13 +108,13 @@
       justify-content: center;
       min-width: 142px;
       padding: 11px 14px;
-      border-radius: 14px;
       border: 1px solid var(--border);
       background: var(--panel-2);
       color: var(--text);
       text-decoration: none;
       cursor: pointer;
       font: inherit;
+      clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
     }
 
     .button.secondary {
@@ -135,11 +135,11 @@
     input {
       width: 100%;
       padding: 11px 12px;
-      border-radius: 12px;
       border: 1px solid var(--border);
       background: rgba(4, 10, 19, 0.42);
       color: var(--text);
       font: inherit;
+      clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
     }
 
     .status {
@@ -167,11 +167,11 @@
       right: 18px;
       z-index: 500;
       padding: 12px 14px;
-      border-radius: 14px;
       border: 1px solid var(--border);
       background: rgba(7, 17, 31, 0.82);
       box-shadow: var(--shadow);
       color: var(--text);
+      clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
     }
 
     .map-banner.hidden {
@@ -201,7 +201,7 @@
       <span class="tag">SOPR Navigation</span>
       <h1>Offline Maps</h1>
       <p class="muted">
-        This map view uses Leaflet with local offline raster tiles. It is designed to stay fully usable without internet access once tiles are present on the device.
+        This map view uses Leaflet with a local PMTiles basemap. It is designed for packaged offline archives, including Project NOMAD regional map files.
       </p>
 
       <div class="actions">
@@ -229,107 +229,115 @@
       </section>
 
       <section class="card">
-        <h2>Tile Layout</h2>
+        <h2>Map Archive</h2>
         <p>
-          Place tiles in the server directory using the layout:
+          Place a PMTiles archive on the device and let the generated maps config point the viewer at it.
         </p>
         <ul>
-          <li><code>/srv/prepmaster/maps/tiles/{z}/{x}/{y}.png</code></li>
-          <li>Example: <code>/srv/prepmaster/maps/tiles/6/10/24.png</code></li>
+          <li><code>/srv/prepmaster/maps/pmtiles/basemap.pmtiles</code></li>
+          <li>Project NOMAD regional PMTiles bundles are a strong fit for this viewer.</li>
         </ul>
-        <p class="status" id="tile-url-status">Tile source: /map-tiles/{z}/{x}/{y}.png</p>
+        <p class="status" id="pmtiles-url-status">Archive source: loading</p>
       </section>
 
       <section class="card">
         <h2>Map Status</h2>
-        <p class="status" id="map-status">Checking tile availability...</p>
+        <p class="status" id="map-status">Checking archive availability...</p>
+        <p class="status" id="map-meta">Map flavor: loading</p>
       </section>
     </aside>
 
     <main class="map-shell">
       <div class="map-banner hidden" id="map-banner">
-        Offline tiles were not found at the current tile source. Add local tiles, then reload this page.
+        No offline PMTiles archive was found at the configured source. Add a local archive, then reload this page.
       </div>
       <div id="map"></div>
     </main>
   </div>
 
   <script src="/maps/vendor/leaflet/leaflet.js"></script>
+  <script src="/maps/vendor/protomaps-leaflet/protomaps-leaflet.js"></script>
   <script>
-    const tileUrl = "/map-tiles/{z}/{x}/{y}.png";
-    const defaults = {
-      lat: 39.8283,
-      lon: -98.5795,
-      zoom: 4,
+    const fallbackConfig = {
+      pmtilesUrl: "/pmtiles/basemap.pmtiles",
+      pmtilesFile: "basemap.pmtiles",
+      flavor: "dark",
+      language: "en",
+      defaultLat: 39.8283,
+      defaultLon: -98.5795,
+      defaultZoom: 4,
       minZoom: 2,
       maxZoom: 14,
     };
 
     const mapStatus = document.getElementById("map-status");
+    const mapMeta = document.getElementById("map-meta");
     const mapBanner = document.getElementById("map-banner");
+    const pmtilesUrlStatus = document.getElementById("pmtiles-url-status");
     const latInput = document.getElementById("lat-input");
     const lonInput = document.getElementById("lon-input");
     const zoomInput = document.getElementById("zoom-input");
 
-    const map = L.map("map", {
-      zoomControl: true,
-      minZoom: defaults.minZoom,
-      maxZoom: defaults.maxZoom,
-    }).setView([defaults.lat, defaults.lon], defaults.zoom);
-
-    const tileLayer = L.tileLayer(tileUrl, {
-      minZoom: defaults.minZoom,
-      maxZoom: defaults.maxZoom,
-      noWrap: true,
-      attribution: "Offline map tiles",
-    }).addTo(map);
-
-    const marker = L.marker([defaults.lat, defaults.lon]).addTo(map);
-
-    function updateMarker() {
-      marker.setLatLng(map.getCenter());
+    async function loadConfig() {
+      try {
+        const response = await fetch("/maps/config.json", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`config returned ${response.status}`);
+        }
+        const loaded = await response.json();
+        return { ...fallbackConfig, ...loaded };
+      } catch (error) {
+        return fallbackConfig;
+      }
     }
 
-    async function checkTiles() {
-      const probeUrl = tileUrl
-        .replace("{z}", String(defaults.zoom))
-        .replace("{x}", "4")
-        .replace("{y}", "6");
+    async function initMap() {
+      const config = await loadConfig();
+      pmtilesUrlStatus.textContent = `Archive source: ${config.pmtilesUrl}`;
+      mapMeta.textContent = `Map flavor: ${config.flavor} | Language: ${config.language}`;
+
+      latInput.value = config.defaultLat;
+      lonInput.value = config.defaultLon;
+      zoomInput.value = config.defaultZoom;
+
+      const map = L.map("map", {
+        zoomControl: true,
+        minZoom: config.minZoom,
+        maxZoom: config.maxZoom,
+      }).setView([config.defaultLat, config.defaultLon], config.defaultZoom);
+
+      document.getElementById("go-button").addEventListener("click", () => {
+        const lat = Number.parseFloat(latInput.value);
+        const lon = Number.parseFloat(lonInput.value);
+        const zoom = Number.parseInt(zoomInput.value, 10);
+
+        if (Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(zoom)) {
+          map.setView([lat, lon], zoom);
+          mapStatus.textContent = `Centered on ${lat.toFixed(4)}, ${lon.toFixed(4)} at zoom ${zoom}.`;
+        }
+      });
 
       try {
-        const response = await fetch(probeUrl, { method: "HEAD", cache: "no-store" });
-        if (response.ok) {
-          mapStatus.textContent = "Offline tiles detected. Map rendering is active.";
-          mapBanner.classList.add("hidden");
-        } else {
-          mapStatus.textContent = "No local tiles were found for the current source.";
-          mapBanner.classList.remove("hidden");
+        const response = await fetch(config.pmtilesUrl, { method: "HEAD", cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`archive returned ${response.status}`);
         }
+
+        protomapsL.leafletLayer({
+          url: config.pmtilesUrl,
+          flavor: config.flavor,
+          lang: config.language,
+        }).addTo(map);
+
+        mapStatus.textContent = `Offline PMTiles archive detected. ${config.pmtilesFile} is ready for disconnected use.`;
+        mapBanner.classList.add("hidden");
       } catch (error) {
-        mapStatus.textContent = "Tile source could not be reached from the browser.";
+        mapStatus.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
         mapBanner.classList.remove("hidden");
       }
     }
 
-    function goToCoordinates() {
-      const lat = Number(latInput.value);
-      const lon = Number(lonInput.value);
-      const zoom = Number(zoomInput.value);
-
-      if (Number.isNaN(lat) || Number.isNaN(lon) || Number.isNaN(zoom)) {
-        mapStatus.textContent = "Enter valid latitude, longitude, and zoom values.";
-        return;
-      }
-
-      map.setView([lat, lon], zoom);
-      marker.setLatLng([lat, lon]);
-      mapStatus.textContent = `Centered on ${lat.toFixed(4)}, ${lon.toFixed(4)} at zoom ${zoom}.`;
-    }
-
-    map.on("moveend", updateMarker);
-    document.getElementById("go-button").addEventListener("click", goToCoordinates);
-
-    checkTiles();
+    initMap();
   </script>
 </body>
 </html>

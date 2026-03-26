@@ -43,8 +43,9 @@ server {
         try_files \$uri \$uri/ /maps/index.html;
     }
 
-    location /map-tiles/ {
-        alias $PREPMASTER_MAP_TILE_ROOT/;
+    location /pmtiles/ {
+        alias $PREPMASTER_MAP_PMTILES_ROOT/;
+        default_type application/octet-stream;
         access_log off;
         expires 7d;
         add_header Cache-Control "public";

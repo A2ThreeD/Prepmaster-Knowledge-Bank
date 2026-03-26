@@ -266,6 +266,23 @@
         <p class="muted" id="kiwix-target">Kiwix target: loading</p>
         <p class="status" id="kiwix-status">Kiwix service: loading</p>
       </section>
+      <section class="card">
+        <h2>Offline Maps</h2>
+        <p class="muted">
+          SOPR maps now expect a local PMTiles archive. Drop Project NOMAD map files into the PMTiles directory, then select which package should be active.
+        </p>
+        <p class="muted" id="maps-root">PMTiles root: loading</p>
+        <p class="muted" id="active-map-file">Active map: loading</p>
+        <div class="field">
+          <label for="map-package">Available PMTiles Package</label>
+          <select id="map-package"></select>
+        </div>
+        <div class="actions">
+          <button class="button" id="refresh-maps-button" type="button">Refresh Map List</button>
+          <button class="button" id="save-map-button" type="button">Set Active Map</button>
+        </div>
+        <p class="status" id="maps-status">Maps package status: loading</p>
+      </section>
     </div>
     <div class="actions">
       <a class="button" href="/">Return to main page</a>
@@ -276,6 +293,7 @@
   <script>
     let currentState = null;
     let applyPollHandle = null;
+    let currentMaps = null;
 
     function renderApplyState(apply) {
       const label = apply.action ? ` (${apply.action})` : "";
@@ -320,15 +338,17 @@
 
     async function loadAdminStatus() {
       try {
-        const [stateResponse, statusResponse, applyResponse] = await Promise.all([
+        const [stateResponse, statusResponse, applyResponse, mapsResponse] = await Promise.all([
           fetch("/api/state", { cache: "no-store" }),
           fetch("/api/status", { cache: "no-store" }),
-          fetch("/api/apply", { cache: "no-store" })
+          fetch("/api/apply", { cache: "no-store" }),
+          fetch("/api/maps", { cache: "no-store" })
         ]);
 
         currentState = await stateResponse.json();
         const status = await statusResponse.json();
         const apply = await applyResponse.json();
+        currentMaps = await mapsResponse.json();
 
         document.getElementById("zim-mode").value = currentState.profile.zim_mode || status.content_mode || "full";
         document.getElementById("mode-status").textContent =
@@ -338,14 +358,48 @@
         document.getElementById("kiwix-status").textContent = `Kiwix service: ${status.services.kiwix}`;
         document.getElementById("ap-status").textContent =
           `AP services: hostapd ${status.services.hostapd} | dnsmasq ${status.services.dnsmasq}`;
+        renderMapsState(currentMaps);
         renderApplyState(apply);
       } catch (error) {
         document.getElementById("mode-status").textContent = "Content mode: unavailable";
         document.getElementById("kiwix-target").textContent = "Kiwix target: unavailable";
         document.getElementById("kiwix-status").textContent = "Kiwix service: unavailable";
         document.getElementById("ap-status").textContent = "AP services: unavailable";
+        document.getElementById("maps-status").textContent = "Maps package status: unavailable";
         document.getElementById("apply-status").textContent = "Apply status: unavailable";
         document.getElementById("content-action-status").textContent = "Content actions: unavailable";
+      }
+    }
+
+    function renderMapsState(maps) {
+      document.getElementById("maps-root").textContent = `PMTiles root: ${maps.root}`;
+      document.getElementById("active-map-file").textContent =
+        `Active map: ${maps.active_file}`;
+      document.getElementById("maps-status").textContent = maps.active_exists
+        ? `Maps package status: active archive found | flavor ${maps.flavor} | language ${maps.language}`
+        : "Maps package status: configured archive is missing";
+
+      const select = document.getElementById("map-package");
+      const currentValue = select.value;
+      select.innerHTML = "";
+
+      if (!maps.available_files.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No PMTiles files found";
+        select.appendChild(option);
+        select.disabled = true;
+      } else {
+        select.disabled = false;
+        for (const file of maps.available_files) {
+          const option = document.createElement("option");
+          option.value = file;
+          option.textContent = file;
+          if (file === maps.active_file || file === currentValue) {
+            option.selected = true;
+          }
+          select.appendChild(option);
+        }
       }
     }
 
@@ -409,10 +463,55 @@
       }
     }
 
+    async function refreshMapsList() {
+      try {
+        const response = await fetch("/api/maps", { cache: "no-store" });
+        const payload = await response.json();
+        currentMaps = payload;
+        renderMapsState(payload);
+      } catch (error) {
+        document.getElementById("maps-status").textContent = "Maps package status: unavailable";
+      }
+    }
+
+    async function saveMapSelection() {
+      const select = document.getElementById("map-package");
+      const button = document.getElementById("save-map-button");
+      const filename = select.value;
+
+      if (!filename) {
+        document.getElementById("maps-status").textContent = "Maps package status: choose a PMTiles archive first";
+        return;
+      }
+
+      button.disabled = true;
+      try {
+        const response = await fetch("/api/maps/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to select map package");
+        }
+        currentMaps = payload;
+        renderMapsState(payload);
+        document.getElementById("maps-status").textContent =
+          `Maps package status: active archive switched to ${payload.active_file}`;
+      } catch (error) {
+        document.getElementById("maps-status").textContent = `Maps package status: ${error.message}`;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
     document.getElementById("save-mode-button").addEventListener("click", saveContentMode);
     document.getElementById("refresh-content-button").addEventListener("click", () => triggerApplyAction("refresh-content"));
     document.getElementById("rebuild-library-button").addEventListener("click", () => triggerApplyAction("rebuild-library"));
     document.getElementById("full-apply-button").addEventListener("click", () => triggerApplyAction("full"));
+    document.getElementById("refresh-maps-button").addEventListener("click", refreshMapsList);
+    document.getElementById("save-map-button").addEventListener("click", saveMapSelection);
     loadAdminStatus();
   </script>
 </body>
