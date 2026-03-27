@@ -1,0 +1,6 @@
+# Custom SOPR ZIM selection from https://download.kiwix.org/zim/
+# Saved at: 2026-03-27T06:35:00Z
+# Resource count: 1
+
+# ifixit | ifixit_en_all_2025-12.zim
+https://download.kiwix.org/zim/ifixit/ifixit_en_all_2025-12.zim

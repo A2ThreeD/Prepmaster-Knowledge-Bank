@@ -5,6 +5,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${PREPMASTER_ENV_FILE:-$REPO_ROOT/config/prepmaster.env}"
 URL_FILE="${PREPMASTER_ZIM_URL_FILE:-$REPO_ROOT/config/kiwix-zim-urls.txt}"
+CUSTOM_URL_FILE="${PREPMASTER_ZIM_CUSTOM_URL_FILE:-$REPO_ROOT/config/kiwix-zim-urls.custom.txt}"
 PROFILE="${PREPMASTER_ZIM_PROFILE:-essential}"
 WIKIPEDIA_OPTION="${PREPMASTER_WIKIPEDIA_OPTION:-top-mini}"
 ZIM_MODE="${PREPMASTER_ZIM_MODE:-full}"
@@ -36,6 +37,14 @@ if [[ "$ZIM_MODE" == "quick-test" ]]; then
 
   echo "Using quick-test Kiwix manifest..."
   URL_FILE="$QUICK_TEST_FILE"
+elif [[ "$ZIM_MODE" == "custom" ]]; then
+  if [[ ! -f "$CUSTOM_URL_FILE" ]]; then
+    echo "Missing custom manifest: $CUSTOM_URL_FILE"
+    exit 1
+  fi
+
+  echo "Using saved custom Kiwix manifest..."
+  URL_FILE="$CUSTOM_URL_FILE"
 else
   echo "Building Kiwix ZIM manifest from kiwix-categories.json..."
   python3 "$REPO_ROOT/scripts/build_kiwix_zim_manifest.py" \

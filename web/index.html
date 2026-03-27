@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SOPR</title>
   <style>
+    @font-face {
+      font-family: "Michroma Local";
+      src: url("/fonts/Michroma-Regular.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+
     :root {
       --bg: #07111f;
       --bg-deep: #030916;
@@ -19,8 +27,8 @@
       --shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
       --legacy: #d5b6b6;
       --ok: #a9d4ba;
-      --ui-display: "OCR A Std", "OCR A Extended", "Aldrich", "Michroma", "Eurostile", "Bank Gothic", "Rajdhani", "Cascadia Mono", "Consolas", monospace;
-      --ui-body: "OCR A Std", "OCR A Extended", "Aldrich", "Michroma", "Cascadia Mono", "Consolas", monospace;
+      --ui-display: "Michroma Local", "Michroma", "OCR A Std", "OCR A Extended", "Aldrich", "Eurostile", "Bank Gothic", "Rajdhani", "Cascadia Mono", "Consolas", monospace;
+      --ui-body: "Michroma Local", "Michroma", "OCR A Std", "OCR A Extended", "Aldrich", "Cascadia Mono", "Consolas", monospace;
       --chamfer: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px);
       --chamfer-tight: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
     }

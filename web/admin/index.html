@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Settings</title>
   <style>
+    @font-face {
+      font-family: "Michroma Local";
+      src: url("/fonts/Michroma-Regular.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+
     :root {
       --bg: #07111f;
       --panel: #102238;
@@ -13,7 +21,8 @@
       --muted: #9bb0c7;
       --accent: #7bb7ff;
       --border: rgba(255, 255, 255, 0.88);
-      --ui-display: "Aldrich", "Michroma", "Orbitron", "Eurostile", "Bank Gothic", "Rajdhani", "Segoe UI", sans-serif;
+      --ui-display: "Michroma Local", "Michroma", "Aldrich", "Orbitron", "Eurostile", "Bank Gothic", "Rajdhani", "Cascadia Mono", "Consolas", monospace;
+      --ui-body: "Michroma Local", "Michroma", "Aldrich", "Cascadia Mono", "Consolas", monospace;
     }
 
     * { box-sizing: border-box; }
@@ -24,7 +33,8 @@
         radial-gradient(900px 420px at 50% -10%, rgba(76, 123, 181, 0.24), transparent 60%),
         linear-gradient(180deg, #091426 0%, var(--bg) 100%);
       color: var(--text);
-      font-family: "Segoe UI", "Noto Sans", sans-serif;
+      font-family: var(--ui-body);
+      letter-spacing: 0.02em;
       padding: 24px;
     }
 
@@ -338,21 +348,45 @@
       scrollbar-color: rgba(255, 255, 255, 0.88) rgba(7, 14, 26, 0.58);
     }
 
+    #content-local-list,
+    #zim-catalog-list {
+      max-height: 21rem;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.88) rgba(7, 14, 26, 0.58);
+    }
+
     #maps-local-list::-webkit-scrollbar,
-    #maps-catalog-list::-webkit-scrollbar {
+    #maps-catalog-list::-webkit-scrollbar,
+    #content-local-list::-webkit-scrollbar,
+    #zim-catalog-list::-webkit-scrollbar {
       width: 10px;
     }
 
     #maps-local-list::-webkit-scrollbar-track,
-    #maps-catalog-list::-webkit-scrollbar-track {
+    #maps-catalog-list::-webkit-scrollbar-track,
+    #content-local-list::-webkit-scrollbar-track,
+    #zim-catalog-list::-webkit-scrollbar-track {
       background: rgba(7, 14, 26, 0.58);
       border-left: 1px solid rgba(255, 255, 255, 0.18);
     }
 
     #maps-local-list::-webkit-scrollbar-thumb,
-    #maps-catalog-list::-webkit-scrollbar-thumb {
+    #maps-catalog-list::-webkit-scrollbar-thumb,
+    #content-local-list::-webkit-scrollbar-thumb,
+    #zim-catalog-list::-webkit-scrollbar-thumb {
       background: rgba(255, 255, 255, 0.84);
       border: 2px solid rgba(7, 14, 26, 0.58);
+    }
+
+    .pager {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
     }
 
     .substatus {
@@ -611,14 +645,51 @@
     <section class="panel-group" data-panel-group="content">
       <div class="grid">
         <section class="card">
-          <h2>Content Actions</h2>
+          <h2>Library Setup</h2>
           <p class="muted">
-            Refresh the downloaded library, rebuild Kiwix metadata from files already on disk, or rerun the full configuration workflow.
+            Pick a simple curated preset, or switch to Custom when you want to start from a preset and add your own ZIM files.
           </p>
+          <div class="field">
+            <label for="library-preset">Content Preset</label>
+            <select id="library-preset">
+              <option value="compact">Compact Library</option>
+              <option value="full">Full Library</option>
+              <option value="custom">Custom Library</option>
+              <option value="quick-test">Quick Test Library</option>
+            </select>
+          </div>
+          <div class="field" id="custom-base-field">
+            <label for="custom-base-preset">Custom Base</label>
+            <select id="custom-base-preset">
+              <option value="compact">Start from Compact</option>
+              <option value="full">Start from Full</option>
+              <option value="empty">Start Empty</option>
+            </select>
+          </div>
+          <div class="status-cluster" id="content-status" aria-live="polite"></div>
+          <p class="status" id="mode-status">Content preset: loading</p>
+          <p class="substatus" id="content-library-note">Loading content library state.</p>
           <div class="actions">
+            <button class="button" id="save-content-settings-button" type="button">Save Library Setup</button>
             <button class="button" id="refresh-content-button" type="button">Download Missing Content</button>
+          </div>
+          <p class="muted" id="content-library-root">Library root: loading</p>
+        </section>
+        <section class="card">
+          <h2>Installed Content</h2>
+          <p class="muted">
+            Review what is already on the device, remove files you no longer want, and rebuild the Kiwix library from what is on disk.
+          </p>
+          <div class="field">
+            <label>Installed ZIM Files</label>
+            <div id="content-local-list" class="log-panel muted">Checking local ZIM files...</div>
+          </div>
+          <div class="actions">
+            <button class="button" id="refresh-installed-zims-button" type="button">Refresh Installed ZIMs</button>
+            <button class="button" id="select-all-local-zims-button" type="button">Select All</button>
+            <button class="button" id="clear-local-zims-button" type="button">Clear All</button>
+            <button class="button" id="remove-local-zims-button" type="button">Remove Selected ZIMs</button>
             <button class="button" id="rebuild-library-button" type="button">Rebuild Kiwix Library</button>
-            <button class="button" id="full-apply-button" type="button">Run Full Apply</button>
           </div>
           <p class="status" id="content-action-status">Content actions: ready</p>
           <div class="progress-shell">
@@ -641,24 +712,39 @@
           </div>
         </section>
         <section class="card">
-          <h2>Content Library Mode</h2>
+          <h2>Add More Content</h2>
           <p class="muted">
-            Quick test mode downloads a tiny starter library for validation. Full mode rebuilds the complete curated manifest.
+            Use this browser only when Custom Library is active. Start from Compact, Full, or Empty, then add extra ZIM files from the online Kiwix catalog.
           </p>
-          <p class="muted">
-            The category cards on the main page are overview tiles right now. They are not disabled by quick test mode; the full library still opens through Kiwix.
-          </p>
-          <div class="field">
-            <label for="zim-mode">Kiwix Content Mode</label>
-            <select id="zim-mode">
-              <option value="full">Full Curated Library</option>
-              <option value="quick-test">Quick Test Library</option>
-            </select>
-          </div>
+          <p class="muted" id="zim-catalog-source">Catalog source: online check on demand</p>
           <div class="actions">
-            <button class="button" id="save-mode-button" type="button">Save Content Mode</button>
+            <button class="button" id="refresh-zim-catalog-button" type="button">Check Online Catalog</button>
+            <button class="button" id="select-all-zims-button" type="button">Select Page</button>
+            <button class="button" id="clear-all-zims-button" type="button">Clear Page</button>
+            <button class="button" id="download-selected-zims-button" type="button">Download Selected ZIMs</button>
           </div>
-          <p class="status" id="mode-status">Content mode: loading</p>
+          <div class="field-grid">
+            <div class="field">
+              <label for="zim-category-filter">Category</label>
+              <select id="zim-category-filter">
+                <option value="all">All Categories</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="zim-catalog-filter">Filter Catalog</label>
+              <input id="zim-catalog-filter" type="text" placeholder="Filter by name">
+            </div>
+          </div>
+          <div class="field">
+            <label>Kiwix Download Catalog</label>
+            <div id="zim-catalog-list" class="log-panel muted">Online catalog is idle. Click Check Online Catalog when you want to query Kiwix.</div>
+          </div>
+          <div class="pager">
+            <button class="button" id="zim-prev-page-button" type="button">Previous 50</button>
+            <p class="substatus" id="zim-page-status">Page 1</p>
+            <button class="button" id="zim-next-page-button" type="button">Next 50</button>
+          </div>
+          <p class="substatus" id="zim-catalog-note">Custom Library lets you start from Compact, Full, or Empty, then add individual ZIM files.</p>
         </section>
       </div>
     </section>
@@ -743,6 +829,11 @@
     let currentStatus = null;
     let applyPollHandle = null;
     let systemPollHandle = null;
+    let currentContent = null;
+    let currentContentCatalog = null;
+    let pendingCustomSelection = new Set();
+    let currentContentCategory = "all";
+    let currentContentPage = 1;
     let currentMaps = null;
     let currentCatalog = null;
     let currentAccessPoint = null;
@@ -772,8 +863,6 @@
     function renderApplyState(apply) {
       const label = apply.action ? ` (${apply.action})` : "";
       const step = apply.step ? ` | ${apply.step}` : "";
-      document.getElementById("apply-status").textContent =
-        `Apply status: ${apply.status}${label}${step}`;
       document.getElementById("content-action-status").textContent =
         `Content actions: ${apply.status}${label}${step}`;
       document.getElementById("progress-label").textContent =
@@ -806,9 +895,15 @@
           : "No active download log.";
 
       const running = apply.status === "running";
+      const isCustomLibrary = currentContent && currentContent.library_preset === "custom";
+      document.getElementById("save-content-settings-button").disabled = running;
+      document.getElementById("refresh-installed-zims-button").disabled = running;
+      document.getElementById("remove-local-zims-button").disabled = running;
+      document.getElementById("select-all-local-zims-button").disabled = running;
+      document.getElementById("clear-local-zims-button").disabled = running;
       document.getElementById("refresh-content-button").disabled = running;
       document.getElementById("rebuild-library-button").disabled = running;
-      document.getElementById("full-apply-button").disabled = running;
+      updateCustomLibraryVisibility(isCustomLibrary, running);
 
       updatePolling();
     }
@@ -1127,21 +1222,26 @@
 
     async function loadContentPanelData() {
       try {
-        const [stateResult, statusResult, applyResult] = await Promise.all([
+        const [stateResult, contentResult, applyResult] = await Promise.all([
           fetchJsonWithTimeout("/api/state"),
-          fetchJsonWithTimeout("/api/status"),
+          fetchJsonWithTimeout("/api/content", {}, 3000),
           fetchJsonWithTimeout("/api/apply")
         ]);
         currentState = stateResult.payload;
-        currentStatus = statusResult.payload;
+        currentContent = contentResult.payload;
         const apply = applyResult.payload;
-        document.getElementById("zim-mode").value = currentState.profile.zim_mode || currentStatus.content_mode || "full";
-        document.getElementById("mode-status").textContent =
-          `Content mode: ${currentStatus.content_mode || currentState.profile.zim_mode || "full"}`;
+        renderContentState(currentContent);
         renderApplyState(apply);
+        if (currentContentCatalog) {
+          renderZimCatalog(currentContentCatalog);
+        } else {
+          document.getElementById("zim-catalog-source").textContent = "Catalog source: online check on demand";
+          document.getElementById("zim-catalog-list").textContent = "Online catalog is idle. Click Check Online Catalog when you want to query Kiwix.";
+        }
       } catch (error) {
-        document.getElementById("mode-status").textContent = "Content mode: unavailable";
-        document.getElementById("apply-status").textContent = "Apply status: unavailable";
+        document.getElementById("mode-status").textContent = "Content preset: unavailable";
+        document.getElementById("content-library-root").textContent = "Library root: unavailable";
+        document.getElementById("content-local-list").textContent = "Unable to load local ZIM files.";
         document.getElementById("content-action-status").textContent = "Content actions: unavailable";
       }
     }
@@ -1151,9 +1251,186 @@
         const { payload } = await fetchJsonWithTimeout("/api/apply");
         renderApplyState(payload);
       } catch (error) {
-        document.getElementById("apply-status").textContent = "Apply status: unavailable";
         document.getElementById("content-action-status").textContent = "Content actions: unavailable";
       }
+    }
+
+    function renderContentState(content, note = "") {
+      pendingCustomSelection = new Set(content.custom_selected_paths || []);
+      document.getElementById("library-preset").value = content.library_preset || "compact";
+      document.getElementById("custom-base-preset").value = content.custom_base_preset || "compact";
+      document.getElementById("content-library-root").textContent = `Library root: ${content.library_root}`;
+      document.getElementById("mode-status").textContent = `Content preset: ${content.library_preset || "compact"}`;
+
+      setStatusChips("content-status", [
+        {
+          label: "Preset",
+          value: content.library_preset || "compact",
+          tone: content.library_preset === "custom" ? "status-chip--ok" : "status-chip--muted"
+        },
+        {
+          label: "Installed",
+          value: `${content.installed_count || 0} ZIMs`,
+          tone: "status-chip--muted"
+        },
+        {
+          label: "Storage",
+          value: content.installed_size_label || "0 B",
+          tone: "status-chip--muted"
+        },
+        {
+          label: "Custom",
+          value: `${content.custom_selected_count || 0} extras`,
+          tone: (content.custom_selected_count || 0) > 0 ? "status-chip--ok" : "status-chip--muted"
+        }
+      ]);
+
+      document.getElementById("content-library-note").textContent = note || (
+        content.library_preset === "custom"
+          ? `Custom Library starts from ${content.custom_base_preset || "compact"} and adds ${content.custom_selected_count || 0} saved extra ZIMs.`
+          : content.mode === "quick-test"
+            ? "Quick test mode uses the tiny validation manifest."
+            : content.library_preset === "full"
+              ? "Full Library uses the broader curated SOPR manifest."
+              : "Compact Library uses the smaller curated SOPR manifest."
+      );
+
+      updateCustomLibraryVisibility(content.library_preset === "custom");
+      renderLocalInstalledZims(content);
+    }
+
+    function updateCustomLibraryVisibility(isCustom, running = false) {
+      document.getElementById("custom-base-field").style.display = isCustom ? "block" : "none";
+      document.getElementById("zim-category-filter").disabled = !isCustom || running;
+      document.getElementById("zim-catalog-filter").disabled = !isCustom || running;
+      document.getElementById("refresh-zim-catalog-button").disabled = !isCustom || running;
+      document.getElementById("select-all-zims-button").disabled = !isCustom || running;
+      document.getElementById("clear-all-zims-button").disabled = !isCustom || running;
+      document.getElementById("download-selected-zims-button").disabled = !isCustom || running;
+      document.getElementById("zim-prev-page-button").disabled = !isCustom || running;
+      document.getElementById("zim-next-page-button").disabled = !isCustom || running;
+      if (!isCustom) {
+        document.getElementById("zim-catalog-note").textContent =
+          "Switch Content Preset to Custom Library if you want to add individual ZIM files on top of a curated base.";
+      }
+    }
+
+    function renderLocalInstalledZims(content) {
+      const container = document.getElementById("content-local-list");
+      const items = content.installed_items || [];
+      if (!items.length) {
+        container.textContent = "No ZIM files found in local storage.";
+        return;
+      }
+
+      container.innerHTML = items.map((item) => {
+        const details = [];
+        if (item.selected) details.push("selected for custom");
+        if (item.size_label) details.push(item.size_label);
+        const detailText = details.length ? ` <span class="muted">(${details.join(" | ")})</span>` : "";
+        return `<label style="display:block;margin-bottom:8px;">
+          <input type="checkbox" class="local-zim-checkbox" value="${escapeHtml(item.name)}">
+          ${escapeHtml(item.name)}${detailText}
+        </label>`;
+      }).join("");
+    }
+
+    function contentCatalogWithCurrentLocalState(catalog) {
+      if (!catalog || !currentContent) {
+        return catalog;
+      }
+
+      const installedByName = new Map(
+        (currentContent.installed_items || []).map((item) => [item.name, item])
+      );
+      const selectedPaths = new Set(currentContent.custom_selected_paths || []);
+
+      return {
+        ...catalog,
+        items: (catalog.items || []).map((item) => {
+          const installed = installedByName.get(item.name);
+          return {
+            ...item,
+            installed: Boolean(installed),
+            installed_size_bytes: installed ? installed.size_bytes : 0,
+            installed_size_label: installed ? installed.size_label : "",
+            selected: selectedPaths.has(item.path)
+          };
+        })
+      };
+    }
+
+    function renderZimCatalog(catalog) {
+      const effectiveCatalog = contentCatalogWithCurrentLocalState(catalog);
+      document.getElementById("zim-catalog-source").textContent =
+        `Catalog source: ${effectiveCatalog.source.root_url}`;
+      populateCategoryFilter(effectiveCatalog);
+      const container = document.getElementById("zim-catalog-list");
+      const filterValue = document.getElementById("zim-catalog-filter").value.trim().toLowerCase();
+      const selectedCategory = document.getElementById("zim-category-filter").value || "all";
+      const allItems = effectiveCatalog.items || [];
+      const categoryItems = selectedCategory === "all"
+        ? allItems
+        : allItems.filter((item) => item.category === selectedCategory);
+      const filteredItems = filterValue
+        ? categoryItems.filter((item) =>
+            item.name.toLowerCase().includes(filterValue)
+            || item.category.toLowerCase().includes(filterValue)
+          )
+        : categoryItems;
+      const pageSize = 50;
+      const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+      currentContentPage = Math.min(currentContentPage, totalPages);
+      const pageStart = (currentContentPage - 1) * pageSize;
+      const items = filteredItems.slice(pageStart, pageStart + pageSize);
+
+      if (!filteredItems.length) {
+        container.textContent = "No ZIM files were returned by the Kiwix catalog.";
+        document.getElementById("zim-catalog-note").textContent = effectiveCatalog.error || "No remote ZIM files were returned.";
+        document.getElementById("zim-page-status").textContent = "Page 0 of 0";
+        document.getElementById("zim-prev-page-button").disabled = true;
+        document.getElementById("zim-next-page-button").disabled = true;
+        return;
+      }
+
+      container.innerHTML = items.map((item) => {
+        const details = [item.category];
+        if (item.size_label) details.push(`remote ${item.size_label}`);
+        if (pendingCustomSelection.has(item.path)) details.push("selected");
+        if (item.installed && item.installed_size_label) details.push(`installed ${item.installed_size_label}`);
+        const detailText = details.length ? ` <span class="muted">(${details.join(" | ")})</span>` : "";
+        return `<label style="display:block;margin-bottom:8px;">
+          <input type="checkbox" class="zim-catalog-checkbox" value="${escapeHtml(item.path)}" ${pendingCustomSelection.has(item.path) ? "checked" : ""}>
+          ${escapeHtml(item.name)}${detailText}
+        </label>`;
+      }).join("");
+
+      document.getElementById("zim-page-status").textContent =
+        `Page ${currentContentPage} of ${totalPages} | ${filteredItems.length} matches`;
+      document.getElementById("zim-prev-page-button").disabled = currentContentPage <= 1;
+      document.getElementById("zim-next-page-button").disabled = currentContentPage >= totalPages;
+
+      const filterNote = `Showing ${items.length} entries on this page out of ${filteredItems.length} matching ZIM files.`;
+
+      document.getElementById("zim-catalog-note").textContent =
+        effectiveCatalog.error
+          ? effectiveCatalog.error
+          : effectiveCatalog.stale
+            ? "Showing cached Kiwix catalog data."
+            : `${filterNote} Checked ZIM files can be downloaded directly or saved as the custom content selection.`;
+    }
+
+    function populateCategoryFilter(catalog) {
+      const select = document.getElementById("zim-category-filter");
+      const categories = ["all", ...Array.from(new Set((catalog.items || []).map((item) => item.category))).sort()];
+      const currentValue = categories.includes(currentContentCategory) ? currentContentCategory : "all";
+      select.innerHTML = categories.map((category) => {
+        const label = category === "all" ? "All Categories" : category;
+        const selected = category === currentValue ? " selected" : "";
+        return `<option value="${escapeHtml(category)}"${selected}>${escapeHtml(label)}</option>`;
+      }).join("");
+      select.value = currentValue;
+      currentContentCategory = currentValue;
     }
 
     async function loadLocalMapsState() {
@@ -1406,42 +1683,106 @@
       }
     }
 
-    async function saveContentMode() {
-      if (!currentState) {
-        document.getElementById("mode-status").textContent = "Content mode: unavailable";
+    function selectedCatalogPaths() {
+      return Array.from(pendingCustomSelection).sort();
+    }
+
+    async function saveContentSettings() {
+      if (!currentContent) {
+        document.getElementById("mode-status").textContent = "Content preset: unavailable";
         return;
       }
 
-      const button = document.getElementById("save-mode-button");
-      const selectedMode = document.getElementById("zim-mode").value;
+      const button = document.getElementById("save-content-settings-button");
+      const selectedPreset = document.getElementById("library-preset").value;
+      const customBasePreset = document.getElementById("custom-base-preset").value;
       button.disabled = true;
+      button.textContent = "Saving...";
 
       try {
-        const response = await fetch("/api/setup", {
+        const response = await fetch("/api/content/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            install_kolibri: currentState.profile.install_kolibri,
-            install_ka_lite: currentState.profile.install_ka_lite,
-            wikipedia_option: currentState.profile.wikipedia_option,
-            ap_enabled: currentState.profile.ap_enabled,
-            zim_mode: selectedMode,
-            setup_complete: currentState.setup_complete
+            library_preset: selectedPreset,
+            custom_base_preset: customBasePreset,
+            selected_paths: selectedCatalogPaths()
           })
         });
 
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error || "Unable to save content mode");
+          throw new Error(payload.error || "Unable to save content settings");
         }
 
-        currentState = payload;
-        document.getElementById("mode-status").textContent =
-          `Content mode: ${payload.profile.zim_mode}. Click Apply Configuration from setup when you want downloads refreshed.`;
+        currentContent = payload;
+        renderContentState(payload, selectedPreset === "custom"
+          ? `Custom Library saved. Downloads will start from ${customBasePreset} and include your selected extra ZIMs.`
+          : `Library preset saved: ${selectedPreset}.`);
+        if (currentContentCatalog) {
+          renderZimCatalog(currentContentCatalog);
+        }
       } catch (error) {
-        document.getElementById("mode-status").textContent = `Content mode: ${error.message}`;
+        document.getElementById("mode-status").textContent = `Content preset: ${error.message}`;
       } finally {
         button.disabled = false;
+        button.textContent = "Save Library Setup";
+      }
+    }
+
+    async function downloadSelectedZims() {
+      if (!pendingCustomSelection.size) {
+        document.getElementById("zim-catalog-note").textContent = "Select one or more ZIM files from the online catalog first.";
+        return;
+      }
+
+      const button = document.getElementById("download-selected-zims-button");
+      const basePreset = document.getElementById("custom-base-preset").value;
+      button.disabled = true;
+      button.textContent = "Starting...";
+
+      try {
+        const settingsResponse = await fetch("/api/content/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            library_preset: "custom",
+            custom_base_preset: basePreset,
+            selected_paths: selectedCatalogPaths()
+          })
+        });
+        const settingsPayload = await settingsResponse.json();
+        if (!settingsResponse.ok) {
+          throw new Error(settingsPayload.error || "Unable to save selected ZIMs");
+        }
+
+        currentContent = settingsPayload;
+        renderContentState(
+          settingsPayload,
+          `Saved ${pendingCustomSelection.size} custom ZIM selection${pendingCustomSelection.size === 1 ? "" : "s"} on top of ${basePreset}. Starting download now.`
+        );
+        if (currentContentCatalog) {
+          renderZimCatalog(currentContentCatalog);
+        }
+
+        const applyResponse = await fetch("/api/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "refresh-content" })
+        });
+        const applyPayload = await applyResponse.json();
+        if (!applyResponse.ok) {
+          throw new Error(applyPayload.error || "Unable to start ZIM download");
+        }
+
+        renderApplyState(applyPayload);
+        document.getElementById("zim-catalog-note").textContent =
+          "Custom ZIM download started. Watch Content Actions for progress.";
+      } catch (error) {
+        document.getElementById("zim-catalog-note").textContent = error.message;
+      } finally {
+        button.disabled = false;
+        button.textContent = "Download Selected ZIMs";
       }
     }
 
@@ -1489,6 +1830,137 @@
       } finally {
         button.disabled = false;
         button.textContent = "Refresh Installed Maps";
+      }
+    }
+
+    async function refreshInstalledZims() {
+      const button = document.getElementById("refresh-installed-zims-button");
+      button.disabled = true;
+      button.textContent = "Refreshing...";
+      try {
+        const { payload } = await fetchJsonWithTimeout("/api/content", {}, 3000);
+        currentContent = payload;
+        renderContentState(payload, "Installed ZIM files refreshed from local storage.");
+        if (currentContentCatalog) {
+          renderZimCatalog(currentContentCatalog);
+        }
+      } catch (error) {
+        document.getElementById("content-library-root").textContent = "Library root: unavailable";
+        document.getElementById("content-local-list").textContent = "Unable to load local ZIM files.";
+        document.getElementById("content-library-note").textContent = "Installed content check failed.";
+      } finally {
+        button.disabled = false;
+        button.textContent = "Refresh Installed ZIMs";
+      }
+    }
+
+    async function refreshZimCatalog(force = true) {
+      const button = document.getElementById("refresh-zim-catalog-button");
+      button.disabled = true;
+      button.textContent = "Checking...";
+      try {
+        let result;
+        try {
+          result = await fetchJsonWithTimeout(`/api/content/catalog${force ? "?refresh=1" : ""}`, {}, force ? 20000 : 10000);
+        } catch (error) {
+          if (!force) {
+            throw error;
+          }
+          result = await fetchJsonWithTimeout("/api/content/catalog", {}, 6000);
+          document.getElementById("zim-catalog-note").textContent =
+            "Fresh Kiwix catalog check took too long, so SOPR fell back to the most recent cached catalog.";
+        }
+        const { payload } = result;
+        currentContentCatalog = payload;
+        renderZimCatalog(payload);
+      } catch (error) {
+        document.getElementById("zim-catalog-note").textContent = error.message;
+        document.getElementById("zim-catalog-list").textContent = "Unable to load Kiwix catalog.";
+      } finally {
+        button.disabled = false;
+        button.textContent = "Check Online Catalog";
+      }
+    }
+
+    async function removeLocalZims() {
+      const selected = Array.from(document.querySelectorAll(".local-zim-checkbox:checked"))
+        .map((checkbox) => checkbox.value);
+      if (!selected.length) {
+        document.getElementById("content-library-note").textContent = "Select one or more local ZIM files to remove.";
+        return;
+      }
+
+      const confirmed = window.confirm(`Remove ${selected.length} ZIM file${selected.length === 1 ? "" : "s"} from local storage?`);
+      if (!confirmed) {
+        document.getElementById("content-library-note").textContent = "ZIM removal canceled.";
+        return;
+      }
+
+      const button = document.getElementById("remove-local-zims-button");
+      button.disabled = true;
+      button.textContent = "Removing...";
+      try {
+        const response = await fetch("/api/content/remove", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filenames: selected })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to remove selected ZIM files");
+        }
+        currentContent = payload;
+        renderContentState(payload, "Selected ZIM files were removed and the Kiwix library was rebuilt.");
+        if (currentContentCatalog) {
+          renderZimCatalog(currentContentCatalog);
+        }
+      } catch (error) {
+        document.getElementById("content-library-note").textContent = error.message;
+      } finally {
+        button.disabled = false;
+        button.textContent = "Remove Selected ZIMs";
+      }
+    }
+
+    function selectAllCatalogZims() {
+      document.querySelectorAll(".zim-catalog-checkbox").forEach((checkbox) => {
+        checkbox.checked = true;
+        pendingCustomSelection.add(checkbox.value);
+      });
+    }
+
+    function clearAllCatalogZims() {
+      document.querySelectorAll(".zim-catalog-checkbox").forEach((checkbox) => {
+        checkbox.checked = false;
+        pendingCustomSelection.delete(checkbox.value);
+      });
+    }
+
+    function selectAllLocalZims() {
+      document.querySelectorAll(".local-zim-checkbox").forEach((checkbox) => {
+        checkbox.checked = true;
+      });
+    }
+
+    function clearLocalZimSelection() {
+      document.querySelectorAll(".local-zim-checkbox").forEach((checkbox) => {
+        checkbox.checked = false;
+      });
+    }
+
+    function goToPreviousZimPage() {
+      if (currentContentPage > 1) {
+        currentContentPage -= 1;
+      }
+      if (currentContentCatalog) {
+        renderZimCatalog(currentContentCatalog);
+      }
+    }
+
+    function goToNextZimPage() {
+      currentContentPage += 1;
+      if (currentContentCatalog) {
+        renderZimCatalog(currentContentCatalog);
       }
     }
 
@@ -1668,7 +2140,7 @@
       }
     }
 
-    document.getElementById("save-mode-button").addEventListener("click", saveContentMode);
+    document.getElementById("save-content-settings-button").addEventListener("click", saveContentSettings);
     [
       "ap-ssid",
       "ap-passphrase",
@@ -1693,9 +2165,44 @@
       submitAccessPointAction(action);
     });
     document.getElementById("toggle-ap-clients-button").addEventListener("click", toggleAccessPointClients);
+    document.getElementById("refresh-installed-zims-button").addEventListener("click", refreshInstalledZims);
+    document.getElementById("select-all-local-zims-button").addEventListener("click", selectAllLocalZims);
+    document.getElementById("clear-local-zims-button").addEventListener("click", clearLocalZimSelection);
+    document.getElementById("remove-local-zims-button").addEventListener("click", removeLocalZims);
+    document.getElementById("select-all-zims-button").addEventListener("click", selectAllCatalogZims);
+    document.getElementById("clear-all-zims-button").addEventListener("click", clearAllCatalogZims);
+    document.getElementById("refresh-zim-catalog-button").addEventListener("click", refreshZimCatalog);
+    document.getElementById("download-selected-zims-button").addEventListener("click", downloadSelectedZims);
+    document.getElementById("zim-prev-page-button").addEventListener("click", goToPreviousZimPage);
+    document.getElementById("zim-next-page-button").addEventListener("click", goToNextZimPage);
+    document.getElementById("zim-category-filter").addEventListener("change", () => {
+      currentContentCategory = document.getElementById("zim-category-filter").value;
+      currentContentPage = 1;
+      if (currentContentCatalog) {
+        renderZimCatalog(currentContentCatalog);
+      }
+    });
+    document.getElementById("zim-catalog-filter").addEventListener("input", () => {
+      currentContentPage = 1;
+      if (currentContentCatalog) {
+        renderZimCatalog(currentContentCatalog);
+      }
+    });
+    document.getElementById("zim-catalog-list").addEventListener("change", (event) => {
+      if (!event.target.classList.contains("zim-catalog-checkbox")) {
+        return;
+      }
+      if (event.target.checked) {
+        pendingCustomSelection.add(event.target.value);
+      } else {
+        pendingCustomSelection.delete(event.target.value);
+      }
+    });
+    document.getElementById("library-preset").addEventListener("change", () => {
+      updateCustomLibraryVisibility(document.getElementById("library-preset").value === "custom");
+    });
     document.getElementById("refresh-content-button").addEventListener("click", () => triggerApplyAction("refresh-content"));
     document.getElementById("rebuild-library-button").addEventListener("click", () => triggerApplyAction("rebuild-library"));
-    document.getElementById("full-apply-button").addEventListener("click", () => triggerApplyAction("full"));
     document.getElementById("refresh-maps-button").addEventListener("click", refreshMapsList);
     document.getElementById("save-map-button").addEventListener("click", saveMapSelection);
     document.getElementById("select-all-maps-button").addEventListener("click", selectAllMaps);

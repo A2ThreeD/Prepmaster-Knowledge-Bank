@@ -6,6 +6,14 @@
   <title>SOPR Offline Maps</title>
   <link rel="stylesheet" href="/maps/vendor/maplibre-gl/maplibre-gl.css">
   <style>
+    @font-face {
+      font-family: "Michroma Local";
+      src: url("/fonts/Michroma-Regular.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+
     :root {
       --bg: #07111f;
       --panel: rgba(16, 34, 56, 0.9);
@@ -15,7 +23,8 @@
       --accent: #7bb7ff;
       --border: rgba(255, 255, 255, 0.88);
       --shadow: 0 22px 54px rgba(0, 0, 0, 0.34);
-      --ui-display: "Aldrich", "Michroma", "Orbitron", "Eurostile", "Bank Gothic", "Rajdhani", "Segoe UI", sans-serif;
+      --ui-display: "Michroma Local", "Michroma", "Aldrich", "Orbitron", "Eurostile", "Bank Gothic", "Rajdhani", "Cascadia Mono", "Consolas", monospace;
+      --ui-body: "Michroma Local", "Michroma", "Aldrich", "Cascadia Mono", "Consolas", monospace;
     }
 
     * { box-sizing: border-box; }
@@ -27,7 +36,8 @@
       background:
         radial-gradient(900px 420px at 50% -10%, rgba(76, 123, 181, 0.24), transparent 60%),
         linear-gradient(180deg, #091426 0%, var(--bg) 100%);
-      font-family: "Segoe UI", "Noto Sans", sans-serif;
+      font-family: var(--ui-body);
+      letter-spacing: 0.02em;
     }
 
     .layout {

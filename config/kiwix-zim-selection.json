@@ -1,0 +1,18 @@
+{
+  "catalog_root": "https://download.kiwix.org/zim/",
+  "selected_items": [
+    {
+      "path": "ifixit/ifixit_en_all_2025-12.zim",
+      "name": "ifixit_en_all_2025-12.zim",
+      "category": "ifixit",
+      "download_url": "https://download.kiwix.org/zim/ifixit/ifixit_en_all_2025-12.zim",
+      "size_bytes": 23,
+      "size_label": "23",
+      "installed": false,
+      "installed_size_bytes": 0,
+      "installed_size_label": "",
+      "selected": false
+    }
+  ],
+  "saved_at": "2026-03-27T06:35:00Z"
+}

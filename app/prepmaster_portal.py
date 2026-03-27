@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import html
 import json
 import os
 import re
@@ -8,6 +9,7 @@ import shutil
 import subprocess
 import threading
 import time
+from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib import error, parse, request
@@ -96,6 +98,114 @@ def inspect_pmtiles_file(path: Path) -> dict[str, object]:
     return info
 
 
+def format_size_bytes(size_bytes: int) -> str:
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    if size_bytes < 1024 ** 2:
+        return f"{size_bytes / 1024:.1f} KB"
+    if size_bytes < 1024 ** 3:
+        return f"{size_bytes / (1024 ** 2):.1f} MB"
+    return f"{size_bytes / (1024 ** 3):.1f} GB"
+
+
+def preset_to_profile(preset: str) -> str | None:
+    if preset == "compact":
+        return "essential"
+    if preset == "full":
+        return "comprehensive"
+    if preset == "empty":
+        return None
+    raise ValueError(f"Unknown content preset: {preset}")
+
+
+def profile_to_preset(profile: str | None) -> str:
+    if profile == "comprehensive":
+        return "full"
+    if profile in {"essential", "standard", None, ""}:
+        return "compact" if profile else "empty"
+    return "compact"
+
+
+class DirectoryIndexParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[dict[str, object]] = []
+        self._current_href: str | None = None
+        self._current_text: list[str] = []
+        self._capturing_anchor = False
+        self._last_anchor: dict[str, object] | None = None
+        self._tail_text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "a":
+            return
+        attributes = dict(attrs)
+        href = attributes.get("href")
+        if href:
+            self._capturing_anchor = True
+            self._current_href = href
+            self._current_text = []
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != "a" or not self._capturing_anchor or not self._current_href:
+            return
+        name = "".join(self._current_text).strip()
+        entry = {
+            "href": self._current_href,
+            "name": name or self._current_href,
+            "size_bytes": None,
+            "size_label": None,
+        }
+        self.links.append(entry)
+        self._last_anchor = entry
+        self._tail_text = []
+        self._capturing_anchor = False
+        self._current_href = None
+        self._current_text = []
+
+    def handle_data(self, data: str) -> None:
+        if self._capturing_anchor:
+            self._current_text.append(data)
+            return
+        if not self._last_anchor:
+            return
+        self._tail_text.append(data)
+        size_bytes, size_label = parse_apache_index_tail("".join(self._tail_text))
+        if size_label:
+            self._last_anchor["size_bytes"] = size_bytes
+            self._last_anchor["size_label"] = size_label
+            self._last_anchor = None
+            self._tail_text = []
+
+
+def parse_apache_index_tail(text: str) -> tuple[int | None, str | None]:
+    cleaned = html.unescape(text).replace("\xa0", " ")
+    match = re.search(r"\b(\d+(?:\.\d+)?[KMGTP]?|-)($|\s)", cleaned.strip())
+    if not match:
+        return None, None
+    label = match.group(1)
+    if label == "-":
+        return None, "-"
+    return parse_size_label_to_bytes(label), label
+
+
+def parse_size_label_to_bytes(label: str) -> int | None:
+    match = re.fullmatch(r"(\d+(?:\.\d+)?)([KMGTP]?)", label.strip())
+    if not match:
+        return None
+    value = float(match.group(1))
+    suffix = match.group(2)
+    multiplier = {
+        "": 1,
+        "K": 1024,
+        "M": 1024 ** 2,
+        "G": 1024 ** 3,
+        "T": 1024 ** 4,
+        "P": 1024 ** 5,
+    }[suffix]
+    return int(value * multiplier)
+
+
 class PortalState:
     def __init__(self, repo_root: Path, data_dir: Path) -> None:
         self.repo_root = repo_root
@@ -109,6 +219,7 @@ class PortalState:
         self.map_sync_state_file = self.data_dir / "map-sync-state.json"
         self.map_sync_log_file = self.data_dir / "map-sync.log"
         self.maps_catalog_cache_file = self.data_dir / "maps-catalog-cache.json"
+        self.content_catalog_cache_file = self.data_dir / "content-catalog-cache.json"
         self.apply_lock = threading.Lock()
         self.apply_thread: threading.Thread | None = None
         self.map_sync_lock = threading.Lock()
@@ -119,6 +230,7 @@ class PortalState:
     def load_state(self) -> dict:
         prepmaster = read_env_file(self.prepmaster_env)
         profile = read_env_file(self.install_profile_env)
+        custom_selection = self.read_custom_zim_selection()
         state = read_json(
             self.state_file,
             {"setup_complete": False, "last_saved_at": None},
@@ -134,11 +246,40 @@ class PortalState:
                 ),
                 "ap_enabled": prepmaster.get("PREPMASTER_AP_ENABLED", "0") == "1",
                 "zim_mode": prepmaster.get("PREPMASTER_ZIM_MODE", "full"),
+                "zim_profile": prepmaster.get("PREPMASTER_ZIM_PROFILE", "essential"),
+                "custom_zim_count": len(custom_selection.get("selected_items", [])),
             },
         }
 
     def maps_env(self) -> dict[str, str]:
         return read_env_file(self.prepmaster_env)
+
+    def kiwix_library_dir(self) -> Path:
+        env = self.maps_env()
+        return Path(env.get("KIWIX_LIBRARY_DIR", "/library/zims/content"))
+
+    def custom_zim_manifest_path(self) -> Path:
+        env = self.maps_env()
+        configured = env.get("PREPMASTER_ZIM_CUSTOM_URL_FILE")
+        if configured:
+            return Path(configured)
+        return self.repo_root / "config" / "kiwix-zim-urls.custom.txt"
+
+    def custom_zim_selection_path(self) -> Path:
+        env = self.maps_env()
+        configured = env.get("PREPMASTER_ZIM_CUSTOM_SELECTION_FILE")
+        if configured:
+            return Path(configured)
+        return self.repo_root / "config" / "kiwix-zim-selection.json"
+
+    def custom_base_profile(self) -> str | None:
+        env = self.maps_env()
+        value = env.get("PREPMASTER_ZIM_CUSTOM_BASE_PROFILE", "essential").strip().lower()
+        if value in {"", "none", "empty"}:
+            return None
+        if value in {"essential", "standard", "comprehensive"}:
+            return value
+        return "essential"
 
     def maps_root(self) -> Path:
         env = self.maps_env()
@@ -235,6 +376,388 @@ class PortalState:
             "flavor": env.get("PREPMASTER_MAP_STYLE_FLAVOR", "dark"),
             "language": env.get("PREPMASTER_MAP_LANGUAGE", "en"),
         }
+
+    def read_custom_zim_selection(self) -> dict:
+        return read_json(
+            self.custom_zim_selection_path(),
+            {
+                "catalog_root": "https://download.kiwix.org/zim/",
+                "selected_items": [],
+                "saved_at": None,
+            },
+        )
+
+    def write_custom_zim_selection(self, items: list[dict[str, object]], catalog_root: str) -> dict:
+        payload = {
+            "catalog_root": catalog_root,
+            "selected_items": items,
+            "saved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        path = self.custom_zim_selection_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2) + "\n")
+        return payload
+
+    def read_manifest_urls(self, path: Path) -> list[str]:
+        if not path.exists():
+            return []
+        return [
+            line.strip()
+            for line in path.read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+
+    def curated_manifest_urls(self, profile: str | None) -> list[str]:
+        if not profile:
+            return []
+
+        output_path = self.data_dir / f"curated-{profile}-manifest.txt"
+        command = [
+            "python3",
+            str(self.repo_root / "scripts" / "build_kiwix_zim_manifest.py"),
+            "--source",
+            str(self.repo_root / "kiwix-categories.json"),
+            "--output",
+            str(output_path),
+            "--profile",
+            profile,
+            "--wikipedia-options",
+            str(self.repo_root / "wikipedia.json"),
+            "--wikipedia-choice",
+            self.maps_env().get("PREPMASTER_WIKIPEDIA_OPTION", "top-mini"),
+        ]
+        result = subprocess.run(
+            command,
+            cwd=self.repo_root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError("Unable to build curated Kiwix manifest")
+        return self.read_manifest_urls(output_path)
+
+    def write_custom_zim_manifest(
+        self,
+        items: list[dict[str, object]],
+        catalog_root: str,
+        base_profile: str | None,
+    ) -> Path:
+        manifest = self.custom_zim_manifest_path()
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        base_urls = self.curated_manifest_urls(base_profile)
+        seen_urls: set[str] = set()
+        merged_urls: list[tuple[str, str, str]] = []
+
+        for url in base_urls:
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            merged_urls.append(("Curated Base", profile_to_preset(base_profile), url))
+
+        for item in items:
+            url = str(item["download_url"])
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            merged_urls.append((str(item["category"]), str(item["name"]), url))
+
+        lines = [
+            f"# Custom SOPR ZIM selection from {catalog_root}",
+            f"# Saved at: {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}",
+            f"# Base preset: {profile_to_preset(base_profile)}",
+            f"# Resource count: {len(merged_urls)}",
+            "",
+        ]
+        for category, title, url in merged_urls:
+            lines.append(f"# {category} | {title}")
+            lines.append(url)
+            lines.append("")
+        manifest.write_text("\n".join(lines).rstrip() + "\n")
+        return manifest
+
+    def list_installed_zims(self) -> list[dict[str, object]]:
+        root = self.kiwix_library_dir()
+        if not root.exists():
+            return []
+        inventory: list[dict[str, object]] = []
+        for path in sorted(root.iterdir()):
+            if not path.is_file() or path.suffix.lower() != ".zim":
+                continue
+            stat = path.stat()
+            inventory.append(
+                {
+                    "name": path.name,
+                    "size_bytes": stat.st_size,
+                    "size_label": format_size_bytes(stat.st_size),
+                    "modified_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(stat.st_mtime)),
+                }
+            )
+        return inventory
+
+    def fetch_directory_listing(self, url: str) -> list[dict[str, object]]:
+        req = request.Request(
+            url,
+            headers={
+                "User-Agent": "SOPR-Portal",
+            },
+        )
+        with request.urlopen(req, timeout=30) as response:
+            html = response.read().decode("utf-8", errors="replace")
+        parser = DirectoryIndexParser()
+        parser.feed(html)
+        return parser.links
+
+    def zim_catalog_root(self) -> str:
+        env = self.maps_env()
+        return env.get("PREPMASTER_ZIM_CATALOG_URL", "https://download.kiwix.org/zim/")
+
+    def fetch_kiwix_catalog_cached(self, force_refresh: bool = False) -> dict:
+        cache_ttl_seconds = 3600
+        if not force_refresh and self.content_catalog_cache_file.exists():
+            try:
+                cached = json.loads(self.content_catalog_cache_file.read_text())
+            except json.JSONDecodeError:
+                cached = None
+            if cached:
+                fetched_at = float(cached.get("fetched_at", 0))
+                if time.time() - fetched_at < cache_ttl_seconds and "payload" in cached:
+                    return cached["payload"]
+
+        root_url = self.zim_catalog_root().rstrip("/") + "/"
+        installed = {item["name"]: item for item in self.list_installed_zims()}
+        custom_selection = self.read_custom_zim_selection()
+        selected_paths = {
+            item.get("path")
+            for item in custom_selection.get("selected_items", [])
+            if item.get("path")
+        }
+
+        try:
+            root_links = self.fetch_directory_listing(root_url)
+            directories = sorted(
+                {
+                    str(entry["href"]).rstrip("/")
+                    for entry in root_links
+                    if entry.get("href")
+                    and entry["href"] not in {"../", "/"}
+                    and str(entry["href"]).endswith("/")
+                    and not str(entry["href"]).startswith("?")
+                }
+            )
+
+            items: list[dict[str, object]] = []
+            for directory in directories:
+                directory_url = parse.urljoin(root_url, directory + "/")
+                file_links = self.fetch_directory_listing(directory_url)
+                for entry in sorted(file_links, key=lambda item: str(item.get("href", ""))):
+                    href = str(entry.get("href", ""))
+                    if not href or href in {"../", "/"} or not href.endswith(".zim"):
+                        continue
+                    path = f"{directory}/{Path(href).name}"
+                    name = Path(href).name
+                    installed_item = installed.get(name)
+                    items.append(
+                        {
+                            "path": path,
+                            "name": name,
+                            "category": directory,
+                            "download_url": parse.urljoin(directory_url, href),
+                            "size_bytes": int(entry["size_bytes"]) if entry.get("size_bytes") else 0,
+                            "size_label": str(entry["size_label"]) if entry.get("size_label") else "",
+                            "installed": name in installed,
+                            "installed_size_bytes": int(installed_item["size_bytes"]) if installed_item else 0,
+                            "installed_size_label": installed_item["size_label"] if installed_item else "",
+                            "selected": path in selected_paths,
+                        }
+                    )
+        except error.URLError as exc:
+            if self.content_catalog_cache_file.exists():
+                cached = read_json(self.content_catalog_cache_file, {})
+                if cached.get("payload"):
+                    payload = cached["payload"]
+                    payload["stale"] = True
+                    payload["error"] = f"Using cached Kiwix catalog after refresh failed: {exc}"
+                    return payload
+            raise RuntimeError(f"Unable to fetch Kiwix catalog: {exc}") from exc
+
+        payload = {
+            "source": {
+                "root_url": root_url,
+            },
+            "items": items,
+            "stale": False,
+            "error": None,
+        }
+        self.content_catalog_cache_file.write_text(
+            json.dumps({"fetched_at": time.time(), "payload": payload}, indent=2) + "\n"
+        )
+        return payload
+
+    def content_status(self) -> dict:
+        env = self.maps_env()
+        custom_selection = self.read_custom_zim_selection()
+        installed = self.list_installed_zims()
+        installed_size_bytes = sum(int(item["size_bytes"]) for item in installed)
+        selected_paths = {
+            item.get("path")
+            for item in custom_selection.get("selected_items", [])
+            if item.get("path")
+        }
+        selected_names = {
+            Path(str(item.get("path", ""))).name
+            for item in custom_selection.get("selected_items", [])
+            if item.get("path")
+        }
+        inventory = []
+        for item in installed:
+            inventory.append(
+                {
+                    **item,
+                    "selected": item["name"] in selected_names,
+                }
+            )
+        mode = env.get("PREPMASTER_ZIM_MODE", "full")
+        profile = env.get("PREPMASTER_ZIM_PROFILE", "essential")
+        if mode == "custom":
+            library_preset = "custom"
+        elif mode == "quick-test":
+            library_preset = "quick-test"
+        else:
+            library_preset = profile_to_preset(profile)
+        return {
+            "mode": mode,
+            "profile": profile,
+            "library_preset": library_preset,
+            "custom_base_preset": profile_to_preset(self.custom_base_profile()),
+            "wikipedia_option": env.get("PREPMASTER_WIKIPEDIA_OPTION", "top-mini"),
+            "library_root": str(self.kiwix_library_dir()),
+            "catalog_root": self.zim_catalog_root(),
+            "custom_manifest": str(self.custom_zim_manifest_path()),
+            "custom_selection_file": str(self.custom_zim_selection_path()),
+            "custom_selected_paths": sorted(selected_paths),
+            "custom_selected_count": len(selected_paths),
+            "installed_count": len(inventory),
+            "installed_size_bytes": installed_size_bytes,
+            "installed_size_label": format_size_bytes(installed_size_bytes),
+            "installed_items": inventory,
+        }
+
+    def save_content_settings(self, payload: dict) -> dict:
+        env = self.maps_env()
+        library_preset = payload.get("library_preset")
+        if library_preset is None:
+            current_mode = env.get("PREPMASTER_ZIM_MODE", "full")
+            current_profile = env.get("PREPMASTER_ZIM_PROFILE", "essential")
+            library_preset = "custom" if current_mode == "custom" else profile_to_preset(current_profile)
+        if library_preset not in {"compact", "full", "custom", "quick-test"}:
+            raise ValueError("Invalid library_preset")
+
+        custom_base_preset = payload.get("custom_base_preset")
+        if custom_base_preset is None:
+            custom_base_preset = profile_to_preset(self.custom_base_profile())
+        if custom_base_preset not in {"compact", "full", "empty"}:
+            raise ValueError("Invalid custom_base_preset")
+
+        updates: dict[str, str] = {}
+        if library_preset == "quick-test":
+            updates["PREPMASTER_ZIM_MODE"] = "quick-test"
+        elif library_preset == "custom":
+            updates["PREPMASTER_ZIM_MODE"] = "custom"
+            updates["PREPMASTER_ZIM_CUSTOM_BASE_PROFILE"] = preset_to_profile(custom_base_preset) or "none"
+        else:
+            updates["PREPMASTER_ZIM_MODE"] = "full"
+            mapped_profile = preset_to_profile(library_preset)
+            if mapped_profile:
+                updates["PREPMASTER_ZIM_PROFILE"] = mapped_profile
+
+        selected_paths = payload.get("selected_paths")
+        catalog = None
+        if selected_paths is not None:
+            if not isinstance(selected_paths, list):
+                raise ValueError("selected_paths must be a list")
+            cleaned_paths = []
+            for value in selected_paths:
+                if not isinstance(value, str) or "/" not in value or not value.endswith(".zim"):
+                    raise ValueError("Invalid custom ZIM selection")
+                cleaned_paths.append(value)
+            cleaned_paths = sorted(set(cleaned_paths))
+            if library_preset == "custom":
+                base_profile = preset_to_profile(custom_base_preset)
+                catalog = self.fetch_kiwix_catalog_cached(force_refresh=False)
+                catalog_by_path = {item["path"]: item for item in catalog["items"]}
+                missing = [path for path in cleaned_paths if path not in catalog_by_path]
+                if missing:
+                    raise ValueError(f"Selected ZIM is not in catalog: {missing[0]}")
+                selected_items = [catalog_by_path[path] for path in cleaned_paths]
+                self.write_custom_zim_selection(selected_items, catalog["source"]["root_url"])
+                self.write_custom_zim_manifest(selected_items, catalog["source"]["root_url"], base_profile)
+            elif cleaned_paths:
+                # Preserve the saved custom selection even when mode is switched away from custom.
+                if self.custom_zim_selection_path().exists():
+                    existing = self.read_custom_zim_selection()
+                    existing_by_path = {
+                        item.get("path"): item
+                        for item in existing.get("selected_items", [])
+                        if item.get("path")
+                    }
+                    selected_items = [
+                        existing_by_path[path]
+                        for path in cleaned_paths
+                        if path in existing_by_path
+                    ]
+                    self.write_custom_zim_selection(selected_items, existing.get("catalog_root", self.zim_catalog_root()))
+                    self.write_custom_zim_manifest(
+                        selected_items,
+                        existing.get("catalog_root", self.zim_catalog_root()),
+                        self.custom_base_profile(),
+                    )
+
+        update_env_file(self.prepmaster_env, updates)
+        return self.content_status()
+
+    def remove_zim_files(self, filenames: list[str]) -> dict:
+        if not isinstance(filenames, list) or not filenames:
+            raise ValueError("No ZIM files selected")
+
+        root = self.kiwix_library_dir()
+        inventory = {item["name"]: item for item in self.list_installed_zims()}
+        valid_names = {
+            name
+            for name in filenames
+            if isinstance(name, str)
+            and Path(name).name == name
+            and name.endswith(".zim")
+            and name in inventory
+        }
+        if not valid_names:
+            raise ValueError("Selected ZIM files were not found")
+
+        for name in valid_names:
+            try:
+                (root / name).unlink()
+            except FileNotFoundError:
+                continue
+
+        env = dict(os.environ)
+        env.update(read_env_file(self.prepmaster_env))
+        env["PREPMASTER_ENV_FILE"] = str(self.prepmaster_env)
+        subprocess.run(
+            [str(self.repo_root / "scripts" / "rebuild_kiwix_library.sh")],
+            cwd=self.repo_root,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        subprocess.run(
+            ["systemctl", "restart", "prepmaster-kiwix.service"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+
+        return self.content_status()
 
     def maps_catalog_source(self) -> dict[str, str]:
         env = self.maps_env()
@@ -639,7 +1162,7 @@ class PortalState:
         if wikipedia_option not in {"top-mini", "mini", "maxi"}:
             raise ValueError("Invalid wikipedia_option")
         zim_mode = payload.get("zim_mode", "full")
-        if zim_mode not in {"full", "quick-test"}:
+        if zim_mode not in {"full", "quick-test", "custom"}:
             raise ValueError("Invalid zim_mode")
 
         install_kolibri = bool(payload.get("install_kolibri", False))
@@ -1374,6 +1897,16 @@ class PortalHandler(BaseHTTPRequestHandler):
         if path == "/api/system/access-point/clients":
             self.send_json(self.portal_state.access_point_clients())
             return
+        if path == "/api/content":
+            self.send_json(self.portal_state.content_status())
+            return
+        if path == "/api/content/catalog":
+            try:
+                force_refresh = query.get("refresh", ["0"])[0] == "1"
+                self.send_json(self.portal_state.fetch_kiwix_catalog_cached(force_refresh=force_refresh))
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=502)
+            return
         if path == "/api/maps":
             self.portal_state.write_maps_runtime_config()
             self.send_json(self.portal_state.maps_status())
@@ -1421,6 +1954,27 @@ class PortalHandler(BaseHTTPRequestHandler):
                 self.send_json({"error": str(exc)}, status=409)
                 return
             self.send_json(state, status=202)
+            return
+
+        if self.path == "/api/content/settings":
+            try:
+                state = self.portal_state.save_content_settings(payload)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=502)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/content/remove":
+            try:
+                state = self.portal_state.remove_zim_files(payload.get("filenames", []))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            self.send_json(state)
             return
 
         if self.path == "/api/maps/select":
