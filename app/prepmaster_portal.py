@@ -77,7 +77,8 @@ def inspect_pmtiles_file(path: Path) -> dict[str, object]:
         return info
 
     try:
-        header = path.read_bytes()[:64]
+        with path.open("rb") as handle:
+            header = handle.read(64)
     except OSError as exc:
         info["error"] = str(exc)
         return info

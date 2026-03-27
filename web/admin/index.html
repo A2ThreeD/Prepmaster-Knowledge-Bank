@@ -921,15 +921,20 @@
     async function loadMapsPanelData() {
       document.getElementById("maps-root").textContent = "PMTiles root: checking local storage...";
       document.getElementById("active-map-file").textContent = "Active map: checking local storage...";
+      document.getElementById("maps-local-list").textContent = "Checking local PMTiles packages...";
       try {
-        const [maps, mapSyncResult] = await Promise.all([
-          loadLocalMapsState(),
-          fetchJsonWithTimeout("/api/maps/sync")
-        ]);
+        const maps = await loadLocalMapsState();
         currentMaps = maps;
-        const mapSync = mapSyncResult.payload;
         renderMapsState(currentMaps);
-        renderMapSyncState(mapSync);
+
+        try {
+          const mapSyncResult = await fetchJsonWithTimeout("/api/maps/sync");
+          renderMapSyncState(mapSyncResult.payload);
+        } catch (error) {
+          document.getElementById("maps-sync-status").textContent =
+            error && error.name === "AbortError" ? "Map sync: local check delayed" : "Map sync: unavailable";
+        }
+
         if (currentCatalog) {
           renderCatalog(currentCatalog);
         } else {
@@ -945,6 +950,8 @@
         const delayed = error && error.name === "AbortError";
         document.getElementById("maps-root").textContent = delayed ? "PMTiles root: local check delayed" : "PMTiles root: unavailable";
         document.getElementById("active-map-file").textContent = delayed ? "Active map: local check delayed" : "Active map: unavailable";
+        document.getElementById("maps-local-list").textContent =
+          delayed ? "Local PMTiles package check is taking too long." : "Unable to load local PMTiles packages.";
         document.getElementById("maps-status-note").textContent = delayed ? "Local map state is taking too long to respond." : "Map package status is unavailable.";
         document.getElementById("maps-sync-status").textContent = delayed ? "Map sync: local check delayed" : "Map sync: unavailable";
       }
@@ -1202,6 +1209,8 @@
         const delayed = error && error.name === "AbortError";
         document.getElementById("maps-root").textContent = delayed ? "PMTiles root: local check delayed" : "PMTiles root: unavailable";
         document.getElementById("active-map-file").textContent = delayed ? "Active map: local check delayed" : "Active map: unavailable";
+        document.getElementById("maps-local-list").textContent =
+          delayed ? "Local PMTiles package check is taking too long." : "Unable to load local PMTiles packages.";
         document.getElementById("maps-status-note").textContent =
           delayed ? "Local map state is taking too long to respond." : "Map package status is unavailable.";
       } finally {
