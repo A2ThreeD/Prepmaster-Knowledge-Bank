@@ -42,6 +42,11 @@ echo "Stopping services before reconfiguration..."
 systemctl stop hostapd || true
 systemctl stop dnsmasq || true
 
+if command -v rfkill >/dev/null 2>&1; then
+  echo "Unblocking Wi-Fi radio..."
+  rfkill unblock wifi || true
+fi
+
 install -d -m 0755 /etc/hostapd
 install -d -m 0755 /etc/dnsmasq.d
 

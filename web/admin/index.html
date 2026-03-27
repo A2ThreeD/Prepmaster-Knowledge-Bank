@@ -315,6 +315,13 @@
       font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
+    #ap-clients-panel {
+      max-height: 240px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     #maps-local-list {
       max-height: 16rem;
       overflow-y: auto;
@@ -434,7 +441,10 @@
       color: var(--muted);
     }
 
-    select {
+    select,
+    input[type="text"],
+    input[type="password"],
+    input[type="number"] {
       width: 100%;
       border-radius: 0;
       border: 1px solid var(--border);
@@ -442,6 +452,12 @@
       color: var(--text);
       padding: 12px 14px;
       font: inherit;
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     }
 
     .card p,
@@ -498,22 +514,67 @@
     <section class="panel-group active" data-panel-group="system">
       <div class="grid">
         <section class="card">
-          <h2>Settings</h2>
-          <p class="muted">
-            Device-level controls, install preferences, and high-level system state live here.
-          </p>
-          <p class="muted">
-            Reopen the setup workflow at any time to change install options, Wikipedia package selection, or other first-start preferences.
-          </p>
-        </section>
-        <section class="card">
           <h2>Wireless Access Point</h2>
           <p class="muted">
             Configure and enable direct Wi-Fi access so phones, tablets, and laptops can join the Pi and reach local content without another router.
           </p>
-          <p class="muted">
-            Use <code>PREPMASTER_AP_ENABLED=1</code> in <code>config/prepmaster.env</code>, then run <code>sudo ./scripts/configure_access_point.sh</code>.
-          </p>
+          <div class="field-grid">
+            <div class="field">
+              <label for="ap-ssid">SSID</label>
+              <input id="ap-ssid" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="ap-passphrase">Passphrase</label>
+              <input id="ap-passphrase" type="password" autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label for="ap-interface">Interface</label>
+              <input id="ap-interface" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="ap-country">Country</label>
+              <input id="ap-country" type="text" maxlength="2" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="ap-channel">Channel</label>
+              <input id="ap-channel" type="number" min="1" step="1">
+            </div>
+            <div class="field">
+              <label for="ap-address">Gateway Address</label>
+              <input id="ap-address" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="ap-netmask">Netmask</label>
+              <input id="ap-netmask" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="ap-cidr">CIDR</label>
+              <input id="ap-cidr" type="number" min="1" max="32" step="1">
+            </div>
+            <div class="field">
+              <label for="ap-dhcp-start">DHCP Start</label>
+              <input id="ap-dhcp-start" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="ap-dhcp-end">DHCP End</label>
+              <input id="ap-dhcp-end" type="text" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="ap-lease">Lease</label>
+              <input id="ap-lease" type="text" autocomplete="off">
+            </div>
+          </div>
+          <div class="actions">
+            <button class="button" id="save-ap-button" type="button">Save AP Config</button>
+            <button class="button" id="apply-ap-button" type="button">Apply AP Config</button>
+            <button class="button" id="toggle-ap-button" type="button">Enable / Start Access Point</button>
+            <button class="button" id="toggle-ap-clients-button" type="button">Show Connected Clients</button>
+          </div>
+          <div class="status-cluster" id="ap-status" aria-live="polite"></div>
+          <p class="status" id="ap-action-status">Access point controls ready.</p>
+          <div class="log-panel hidden" id="ap-clients-panel">
+            No connected access point clients detected.
+          </div>
         </section>
         <section class="card">
           <h2>System</h2>
@@ -684,8 +745,11 @@
     let systemPollHandle = null;
     let currentMaps = null;
     let currentCatalog = null;
+    let currentAccessPoint = null;
     let mapsSyncPollHandle = null;
     let currentPanel = "system";
+    let apFormDirty = false;
+    let apClientsPanelVisible = false;
 
     function setActivePanel(panelName) {
       currentPanel = panelName;
@@ -833,9 +897,14 @@
       document.getElementById("system-cpu-status").textContent = "Checking...";
       document.getElementById("system-uptime-status").textContent = "Uptime: checking...";
       try {
-        const { payload } = await fetchJsonWithTimeout("/api/system/health", {}, 2000);
-        currentStatus = payload;
+        const [healthResult, accessPointResult] = await Promise.all([
+          fetchJsonWithTimeout("/api/system/health", {}, 2000),
+          fetchJsonWithTimeout("/api/system/access-point", {}, 2500)
+        ]);
+        currentStatus = healthResult.payload;
         renderSystemHealth(currentStatus);
+        currentAccessPoint = accessPointResult.payload;
+        renderAccessPointState(currentAccessPoint);
       } catch (error) {
         const delayed = error && error.name === "AbortError";
         document.getElementById("system-disk-status").textContent = delayed ? "Delayed" : "Unavailable";
@@ -846,6 +915,180 @@
         document.getElementById("system-cpu-status").textContent = delayed ? "Delayed" : "Unavailable";
         document.getElementById("system-cpu-fill").style.width = "0%";
         document.getElementById("system-uptime-status").textContent = delayed ? "Uptime: delayed" : "Uptime: unavailable";
+        setStatusChips("ap-status", [
+          { label: "Access Point", value: delayed ? "Delayed" : "Unavailable", tone: delayed ? "status-chip--warn" : "status-chip--error" }
+        ]);
+        document.getElementById("ap-action-status").textContent =
+          delayed ? "Access point status is taking too long to respond." : "Access point status is unavailable.";
+      }
+    }
+
+    function setAccessPointFormValues(ap, force = false) {
+      if (apFormDirty && !force) {
+        return;
+      }
+      document.getElementById("ap-ssid").value = ap.ssid || "";
+      document.getElementById("ap-passphrase").value = ap.passphrase || "";
+      document.getElementById("ap-interface").value = ap.interface || "";
+      document.getElementById("ap-country").value = ap.country || "";
+      document.getElementById("ap-channel").value = ap.channel || "";
+      document.getElementById("ap-address").value = ap.address || "";
+      document.getElementById("ap-netmask").value = ap.netmask || "";
+      document.getElementById("ap-cidr").value = ap.cidr || "";
+      document.getElementById("ap-dhcp-start").value = ap.dhcp_start || "";
+      document.getElementById("ap-dhcp-end").value = ap.dhcp_end || "";
+      document.getElementById("ap-lease").value = ap.lease || "";
+    }
+
+    function renderAccessPointState(ap, note = "", preserveDirty = true) {
+      setAccessPointFormValues(ap, !preserveDirty);
+      const enabledTone = ap.enabled ? "status-chip--ok" : "status-chip--muted";
+      const runtimeTone = ap.running ? "status-chip--ok" : (ap.enabled ? "status-chip--warn" : "status-chip--muted");
+      setStatusChips("ap-status", [
+        { label: "Config", value: ap.enabled ? "Enabled" : "Disabled", tone: enabledTone },
+        { label: "Runtime", value: ap.running ? "Running" : "Stopped", tone: runtimeTone },
+        { label: "Hostapd", value: ap.services?.hostapd || "unknown", tone: toneForServiceState(ap.services?.hostapd || "unknown") },
+        { label: "Dnsmasq", value: ap.services?.dnsmasq || "unknown", tone: toneForServiceState(ap.services?.dnsmasq || "unknown") }
+      ]);
+      document.getElementById("toggle-ap-button").textContent =
+        ap.enabled ? "Disable / Stop Access Point" : "Enable / Start Access Point";
+      document.getElementById("ap-action-status").textContent = note || (
+        ap.running
+          ? `Access point ${ap.ssid || "PrepmasterHub"} is active on ${ap.interface || "wlan0"}.`
+          : (ap.enabled
+            ? "Access point is configured but not currently fully active."
+            : "Access point is disabled.")
+      );
+    }
+
+    function getAccessPointPayload() {
+      return {
+        ssid: document.getElementById("ap-ssid").value.trim(),
+        passphrase: document.getElementById("ap-passphrase").value,
+        interface: document.getElementById("ap-interface").value.trim(),
+        country: document.getElementById("ap-country").value.trim(),
+        channel: document.getElementById("ap-channel").value.trim(),
+        address: document.getElementById("ap-address").value.trim(),
+        netmask: document.getElementById("ap-netmask").value.trim(),
+        cidr: document.getElementById("ap-cidr").value.trim(),
+        dhcp_start: document.getElementById("ap-dhcp-start").value.trim(),
+        dhcp_end: document.getElementById("ap-dhcp-end").value.trim(),
+        lease: document.getElementById("ap-lease").value.trim()
+      };
+    }
+
+    async function submitAccessPointAction(action) {
+      const saveButton = document.getElementById("save-ap-button");
+      const applyButton = document.getElementById("apply-ap-button");
+      const toggleButton = document.getElementById("toggle-ap-button");
+      const actionLabels = {
+        save: "Saving...",
+        apply: "Applying...",
+        start: "Starting...",
+        stop: "Stopping..."
+      };
+
+      saveButton.disabled = true;
+      applyButton.disabled = true;
+      toggleButton.disabled = true;
+      if (action === "save") saveButton.textContent = actionLabels[action];
+      if (action === "apply") applyButton.textContent = actionLabels[action];
+      if (action === "start" || action === "stop") toggleButton.textContent = actionLabels[action];
+      document.getElementById("ap-action-status").textContent = `Access point action: ${action}`;
+
+      try {
+        const { response, payload } = await fetchJsonWithTimeout("/api/system/access-point", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            ...getAccessPointPayload()
+          })
+        }, action === "save" ? 5000 : 30000);
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to update access point");
+        }
+        apFormDirty = false;
+        currentAccessPoint = payload;
+        renderAccessPointState(payload, payload.message || "Access point updated.", false);
+      } catch (error) {
+        document.getElementById("ap-action-status").textContent = error.message;
+      } finally {
+        saveButton.disabled = false;
+        applyButton.disabled = false;
+        toggleButton.disabled = false;
+        saveButton.textContent = "Save AP Config";
+        applyButton.textContent = "Apply AP Config";
+        toggleButton.textContent = currentAccessPoint && currentAccessPoint.enabled
+          ? "Disable / Stop Access Point"
+          : "Enable / Start Access Point";
+      }
+    }
+
+    function formatBytes(value) {
+      const size = Number(value || 0);
+      if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+      if (size >= 1024) return `${(size / 1024).toFixed(1)} KB`;
+      return `${size} B`;
+    }
+
+    function formatDurationSeconds(value) {
+      const seconds = Number(value || 0);
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const remaining = seconds % 60;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      if (minutes > 0) return `${minutes}m ${remaining}s`;
+      return `${remaining}s`;
+    }
+
+    function renderAccessPointClients(payload) {
+      const panel = document.getElementById("ap-clients-panel");
+      if (!payload.clients || !payload.clients.length) {
+        panel.textContent = payload.running
+          ? "No connected access point clients detected."
+          : "Access point is not running, so there are no active clients to show.";
+        return;
+      }
+
+      panel.innerHTML = payload.clients.map((client) => {
+        const lines = [];
+        lines.push(`${client.hostname || "Unnamed Device"}${client.connected ? " | connected" : " | lease only"}`);
+        lines.push(`IP: ${client.ip || "unknown"} | MAC: ${client.mac}`);
+        if (client.connected_time_seconds) {
+          lines.push(`Connected: ${formatDurationSeconds(client.connected_time_seconds)}`);
+        }
+        if (client.tx_bytes || client.rx_bytes) {
+          lines.push(`Traffic: TX ${formatBytes(client.tx_bytes)} | RX ${formatBytes(client.rx_bytes)}`);
+        }
+        if (client.tx_bitrate || client.rx_bitrate) {
+          lines.push(`Rates: TX ${client.tx_bitrate || "n/a"} | RX ${client.rx_bitrate || "n/a"}`);
+        }
+        return lines.map((line) => escapeHtml(line)).join("<br>");
+      }).join("<hr style=\"border-color: rgba(255,255,255,0.14); margin: 10px 0;\">");
+    }
+
+    async function toggleAccessPointClients() {
+      const panel = document.getElementById("ap-clients-panel");
+      const button = document.getElementById("toggle-ap-clients-button");
+
+      if (apClientsPanelVisible) {
+        panel.classList.add("hidden");
+        button.textContent = "Show Connected Clients";
+        apClientsPanelVisible = false;
+        return;
+      }
+
+      panel.classList.remove("hidden");
+      panel.textContent = "Loading connected access point clients...";
+      button.textContent = "Hide Connected Clients";
+      apClientsPanelVisible = true;
+
+      try {
+        const { payload } = await fetchJsonWithTimeout("/api/system/access-point/clients", {}, 5000);
+        renderAccessPointClients(payload);
+      } catch (error) {
+        panel.textContent = "Unable to load connected access point clients.";
       }
     }
 
@@ -1041,17 +1284,47 @@
       }).join("");
     }
 
+    function catalogWithCurrentLocalState(catalog) {
+      if (!catalog || !currentMaps) {
+        return catalog;
+      }
+
+      const invalidByName = new Map(
+        (currentMaps.invalid_files || []).map((item) => [item.name, item])
+      );
+      const validNames = new Set(currentMaps.available_files || []);
+      const installedNames = new Set([
+        ...validNames,
+        ...Array.from(invalidByName.keys())
+      ]);
+
+      return {
+        ...catalog,
+        items: (catalog.items || []).map((item) => {
+          const invalid = invalidByName.get(item.name);
+          return {
+            ...item,
+            installed: installedNames.has(item.name),
+            installed_valid: validNames.has(item.name),
+            installed_error: invalid ? invalid.error : null,
+            active: item.name === currentMaps.active_file
+          };
+        })
+      };
+    }
+
     function renderCatalog(catalog) {
+      const effectiveCatalog = catalogWithCurrentLocalState(catalog);
       document.getElementById("maps-catalog-source").textContent =
-        `Catalog source: ${catalog.source.owner}/${catalog.source.repo}:${catalog.source.subdir}`;
+        `Catalog source: ${effectiveCatalog.source.owner}/${effectiveCatalog.source.repo}:${effectiveCatalog.source.subdir}`;
       const container = document.getElementById("maps-catalog-list");
 
-      if (!catalog.items.length) {
+      if (!effectiveCatalog.items.length) {
         container.innerHTML = "No PMTiles packages were returned by the Project NOMAD catalog.";
         return;
       }
 
-      container.innerHTML = catalog.items.map((item) => {
+      container.innerHTML = effectiveCatalog.items.map((item) => {
         const checked = item.installed ? "checked" : "";
         const details = [];
         if (item.installed) details.push("installed");
@@ -1396,6 +1669,30 @@
     }
 
     document.getElementById("save-mode-button").addEventListener("click", saveContentMode);
+    [
+      "ap-ssid",
+      "ap-passphrase",
+      "ap-interface",
+      "ap-country",
+      "ap-channel",
+      "ap-address",
+      "ap-netmask",
+      "ap-cidr",
+      "ap-dhcp-start",
+      "ap-dhcp-end",
+      "ap-lease"
+    ].forEach((id) => {
+      document.getElementById(id).addEventListener("input", () => {
+        apFormDirty = true;
+      });
+    });
+    document.getElementById("save-ap-button").addEventListener("click", () => submitAccessPointAction("save"));
+    document.getElementById("apply-ap-button").addEventListener("click", () => submitAccessPointAction("apply"));
+    document.getElementById("toggle-ap-button").addEventListener("click", () => {
+      const action = currentAccessPoint && currentAccessPoint.enabled ? "stop" : "start";
+      submitAccessPointAction(action);
+    });
+    document.getElementById("toggle-ap-clients-button").addEventListener("click", toggleAccessPointClients);
     document.getElementById("refresh-content-button").addEventListener("click", () => triggerApplyAction("refresh-content"));
     document.getElementById("rebuild-library-button").addEventListener("click", () => triggerApplyAction("rebuild-library"));
     document.getElementById("full-apply-button").addEventListener("click", () => triggerApplyAction("full"));

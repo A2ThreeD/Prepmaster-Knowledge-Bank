@@ -19,14 +19,7 @@ resolve_kiwix_bind_address() {
     return
   fi
 
-  local detected
-  detected="$(ip -4 addr show scope global up | awk '/inet / {sub(/\/.*/, "", $2); print $2; exit}')"
-
-  if [[ -n "$detected" ]]; then
-    echo "$detected"
-  else
-    echo "127.0.0.1"
-  fi
+  echo "127.0.0.1"
 }
 
 KIWIX_EFFECTIVE_BIND_ADDRESS="$(resolve_kiwix_bind_address)"

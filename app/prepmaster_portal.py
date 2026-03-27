@@ -189,9 +189,15 @@ class PortalState:
         maps_web_root = self.maps_web_root()
         maps_web_root.mkdir(parents=True, exist_ok=True)
         status = self.maps_status()
+        active_file = env.get("PREPMASTER_MAP_PMTILES_FILE", "basemap.pmtiles")
+        active_path = self.maps_root() / active_file
+        cache_buster = ""
+        if active_path.exists() and active_path.is_file():
+            stat = active_path.stat()
+            cache_buster = f"?v={stat.st_mtime_ns}-{stat.st_size}"
         config = {
-            "pmtilesUrl": f"/pmtiles/{env.get('PREPMASTER_MAP_PMTILES_FILE', 'basemap.pmtiles')}",
-            "pmtilesFile": env.get("PREPMASTER_MAP_PMTILES_FILE", "basemap.pmtiles"),
+            "pmtilesUrl": f"/pmtiles/{active_file}{cache_buster}",
+            "pmtilesFile": active_file,
             "flavor": env.get("PREPMASTER_MAP_STYLE_FLAVOR", "dark"),
             "language": env.get("PREPMASTER_MAP_LANGUAGE", "en"),
             "defaultLat": float(env.get("PREPMASTER_MAP_DEFAULT_LAT", "39.8283")),
@@ -708,6 +714,254 @@ class PortalState:
             "uptime": self.read_uptime(),
         }
 
+    def read_service_enabled_statuses(self, services: dict[str, str]) -> dict[str, str]:
+        try:
+            result = subprocess.run(
+                ["systemctl", "is-enabled", *services.values()],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            return {name: "unknown" for name in services}
+
+        lines = [line.strip() or "unknown" for line in result.stdout.splitlines()]
+        values = list(services.keys())
+        resolved: dict[str, str] = {}
+        for index, name in enumerate(values):
+            resolved[name] = lines[index] if index < len(lines) else "unknown"
+        return resolved
+
+    def access_point_status(self) -> dict:
+        env = read_env_file(self.prepmaster_env)
+        service_units = {
+            "network": "prepmaster-ap-network.service",
+            "hostapd": "hostapd.service",
+            "dnsmasq": "dnsmasq.service",
+        }
+        services = self.read_service_statuses(service_units)
+        enabled_services = self.read_service_enabled_statuses(service_units)
+        configured_enabled = env.get("PREPMASTER_AP_ENABLED", "0") == "1"
+        running = (
+            services.get("network") == "active"
+            and services.get("hostapd") == "active"
+            and services.get("dnsmasq") == "active"
+        )
+        return {
+            "enabled": configured_enabled,
+            "interface": env.get("PREPMASTER_AP_INTERFACE", "wlan0"),
+            "ssid": env.get("PREPMASTER_AP_SSID", "PrepmasterHub"),
+            "passphrase": env.get("PREPMASTER_AP_PASSPHRASE", ""),
+            "country": env.get("PREPMASTER_AP_COUNTRY", "US"),
+            "channel": env.get("PREPMASTER_AP_CHANNEL", "6"),
+            "address": env.get("PREPMASTER_AP_ADDRESS", "192.168.50.1"),
+            "netmask": env.get("PREPMASTER_AP_NETMASK", "255.255.255.0"),
+            "cidr": env.get("PREPMASTER_AP_CIDR", "24"),
+            "dhcp_start": env.get("PREPMASTER_AP_DHCP_START", "192.168.50.20"),
+            "dhcp_end": env.get("PREPMASTER_AP_DHCP_END", "192.168.50.120"),
+            "lease": env.get("PREPMASTER_AP_DHCP_LEASE", "24h"),
+            "services": services,
+            "enabled_services": enabled_services,
+            "running": running,
+        }
+
+    def update_access_point_settings(self, payload: dict) -> dict:
+        updates: dict[str, str] = {}
+
+        field_map = {
+            "interface": "PREPMASTER_AP_INTERFACE",
+            "ssid": "PREPMASTER_AP_SSID",
+            "passphrase": "PREPMASTER_AP_PASSPHRASE",
+            "country": "PREPMASTER_AP_COUNTRY",
+            "channel": "PREPMASTER_AP_CHANNEL",
+            "address": "PREPMASTER_AP_ADDRESS",
+            "netmask": "PREPMASTER_AP_NETMASK",
+            "cidr": "PREPMASTER_AP_CIDR",
+            "dhcp_start": "PREPMASTER_AP_DHCP_START",
+            "dhcp_end": "PREPMASTER_AP_DHCP_END",
+            "lease": "PREPMASTER_AP_DHCP_LEASE",
+        }
+
+        for payload_key, env_key in field_map.items():
+            if payload_key not in payload:
+                continue
+            value = str(payload.get(payload_key, "")).strip()
+            if not value:
+                raise ValueError(f"Invalid access point setting: {payload_key}")
+            updates[env_key] = value
+
+        if "country" in payload:
+            country = updates["PREPMASTER_AP_COUNTRY"].upper()
+            if len(country) != 2 or not country.isalpha():
+                raise ValueError("Country must be a 2-letter code")
+            updates["PREPMASTER_AP_COUNTRY"] = country
+
+        if "channel" in payload:
+            channel = updates["PREPMASTER_AP_CHANNEL"]
+            if not channel.isdigit():
+                raise ValueError("Channel must be numeric")
+
+        if "cidr" in payload:
+            cidr = updates["PREPMASTER_AP_CIDR"]
+            if not cidr.isdigit():
+                raise ValueError("CIDR must be numeric")
+            cidr_value = int(cidr)
+            if cidr_value < 1 or cidr_value > 32:
+                raise ValueError("CIDR must be between 1 and 32")
+
+        if "passphrase" in payload:
+            passphrase = updates["PREPMASTER_AP_PASSPHRASE"]
+            if len(passphrase) < 8 or len(passphrase) > 63:
+                raise ValueError("Passphrase must be between 8 and 63 characters")
+
+        if "enabled" in payload:
+            updates["PREPMASTER_AP_ENABLED"] = "1" if bool(payload.get("enabled")) else "0"
+
+        if updates:
+            update_env_file(self.prepmaster_env, updates)
+
+        return self.access_point_status()
+
+    def run_access_point_config(self) -> str:
+        script = self.repo_root / "scripts" / "configure_access_point.sh"
+        env = os.environ.copy()
+        env["PREPMASTER_ENV_FILE"] = str(self.prepmaster_env)
+        try:
+            result = subprocess.run(
+                [str(script)],
+                capture_output=True,
+                text=True,
+                check=False,
+                env=env,
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError("Access point configuration script is unavailable") from exc
+
+        output = (result.stdout or "").strip()
+        errors = (result.stderr or "").strip()
+        if result.returncode != 0:
+            raise RuntimeError(errors or output or "Unable to apply access point settings")
+        return output
+
+    def apply_access_point_action(self, payload: dict) -> dict:
+        action = payload.get("action", "save")
+        if action not in {"save", "start", "stop", "apply"}:
+            raise ValueError("Invalid access point action")
+
+        updated_payload = dict(payload)
+        if action == "start":
+            updated_payload["enabled"] = True
+        elif action == "stop":
+            updated_payload["enabled"] = False
+
+        state = self.update_access_point_settings(updated_payload)
+        message = "Access point settings saved."
+
+        if action in {"start", "stop", "apply"}:
+            output = self.run_access_point_config()
+            state = self.access_point_status()
+            if action == "start":
+                message = "Access point started."
+            elif action == "stop":
+                message = "Access point stopped."
+            else:
+                message = "Access point configuration applied."
+            state["message"] = output or message
+        else:
+            state["message"] = message
+
+        return state
+
+    def access_point_clients(self) -> dict:
+        ap = self.access_point_status()
+        leases_path = Path("/var/lib/misc/dnsmasq.leases")
+        leases_by_mac: dict[str, dict[str, object]] = {}
+
+        if leases_path.exists():
+            for line in leases_path.read_text().splitlines():
+                parts = line.split()
+                if len(parts) < 5:
+                    continue
+                expires_at, mac, ip_address, hostname, client_id = parts[:5]
+                leases_by_mac[mac.lower()] = {
+                    "mac": mac.lower(),
+                    "ip": ip_address,
+                    "hostname": "" if hostname == "*" else hostname,
+                    "lease_expires_at": expires_at,
+                    "client_id": "" if client_id == "*" else client_id,
+                }
+
+        stations: list[dict[str, object]] = []
+        try:
+            result = subprocess.run(
+                ["iw", "dev", ap["interface"], "station", "dump"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            result = None
+
+        current: dict[str, object] | None = None
+        if result and result.returncode == 0:
+            for raw_line in result.stdout.splitlines():
+                line = raw_line.strip()
+                if line.startswith("Station "):
+                    if current:
+                        stations.append(current)
+                    mac = line.split()[1].lower()
+                    lease = leases_by_mac.get(mac, {})
+                    current = {
+                        "mac": mac,
+                        "ip": lease.get("ip"),
+                        "hostname": lease.get("hostname"),
+                        "lease_expires_at": lease.get("lease_expires_at"),
+                        "connected": True,
+                    }
+                    continue
+                if not current or ":" not in line:
+                    continue
+                key, value = [part.strip() for part in line.split(":", 1)]
+                if key == "connected time":
+                    current["connected_time_seconds"] = int(value.split()[0])
+                elif key == "rx bytes":
+                    current["rx_bytes"] = int(value)
+                elif key == "tx bytes":
+                    current["tx_bytes"] = int(value)
+                elif key == "rx packets":
+                    current["rx_packets"] = int(value)
+                elif key == "tx packets":
+                    current["tx_packets"] = int(value)
+                elif key == "rx bitrate":
+                    current["rx_bitrate"] = value
+                elif key == "tx bitrate":
+                    current["tx_bitrate"] = value
+                elif key == "signal":
+                    current["signal"] = value
+            if current:
+                stations.append(current)
+
+        connected_macs = {item["mac"] for item in stations}
+        for mac, lease in leases_by_mac.items():
+            if mac in connected_macs:
+                continue
+            stations.append(
+                {
+                    "mac": mac,
+                    "ip": lease.get("ip"),
+                    "hostname": lease.get("hostname"),
+                    "lease_expires_at": lease.get("lease_expires_at"),
+                    "connected": False,
+                }
+            )
+
+        stations.sort(key=lambda item: (not bool(item.get("connected")), str(item.get("hostname") or item.get("ip") or item["mac"])))
+        return {
+            "interface": ap["interface"],
+            "running": ap["running"],
+            "clients": stations,
+        }
+
     def load_apply_state(self) -> dict:
         state = read_json(
             self.apply_state_file,
@@ -1114,6 +1368,12 @@ class PortalHandler(BaseHTTPRequestHandler):
         if path == "/api/system/health":
             self.send_json(self.portal_state.system_health())
             return
+        if path == "/api/system/access-point":
+            self.send_json(self.portal_state.access_point_status())
+            return
+        if path == "/api/system/access-point/clients":
+            self.send_json(self.portal_state.access_point_clients())
+            return
         if path == "/api/maps":
             self.portal_state.write_maps_runtime_config()
             self.send_json(self.portal_state.maps_status())
@@ -1212,6 +1472,18 @@ class PortalHandler(BaseHTTPRequestHandler):
                 self.send_json({"error": str(exc)}, status=500)
                 return
             self.send_json(state, status=202)
+            return
+
+        if self.path == "/api/system/access-point":
+            try:
+                state = self.portal_state.apply_access_point_action(payload)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=500)
+                return
+            self.send_json(state)
             return
 
         self.send_json({"error": "Not found"}, status=404)
