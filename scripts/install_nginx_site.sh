@@ -64,7 +64,7 @@ server {
         return 302 /kiwix/;
     }
 
-    location /kiwix/ {
+    location ^~ /kiwix/ {
         proxy_pass http://127.0.0.1:$KIWIX_PORT/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
@@ -72,6 +72,60 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_redirect ~^http://[^/]+:$KIWIX_PORT/(.*)$ /kiwix/\$1;
+    }
+
+    location ^~ /skin/ {
+        proxy_pass http://127.0.0.1:$KIWIX_PORT/skin/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location ^~ /catalog/ {
+        proxy_pass http://127.0.0.1:$KIWIX_PORT/catalog/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location = /viewer_settings.js {
+        proxy_pass http://127.0.0.1:$KIWIX_PORT/viewer_settings.js;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location ^~ /content/ {
+        proxy_pass http://127.0.0.1:$KIWIX_PORT/content/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location ^~ /raw/ {
+        proxy_pass http://127.0.0.1:$KIWIX_PORT/raw/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location = /nojs {
+        proxy_pass http://127.0.0.1:$KIWIX_PORT/nojs;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
     location / {
