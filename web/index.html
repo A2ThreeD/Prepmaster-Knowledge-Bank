@@ -19,7 +19,8 @@
       --shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
       --legacy: #d5b6b6;
       --ok: #a9d4ba;
-      --ui-display: "Aldrich", "Michroma", "Orbitron", "Eurostile", "Bank Gothic", "Rajdhani", "Segoe UI", sans-serif;
+      --ui-display: "OCR A Std", "OCR A Extended", "Aldrich", "Michroma", "Eurostile", "Bank Gothic", "Rajdhani", "Cascadia Mono", "Consolas", monospace;
+      --ui-body: "OCR A Std", "OCR A Extended", "Aldrich", "Michroma", "Cascadia Mono", "Consolas", monospace;
       --chamfer: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px);
       --chamfer-tight: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
     }
@@ -34,12 +35,13 @@
         radial-gradient(700px 300px at 10% 16%, rgba(74, 121, 201, 0.16), transparent 60%),
         radial-gradient(700px 300px at 90% 16%, rgba(74, 121, 201, 0.16), transparent 60%),
         linear-gradient(180deg, #06111f 0%, #071322 34%, #050d18 100%);
-      font-family: "Segoe UI", "Noto Sans", sans-serif;
+      font-family: var(--ui-body);
       line-height: 1.45;
       min-height: 100vh;
       padding: 26px 16px 28px;
       position: relative;
       overflow-x: hidden;
+      letter-spacing: 0.02em;
     }
 
     body::before {
@@ -198,6 +200,18 @@
       color: var(--accent-strong);
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
       border-radius: 0;
+    }
+
+    .tile-icon svg {
+      width: 30px;
+      height: 30px;
+      display: block;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
+      vector-effect: non-scaling-stroke;
     }
 
     .tile.legacy .tile-icon {
@@ -512,7 +526,15 @@
     <section id="dashboard-view" class="hidden">
       <main class="grid">
         <section class="tile">
-          <div class="tile-icon">⌂</div>
+          <div class="tile-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" role="img">
+              <path d="M6 8.5h8.5v17H6z"></path>
+              <path d="M9 6h8.5v17H9"></path>
+              <path d="M17.5 10h8.5v15h-8.5z"></path>
+              <path d="M12 11.5h.01"></path>
+              <path d="M20.5 13.5h.01"></path>
+            </svg>
+          </div>
           <span class="eyebrow">Quick Access</span>
           <h2>Kiwix Full Library</h2>
           <p>Browse the offline reference collection for medicine, survival, education, and general knowledge.</p>

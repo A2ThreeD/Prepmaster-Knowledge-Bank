@@ -92,6 +92,7 @@ sudo ./scripts/download_kiwix_zims.sh
 - `Kolibri` now has install automation in the repo. `KA Lite` requires an explicit legacy override and currently records the request rather than forcing a risky unattended install on modern Raspberry Pi OS.
 - Wireless AP mode can be enabled through `config/prepmaster.env` and applied by the installer or `scripts/configure_access_point.sh`.
 - The installer now provisions `kiwix-serve`, the portal API, and an Nginx site so `/`, `/maps`, `/admin`, and `/api` are served on the main site, while `/kiwix` redirects the browser to the dedicated Kiwix port.
+- The current dashboard typography is intentionally using an HP-terminal-inspired fallback stack rather than a bundled webfont. The main display stack is `"OCR A Std", "OCR A Extended", "Aldrich", "Michroma", "Eurostile", "Bank Gothic", "Rajdhani", "Cascadia Mono", "Consolas", monospace`, and the body stack is `"OCR A Std", "OCR A Extended", "Aldrich", "Michroma", "Cascadia Mono", "Consolas", monospace`.
 
 ## Validation
 
