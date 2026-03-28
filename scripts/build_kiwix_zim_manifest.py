@@ -20,7 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--source",
         default="catalog/kiwix-categories.json",
-        help="Path to the Project NOMAD categories JSON file.",
+        help="Path to the SOPR categories JSON file.",
     )
     parser.add_argument(
         "--output",

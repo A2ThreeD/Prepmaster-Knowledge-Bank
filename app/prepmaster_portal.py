@@ -256,6 +256,73 @@ class PortalState:
             "options": normalized,
         }
 
+    def kiwix_catalog(self) -> dict:
+        return read_json(
+            self.repo_root / "catalog" / "kiwix-categories.json",
+            {"categories": []},
+        )
+
+    def profile_library_size_mb(self, profile: str) -> int:
+        level_order = {
+            "essential": 1,
+            "standard": 2,
+            "comprehensive": 3,
+        }
+        selected_level = level_order.get(profile, 1)
+        document = self.kiwix_catalog()
+        categories = document.get("collections") if "collections" in document else document.get("categories", [])
+        loadout_key = "loadouts" if "collections" in document else "tiers"
+        resource_key = "library_items" if "collections" in document else "resources"
+        seen_ids: set[str] = set()
+        total_mb = 0
+
+        for category in categories:
+            for tier in category.get(loadout_key, []):
+                tier_slug = str(tier.get("key") if loadout_key == "loadouts" else tier.get("slug", ""))
+                level = 0
+                for label, value in level_order.items():
+                    if tier_slug.endswith(f"-{label}"):
+                        level = value
+                        break
+                if level == 0 or level > selected_level:
+                    continue
+
+                for resource in tier.get(resource_key, []):
+                    resource_id = str(resource.get("key") if resource_key == "library_items" else resource.get("id", "")).strip()
+                    if not resource_id or resource_id in seen_ids:
+                        continue
+                    seen_ids.add(resource_id)
+                    size_value = resource.get("footprint_mb") if resource_key == "library_items" else resource.get("size_mb")
+                    try:
+                        total_mb += int(size_value or 0)
+                    except (TypeError, ValueError):
+                        continue
+
+        return total_mb
+
+    def setup_storage_summary(self) -> dict:
+        total, used, free = shutil.disk_usage("/")
+        env = read_env_file(self.prepmaster_env)
+        profile = env.get("PREPMASTER_ZIM_PROFILE", "essential").strip().lower() or "essential"
+        if profile not in {"essential", "standard", "comprehensive"}:
+            profile = "essential"
+        kolibri_installed = Path("/usr/bin/kolibri").exists()
+        return {
+            "disk": {
+                "total_bytes": total,
+                "used_bytes": used,
+                "free_bytes": free,
+                "total_gb": round(total / (1024 ** 3), 1),
+                "used_gb": round(used / (1024 ** 3), 1),
+                "free_gb": round(free / (1024 ** 3), 1),
+            },
+            "base_library_mb": self.profile_library_size_mb(profile),
+            "zim_profile": profile,
+            "kolibri_estimated_mb": 1500,
+            "kolibri_installed": kolibri_installed,
+            "warning_free_percent": 10,
+        }
+
     def load_state(self) -> dict:
         prepmaster = read_env_file(self.prepmaster_env)
         profile = read_env_file(self.install_profile_env)
@@ -288,6 +355,7 @@ class PortalState:
                 "zim_profile": prepmaster.get("PREPMASTER_ZIM_PROFILE", "essential"),
                 "custom_zim_count": len(custom_selection.get("selected_items", [])),
             },
+            "storage": self.setup_storage_summary(),
         }
 
     def maps_env(self) -> dict[str, str]:
@@ -322,7 +390,7 @@ class PortalState:
 
     def maps_root(self) -> Path:
         env = self.maps_env()
-        return Path(env.get("PREPMASTER_MAP_PMTILES_ROOT", "/srv/prepmaster/maps/pmtiles"))
+        return Path(env.get("PREPMASTER_MAP_PMTILES_ROOT", "/maps"))
 
     def maps_web_root(self) -> Path:
         env = self.maps_env()

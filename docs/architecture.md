@@ -43,6 +43,9 @@ Likely implementation options:
 - Top-level quick links: `/kiwix`, `/maps`, `/admin`
 - A separate system status section at the bottom for disk usage, temperature, and future battery state
 - The settings/admin area should include AP configuration and enablement controls
+- The UI should favor plain language for non-technical users and avoid internal terms where a simpler label will work
+- Each screen should present one clear decision at a time with one obvious next action
+- Technical detail belongs in secondary views, status panels, or documentation rather than the main setup flow
 
 ### 5. Local Portal API
 

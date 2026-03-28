@@ -17,6 +17,7 @@
 - Button for the offline maps in the relative path /maps
 - A vile named index.html.framework which is a backup of the design language that should be used in the project.
 - Modify the admin pages to have similar color schemes as the main page for uniformity.
+- Scrollbars inside panels or boxes should be white on a dark track as a consistent SOPR design element.
 
 - The following HTML gives the basic framework/style of the site:
     :root {

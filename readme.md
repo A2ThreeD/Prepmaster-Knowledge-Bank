@@ -93,6 +93,7 @@ sudo ./scripts/download_kiwix_zims.sh
 - Wireless AP mode can be enabled through `config/prepmaster.env` and applied by the installer or `scripts/configure_access_point.sh`.
 - The installer now provisions `kiwix-serve`, the portal API, and an Nginx site so `/`, `/maps`, `/admin`, and `/api` are served on the main site, while `/kiwix` redirects the browser to the dedicated Kiwix port.
 - The current UI typography now self-hosts `Michroma` from `web/fonts/Michroma-Regular.ttf` under the SIL Open Font License. The main display stack is `"Michroma Local", "Michroma", "OCR A Std", "OCR A Extended", "Aldrich", "Eurostile", "Bank Gothic", "Rajdhani", "Cascadia Mono", "Consolas", monospace`, and the body stack is `"Michroma Local", "Michroma", "OCR A Std", "OCR A Extended", "Aldrich", "Cascadia Mono", "Consolas", monospace`.
+- Scrollable panels use white scrollbars on a dark track as a shared SOPR design rule. New scrollable boxes should keep that treatment for consistency.
 
 ## Validation
 
