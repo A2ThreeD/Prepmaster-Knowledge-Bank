@@ -444,6 +444,7 @@ class PortalState:
             "zim_profile": profile,
             "kolibri_estimated_mb": 1500,
             "kolibri_installed": kolibri_installed,
+            "kolibri_url": f"http://{self.detect_primary_host()}:{env.get('PREPMASTER_KOLIBRI_PORT', '8082')}/",
             "missing_by_map_collection": missing_by_map_collection,
             "missing_all_maps_mb": round(missing_all_map_bytes / (1024 * 1024)),
             "warning_free_percent": 10,

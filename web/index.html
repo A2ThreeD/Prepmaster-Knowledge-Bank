@@ -1388,7 +1388,7 @@
         kolibriLink.classList.remove("disabled");
         kolibriLink.removeAttribute("aria-disabled");
         kolibriLink.textContent = "Open Kolibri";
-        kolibriLink.href = `${window.location.protocol}//${window.location.hostname}:8080`;
+        kolibriLink.href = state?.storage?.kolibri_url || `${window.location.protocol}//${window.location.hostname}:8082`;
         kolibriLink.title = "Open Kolibri";
         return;
       }
