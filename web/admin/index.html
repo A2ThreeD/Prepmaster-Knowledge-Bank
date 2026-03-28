@@ -1049,7 +1049,7 @@
         ap.enabled ? "Disable / Stop Access Point" : "Enable / Start Access Point";
       document.getElementById("ap-action-status").textContent = note || (
         ap.running
-          ? `Access point ${ap.ssid || "PrepmasterHub"} is active on ${ap.interface || "wlan0"}.`
+          ? `Access point ${ap.ssid || "SOPRHub"} is active on ${ap.interface || "wlan0"}.`
           : (ap.enabled
             ? "Access point is configured but not currently fully active."
             : "Access point is disabled.")

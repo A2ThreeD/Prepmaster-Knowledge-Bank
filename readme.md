@@ -9,13 +9,13 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - Directory layout for content and site assets
 - Custom web, admin, and offline PMTiles maps scaffold
 - Kiwix ZIM downloads into `/library/zims/content`
-- ZIM selection generated from Project NOMAD's `kiwix-categories.json`
+- ZIM selection generated from `catalog/kiwix-categories.json`
 
 ## Current Repository Layout
 
 - `instructions.md` - original project requirements
 - `scripts/bootstrap_pi.sh` - prepares a clean Raspberry Pi OS Lite system
-- `scripts/install_prepmaster.sh` - top-level installer for the project
+- `scripts/install_prepmaster.sh` - top-level installer for SOPR
 - `scripts/build_kiwix_zim_manifest.py` - generates the ZIM manifest from Project NOMAD categories
 - `scripts/download_kiwix_zims.sh` - curated Kiwix ZIM downloader
 - `scripts/select_install_profile.sh` - records first-start install choices for optional education add-ons
@@ -28,11 +28,11 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `scripts/rebuild_kiwix_library.sh` - rebuilds the Kiwix `library.xml` from downloaded ZIM files
 - `scripts/run_kiwix_service.sh` - runtime wrapper that starts Kiwix or a placeholder page when the library is empty
 - `scripts/install_nginx_site.sh` - installs the Nginx site that serves `/`, `/kiwix`, `/maps`, `/admin`, and `/api`
-- `app/prepmaster_portal.py` - lightweight API for persisted setup state and Raspberry Pi status
+- `app/prepmaster_portal.py` - lightweight API for persisted SOPR setup state and Raspberry Pi status
 - `config/prepmaster.env.example` - template for editable install settings
 - `config/install-profile.env.example` - template for first-start install profile defaults
 - `config/kiwix-zim-urls.quick-test.txt` - tiny starter manifest for fast Kiwix validation
-- `wikipedia.json` - selectable Wikipedia ZIM options for the configuration flow
+- `catalog/wikipedia.json` - selectable Wikipedia ZIM options for the configuration flow
 - `docs/architecture.md` - stack and design notes
 - `docs/release-checklist.md` - step-by-step validation list for fresh Pi installs and release testing
 - `docs/software-plan.md` - software checklist for the Pi
@@ -77,9 +77,9 @@ sudo ./scripts/download_kiwix_zims.sh
 ## Notes
 
 - The installer now assumes a custom stack with no IIAB dependency.
-- `kiwix-categories.json` from Project NOMAD is now the source of truth for curated ZIM selection.
-- The generated manifest in `config/kiwix-zim-urls.txt` is built from that JSON using `PREPMASTER_ZIM_PROFILE`.
-- The selected Wikipedia variant is controlled by `PREPMASTER_WIKIPEDIA_OPTION` and sourced from `wikipedia.json`.
+- `catalog/kiwix-categories.json` is the source of truth for curated ZIM selection.
+- The generated manifest in `config/kiwix-zim-urls.txt` is built from that catalog JSON using `PREPMASTER_ZIM_PROFILE`.
+- The selected Wikipedia variant is controlled by `PREPMASTER_WIKIPEDIA_OPTION` and sourced from `catalog/wikipedia.json`.
 - Supported profiles are `essential`, `standard`, and `comprehensive`.
 - Set `PREPMASTER_ZIM_MODE=quick-test` if you want a small validation download before pulling the full content set.
 - The main page is now intended to be a first-start configuration screen with base install selected by default.
@@ -96,4 +96,4 @@ sudo ./scripts/download_kiwix_zims.sh
 
 ## Validation
 
-Use [docs/release-checklist.md](/Volumes/External/Projects/Prepmaster%20Knowledge%20Bank/docs/release-checklist.md) when validating a fresh Pi install or preparing a new release.
+Use [docs/release-checklist.md](/home/prepper/prepmaster/docs/release-checklist.md) when validating a fresh SOPR install or preparing a new release.

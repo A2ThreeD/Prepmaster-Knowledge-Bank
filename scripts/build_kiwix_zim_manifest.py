@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--source",
-        default="kiwix-categories.json",
+        default="catalog/kiwix-categories.json",
         help="Path to the Project NOMAD categories JSON file.",
     )
     parser.add_argument(
@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--wikipedia-options",
-        default="wikipedia.json",
+        default="catalog/wikipedia.json",
         help="Path to the Wikipedia options JSON file.",
     )
     parser.add_argument(
@@ -74,14 +74,18 @@ def collect_resources(document: dict, profile: str, categories: set[str] | None)
     resources: list[dict] = []
     seen_ids: set[str] = set()
 
-    for category in document.get("categories", []):
-        category_slug = category.get("slug")
+    collection_key = "collections" if "collections" in document else "categories"
+    loadout_key = "loadouts" if collection_key == "collections" else "tiers"
+    resource_key = "library_items" if collection_key == "collections" else "resources"
+
+    for category in document.get(collection_key, []):
+        category_slug = category.get("key") if collection_key == "collections" else category.get("slug")
         if categories and category_slug not in categories:
             continue
 
-        for tier in category.get("tiers", []):
+        for tier in category.get(loadout_key, []):
             try:
-                level = tier_level(tier["slug"])
+                level = tier_level(tier["key"] if loadout_key == "loadouts" else tier["slug"])
             except (KeyError, ValueError) as exc:
                 print(str(exc), file=sys.stderr)
                 sys.exit(1)
@@ -89,9 +93,9 @@ def collect_resources(document: dict, profile: str, categories: set[str] | None)
             if level > selected_level:
                 continue
 
-            for resource in tier.get("resources", []):
-                resource_id = resource.get("id")
-                url = resource.get("url")
+            for resource in tier.get(resource_key, []):
+                resource_id = resource.get("key") if resource_key == "library_items" else resource.get("id")
+                url = resource.get("download_url") if resource_key == "library_items" else resource.get("url")
                 if not resource_id or not url:
                     continue
                 if resource_id in seen_ids:
@@ -100,11 +104,27 @@ def collect_resources(document: dict, profile: str, categories: set[str] | None)
                 seen_ids.add(resource_id)
                 resources.append(
                     {
-                        "category": category.get("name", category_slug),
-                        "tier": tier.get("name", tier.get("slug", "unknown")),
-                        "title": resource.get("title", resource_id),
+                        "category": (
+                            category.get("label", category_slug)
+                            if collection_key == "collections"
+                            else category.get("name", category_slug)
+                        ),
+                        "tier": (
+                            tier.get("label", tier.get("key", "unknown"))
+                            if loadout_key == "loadouts"
+                            else tier.get("name", tier.get("slug", "unknown"))
+                        ),
+                        "title": (
+                            resource.get("label", resource_id)
+                            if resource_key == "library_items"
+                            else resource.get("title", resource_id)
+                        ),
                         "url": url,
-                        "size_mb": resource.get("size_mb"),
+                        "size_mb": (
+                            resource.get("footprint_mb")
+                            if resource_key == "library_items"
+                            else resource.get("size_mb")
+                        ),
                     }
                 )
 
@@ -115,13 +135,14 @@ def collect_wikipedia_resource(document: dict, choice: str) -> dict | None:
     if choice == "none":
         return None
 
-    for option in document.get("options", []):
+    option_key = "library_choices" if "library_choices" in document else "options"
+    for option in document.get(option_key, []):
         if option.get("id") == choice:
             return {
                 "category": "Wikipedia",
                 "tier": "Selected Option",
-                "title": option.get("name", choice),
-                "url": option.get("url"),
+                "title": option.get("name", option.get("label", choice)),
+                "url": option.get("url", option.get("download_url")),
                 "size_mb": option.get("size_mb"),
             }
 

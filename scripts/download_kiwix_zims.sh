@@ -48,10 +48,10 @@ elif [[ "$ZIM_MODE" == "custom" ]]; then
 else
   echo "Building Kiwix ZIM manifest from kiwix-categories.json..."
   python3 "$REPO_ROOT/scripts/build_kiwix_zim_manifest.py" \
-    --source "$REPO_ROOT/kiwix-categories.json" \
+    --source "$REPO_ROOT/catalog/kiwix-categories.json" \
     --output "$URL_FILE" \
     --profile "$PROFILE" \
-    --wikipedia-options "$REPO_ROOT/wikipedia.json" \
+    --wikipedia-options "$REPO_ROOT/catalog/wikipedia.json" \
     --wikipedia-choice "$WIKIPEDIA_OPTION"
 fi
 

@@ -1017,7 +1017,7 @@
       wikipediaOptionsContainer.textContent = "";
 
       if (!wikipediaOptions.length) {
-        wikipediaNote.textContent = "Wikipedia options are unavailable right now. Check wikipedia.json or the portal API response.";
+        wikipediaNote.textContent = "Wikipedia options are unavailable right now. Check catalog/wikipedia.json or the portal API response.";
         return;
       }
 
@@ -1318,7 +1318,7 @@
         renderSetupSummary();
         renderMode({ setup_complete: false });
         updateWizardStep();
-        showMessage("Portal API is not reachable yet. Run sudo ./scripts/install_prepmaster.sh on the Pi to install the local portal service.", true);
+        showMessage("Portal API is not reachable yet. Run sudo ./scripts/install_prepmaster.sh on the Pi to install the local SOPR portal service.", true);
       }
     }
 

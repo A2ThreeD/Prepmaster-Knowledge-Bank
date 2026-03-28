@@ -29,7 +29,7 @@ install -m 0644 "$REPO_ROOT/web/kiwix-placeholder/index.html" "$PREPMASTER_WEB_R
 
 cat > /etc/systemd/system/prepmaster-kiwix.service <<EOF
 [Unit]
-Description=Prepmaster Kiwix Serve
+Description=SOPR Kiwix Service
 After=network.target
 
 [Service]

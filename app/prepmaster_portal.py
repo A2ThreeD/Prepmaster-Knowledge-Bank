@@ -16,7 +16,7 @@ from urllib import error, parse, request
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Prepmaster portal API service.")
+    parser = argparse.ArgumentParser(description="SOPR portal API service.")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8081)
     parser.add_argument("--repo-root", required=True)
@@ -229,7 +229,7 @@ class PortalState:
 
     def wikipedia_catalog(self) -> dict:
         catalog = read_json(
-            self.repo_root / "wikipedia.json",
+            self.repo_root / "catalog" / "wikipedia.json",
             {"spec_version": None, "options": []},
         )
         options = catalog.get("options")
@@ -455,13 +455,13 @@ class PortalState:
             "python3",
             str(self.repo_root / "scripts" / "build_kiwix_zim_manifest.py"),
             "--source",
-            str(self.repo_root / "kiwix-categories.json"),
+            str(self.repo_root / "catalog" / "kiwix-categories.json"),
             "--output",
             str(output_path),
             "--profile",
             profile,
             "--wikipedia-options",
-            str(self.repo_root / "wikipedia.json"),
+            str(self.repo_root / "catalog" / "wikipedia.json"),
             "--wikipedia-choice",
             self.maps_env().get("PREPMASTER_WIKIPEDIA_OPTION", "top-mini"),
         ]
@@ -1317,7 +1317,7 @@ class PortalState:
         return {
             "enabled": configured_enabled,
             "interface": env.get("PREPMASTER_AP_INTERFACE", "wlan0"),
-            "ssid": env.get("PREPMASTER_AP_SSID", "PrepmasterHub"),
+            "ssid": env.get("PREPMASTER_AP_SSID", "SOPRHub"),
             "passphrase": env.get("PREPMASTER_AP_PASSPHRASE", ""),
             "country": env.get("PREPMASTER_AP_COUNTRY", "US"),
             "channel": env.get("PREPMASTER_AP_CHANNEL", "6"),
@@ -2108,7 +2108,7 @@ def main() -> None:
     handler = PortalHandler
     handler.portal_state = PortalState(Path(args.repo_root), Path(args.data_dir))
     server = ThreadingHTTPServer((args.host, args.port), handler)
-    print(f"Prepmaster portal API listening on {args.host}:{args.port}", flush=True)
+    print(f"SOPR portal API listening on {args.host}:{args.port}", flush=True)
     server.serve_forever()
 
 

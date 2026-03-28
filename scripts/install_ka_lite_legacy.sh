@@ -30,7 +30,7 @@ echo "Recommended path: use Kolibri unless you specifically need KA Lite compati
 
 install -d -m 0755 /opt/prepmaster/legacy
 cat > /opt/prepmaster/legacy/ka-lite-requested.txt <<'EOF'
-KA Lite was requested for this Prepmaster deployment.
+KA Lite was requested for this SOPR deployment.
 The install was intentionally not automated because KA Lite is no longer actively developed
 and its supported Linux installation path depends on legacy tooling that is not reliable on
 current Raspberry Pi OS releases.

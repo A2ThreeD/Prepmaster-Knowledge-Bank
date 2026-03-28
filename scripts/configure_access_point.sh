@@ -85,7 +85,7 @@ EOF
 
 cat > /etc/systemd/system/prepmaster-ap-network.service <<EOF
 [Unit]
-Description=Configure Prepmaster AP network interface
+Description=Configure SOPR AP network interface
 Before=hostapd.service dnsmasq.service
 Wants=network-pre.target
 After=network-pre.target

@@ -24,7 +24,7 @@ install -m 0755 "$REPO_ROOT/app/prepmaster_portal.py" "$PREPMASTER_ROOT/app/prep
 
 cat > /etc/systemd/system/prepmaster-portal.service <<EOF
 [Unit]
-Description=Prepmaster portal API
+Description=SOPR portal API
 After=network.target
 
 [Service]
@@ -41,4 +41,4 @@ systemctl daemon-reload
 systemctl enable prepmaster-portal.service
 systemctl restart prepmaster-portal.service || systemctl start prepmaster-portal.service
 
-echo "Prepmaster portal API installed on port $ADMIN_PORT"
+echo "SOPR portal API installed on port $ADMIN_PORT"
