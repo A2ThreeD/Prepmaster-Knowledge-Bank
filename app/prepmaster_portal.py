@@ -12,6 +12,7 @@ import time
 from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlparse
 from urllib import error, parse, request
 
 
@@ -300,6 +301,86 @@ class PortalState:
 
         return total_mb
 
+    def curated_resources(
+        self,
+        profile: str,
+        wikipedia_choice: str,
+    ) -> list[dict[str, object]]:
+        level_order = {
+            "essential": 1,
+            "standard": 2,
+            "comprehensive": 3,
+        }
+        selected_level = level_order.get(profile, 1)
+        document = self.kiwix_catalog()
+        categories = document.get("collections") if "collections" in document else document.get("categories", [])
+        loadout_key = "loadouts" if "collections" in document else "tiers"
+        resource_key = "library_items" if "collections" in document else "resources"
+        resources: list[dict[str, object]] = []
+        seen_ids: set[str] = set()
+
+        for category in categories:
+            for tier in category.get(loadout_key, []):
+                tier_slug = str(tier.get("key") if loadout_key == "loadouts" else tier.get("slug", ""))
+                level = 0
+                for label, value in level_order.items():
+                    if tier_slug.endswith(f"-{label}"):
+                        level = value
+                        break
+                if level == 0 or level > selected_level:
+                    continue
+
+                for resource in tier.get(resource_key, []):
+                    resource_id = str(resource.get("key") if resource_key == "library_items" else resource.get("id", "")).strip()
+                    resource_url = str(resource.get("download_url") if resource_key == "library_items" else resource.get("url", "")).strip()
+                    if not resource_id or not resource_url or resource_id in seen_ids:
+                        continue
+                    seen_ids.add(resource_id)
+                    size_value = resource.get("footprint_mb") if resource_key == "library_items" else resource.get("size_mb")
+                    try:
+                        size_mb = int(size_value or 0)
+                    except (TypeError, ValueError):
+                        size_mb = 0
+                    resources.append(
+                        {
+                            "id": resource_id,
+                            "url": resource_url,
+                            "filename": Path(urlparse(resource_url).path).name,
+                            "size_mb": size_mb,
+                        }
+                    )
+
+        for option in self.wikipedia_catalog().get("options", []):
+            if str(option.get("id", "")).strip() != wikipedia_choice:
+                continue
+            option_url = str(option.get("url", "")).strip()
+            if option_url:
+                resources.append(
+                    {
+                        "id": str(option.get("id", "")).strip(),
+                        "url": option_url,
+                        "filename": Path(urlparse(option_url).path).name,
+                        "size_mb": int(option.get("size_mb", 0) or 0),
+                    }
+                )
+            break
+
+        return resources
+
+    def missing_curated_size_mb(self, profile: str, wikipedia_choice: str) -> int:
+        installed_names = {
+            str(item.get("name", "")).strip()
+            for item in self.list_installed_zims()
+            if str(item.get("name", "")).strip()
+        }
+        total_mb = 0
+        for resource in self.curated_resources(profile, wikipedia_choice):
+            filename = str(resource.get("filename", "")).strip()
+            if filename and filename in installed_names:
+                continue
+            total_mb += int(resource.get("size_mb", 0) or 0)
+        return total_mb
+
     def setup_storage_summary(self) -> dict:
         total, used, free = shutil.disk_usage("/")
         env = read_env_file(self.prepmaster_env)
@@ -317,6 +398,14 @@ class PortalState:
                 "free_gb": round(free / (1024 ** 3), 1),
             },
             "base_library_mb": self.profile_library_size_mb(profile),
+            "missing_by_wikipedia": {
+                str(option.get("id", "")).strip(): self.missing_curated_size_mb(
+                    profile,
+                    str(option.get("id", "")).strip(),
+                )
+                for option in self.wikipedia_catalog().get("options", [])
+                if str(option.get("id", "")).strip()
+            },
             "zim_profile": profile,
             "kolibri_estimated_mb": 1500,
             "kolibri_installed": kolibri_installed,
@@ -1281,7 +1370,6 @@ class PortalState:
         install_ka_lite = bool(payload.get("install_ka_lite", False))
         ap_enabled = bool(payload.get("ap_enabled", False))
         setup_complete = bool(payload.get("setup_complete", True))
-
         update_env_file(
             self.install_profile_env,
             {

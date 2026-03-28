@@ -232,8 +232,8 @@
       align-items: center;
       gap: 12px;
       width: 100%;
-      min-height: 76px;
-      padding: 14px 16px;
+      min-height: 66px;
+      padding: 11px 14px;
       border: 1px solid #dcecff;
       background:
         linear-gradient(180deg, rgba(95, 124, 166, 0.98), rgba(40, 61, 91, 0.98));
@@ -328,19 +328,19 @@
 
     .step-meta strong {
       font-family: var(--ui-display);
-      font-size: 0.88rem;
+      font-size: 0.8rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
     .step-meta span {
-      margin-top: 4px;
+      margin-top: 2px;
       color: var(--muted);
-      font-size: 0.84rem;
+      font-size: 0.76rem;
     }
 
     .wizard-body {
-      padding: 24px;
+      padding: 20px;
     }
 
     .step-panel {
@@ -365,17 +365,18 @@
 
     .panel-head {
       max-width: 780px;
-      margin-bottom: 22px;
+      margin-bottom: 16px;
     }
 
     .panel-head h2 {
-      font-size: clamp(1.2rem, 2vw, 1.6rem);
-      margin-bottom: 10px;
+      font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+      margin-bottom: 8px;
     }
 
     .panel-head p {
       margin: 0;
       color: var(--muted);
+      font-size: 0.92rem;
     }
 
     .options-grid {
@@ -391,8 +392,8 @@
     .option-card {
       position: relative;
       width: 100%;
-      min-height: 236px;
-      padding: 22px 22px 20px;
+      min-height: 188px;
+      padding: 16px 16px 14px;
       border: 1px solid #dcecff;
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
@@ -450,46 +451,70 @@
         inset -1px -1px 0 rgba(0, 0, 0, 0.38);
     }
 
+    .option-card.storage-danger {
+      border-color: rgba(255, 146, 146, 0.98);
+      border-top-color: rgba(255, 232, 232, 0.98);
+      border-left-color: rgba(255, 214, 214, 0.98);
+      border-right-color: rgba(92, 24, 24, 0.98);
+      border-bottom-color: rgba(58, 10, 10, 0.98);
+      background:
+        linear-gradient(180deg, rgba(255, 174, 174, 0.08), rgba(255, 255, 255, 0.015)),
+        linear-gradient(135deg, rgba(84, 30, 30, 0.94), rgba(38, 10, 10, 0.98));
+      box-shadow:
+        0 20px 48px rgba(32, 0, 0, 0.34),
+        inset 1px 1px 0 rgba(255, 228, 228, 0.24),
+        inset -1px -1px 0 rgba(0, 0, 0, 0.42);
+    }
+
+    .option-card.storage-danger .option-badge,
+    .option-card.storage-danger .meta-line {
+      color: #ffd1d1;
+    }
+
+    .option-card.storage-danger .option-indicator {
+      border-color: rgba(255, 208, 208, 0.88);
+    }
+
     .option-card.locked {
       cursor: default;
     }
 
     .option-card.network-card {
-      min-height: 210px;
+      min-height: 172px;
     }
 
     .option-top {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 14px;
-      margin-bottom: 14px;
+      gap: 10px;
+      margin-bottom: 10px;
     }
 
     .option-badge {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 104px;
-      padding: 7px 10px;
+      min-width: 92px;
+      padding: 5px 8px;
       border: 1px solid rgba(255, 255, 255, 0.46);
       color: var(--accent-strong);
-      font-size: 0.76rem;
+      font-size: 0.68rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       background: rgba(255, 255, 255, 0.04);
     }
 
     .option-indicator {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       border: 1px solid rgba(255, 255, 255, 0.78);
       display: grid;
       place-items: center;
       color: transparent;
       background: rgba(255, 255, 255, 0.04);
       flex: 0 0 auto;
-      font-size: 0.95rem;
+      font-size: 0.8rem;
     }
 
     .option-card.selected .option-indicator {
@@ -498,9 +523,9 @@
     }
 
     .option-card h3 {
-      font-size: 1.14rem;
+      font-size: 0.98rem;
       line-height: 1.18;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
 
     .option-card p,
@@ -512,38 +537,40 @@
 
     .option-card p {
       margin: 0;
+      font-size: 0.88rem;
     }
 
     .option-card ul {
-      margin: 16px 0 0;
+      margin: 10px 0 0;
       padding: 0;
       list-style: none;
+      font-size: 0.84rem;
     }
 
     .option-card li + li {
-      margin-top: 6px;
+      margin-top: 4px;
     }
 
     .meta-line {
-      margin-top: 16px;
+      margin-top: 10px;
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       color: var(--accent-strong);
-      font-size: 0.82rem;
+      font-size: 0.74rem;
       text-transform: uppercase;
       letter-spacing: 0.07em;
     }
 
     .small-note {
-      margin-top: 18px;
+      margin-top: 12px;
       color: var(--muted);
-      font-size: 0.92rem;
+      font-size: 0.84rem;
     }
 
     .storage-panel {
-      margin: 18px 0 22px;
-      padding: 16px 18px;
+      margin: 14px 0 18px;
+      padding: 12px 14px;
       border: 1px solid var(--border);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)),
@@ -552,20 +579,20 @@
     }
 
     .storage-panel h3 {
-      margin: 0 0 8px;
-      font-size: 1rem;
+      margin: 0 0 6px;
+      font-size: 0.95rem;
     }
 
     .storage-summary {
-      margin: 0 0 12px;
+      margin: 0 0 8px;
       color: var(--muted);
-      font-size: 0.92rem;
+      font-size: 0.84rem;
     }
 
     .storage-bar {
       display: flex;
       width: 100%;
-      min-height: 20px;
+      min-height: 14px;
       border: 1px solid rgba(255, 255, 255, 0.5);
       background: rgba(5, 11, 21, 0.92);
       overflow: hidden;
@@ -590,15 +617,15 @@
     .storage-legend {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 12px;
+      gap: 8px;
+      margin-top: 8px;
     }
 
     .storage-chip {
       border: 1px solid rgba(255, 255, 255, 0.3);
       background: rgba(7, 15, 27, 0.6);
-      padding: 10px 12px;
-      font-size: 0.84rem;
+      padding: 8px 10px;
+      font-size: 0.8rem;
     }
 
     .storage-chip strong,
@@ -607,20 +634,37 @@
     }
 
     .storage-chip strong {
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       font-family: var(--ui-display);
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       letter-spacing: 0.07em;
       text-transform: uppercase;
     }
 
+    .storage-value {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .storage-value::before {
+      content: "";
+      width: 13px;
+      height: 13px;
+      flex: 0 0 auto;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: contain;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23c8ddff' stroke-width='1.2' stroke-linecap='square' stroke-linejoin='miter'%3E%3Cpath d='M2.5 2.5h8.5l2.5 2.5v8.5h-11z'/%3E%3Cpath d='M4.5 2.5v4h6v-4'/%3E%3Cpath d='M5 11h6'/%3E%3Cpath d='M5.5 13h5'/%3E%3C/svg%3E");
+    }
+
     .storage-warning {
-      margin-top: 12px;
-      padding: 10px 12px;
+      margin-top: 8px;
+      padding: 8px 10px;
       border: 1px solid rgba(255, 255, 255, 0.32);
       background: rgba(16, 28, 45, 0.72);
       color: var(--accent-strong);
-      font-size: 0.9rem;
+      font-size: 0.82rem;
     }
 
     .storage-warning.warn {
@@ -679,6 +723,23 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
+    }
+
+    .status-line.running::after {
+      content: "_";
+      display: inline-block;
+      margin-left: 6px;
+      color: var(--accent-strong);
+      animation: status-cursor-blink 1s steps(1, end) infinite;
+    }
+
+    @keyframes status-cursor-blink {
+      0%, 49% {
+        opacity: 1;
+      }
+      50%, 100% {
+        opacity: 0;
+      }
     }
 
     .status-line + .status-line {
@@ -948,15 +1009,15 @@
             <div class="storage-legend">
               <div class="storage-chip">
                 <strong>Used Now</strong>
-                <span id="storage-used-label">-</span>
+                <span class="storage-value" id="storage-used-label">-</span>
               </div>
               <div class="storage-chip">
                 <strong>Added By Setup</strong>
-                <span id="storage-added-label">-</span>
+                <span class="storage-value" id="storage-added-label">-</span>
               </div>
               <div class="storage-chip">
                 <strong>Free After Setup</strong>
-                <span id="storage-free-label">-</span>
+                <span class="storage-value" id="storage-free-label">-</span>
               </div>
             </div>
             <div class="storage-warning hidden" id="storage-warning"></div>
@@ -1093,6 +1154,7 @@
           <div class="actions">
             <button class="button ghost" id="prev-step-button" type="button">← Previous</button>
             <button class="button primary" id="next-step-button" type="button">Next</button>
+            <a class="button hidden" id="home-done-button" href="/">Go to Home</a>
             <button class="button success" id="apply-config-button" type="button">Complete Setup</button>
           </div>
         </section>
@@ -1178,6 +1240,7 @@
     const stepPanels = Array.from(document.querySelectorAll(".step-panel"));
     const prevStepButton = document.getElementById("prev-step-button");
     const nextStepButton = document.getElementById("next-step-button");
+    const homeDoneButton = document.getElementById("home-done-button");
     const footerNote = document.getElementById("wizard-footer-note");
     const applyConfigButton = document.getElementById("apply-config-button");
 
@@ -1205,6 +1268,9 @@
     let currentStep = 0;
     let applyPollHandle = null;
     let applyRunning = false;
+    let applyNeedsAttention = false;
+    let storageLimitExceeded = false;
+    let latestSetupComplete = false;
     let setupState = {
       installKolibri: false,
       wikipediaOption: "top-mini",
@@ -1267,11 +1333,23 @@
       wikipediaNote.textContent = "Pick the Wikipedia option that best matches your available storage space.";
 
       wikipediaOptions.forEach((option) => {
+        const freeBytes = Number(storageState?.disk?.free_bytes || 0);
+        const baseMb = Number(storageState?.missing_by_wikipedia?.[option.id] || 0);
+        const kolibriMb = setupState.installKolibri && !storageState?.kolibri_installed
+          ? Number(storageState?.kolibri_estimated_mb || 0)
+          : 0;
+        const projectedChoiceBytes = Math.round((baseMb + kolibriMb) * 1024 * 1024);
+        const exceedsFreeSpace = freeBytes > 0 && projectedChoiceBytes > freeBytes;
+
         const button = document.createElement("button");
         button.type = "button";
         button.className = "option-card";
         button.dataset.optionId = option.id;
         button.setAttribute("aria-pressed", option.id === setupState.wikipediaOption ? "true" : "false");
+        if (exceedsFreeSpace) {
+          button.classList.add("storage-danger");
+          button.title = "This choice is larger than the free space currently available.";
+        }
 
         const top = document.createElement("div");
         top.className = "option-top";
@@ -1369,8 +1447,15 @@
         : "Apply log will appear here once configuration runs.";
 
       const running = state.status === "running";
+      applyNeedsAttention = state.status === "failed";
       applyRunning = running;
       applyConfigButton.disabled = running;
+      applyStatusText.classList.toggle("running", running);
+
+      if (running) {
+        currentStep = totalSteps - 1;
+        updateWizardStep();
+      }
 
       if (running && applyPollHandle === null) {
         applyPollHandle = window.setInterval(refreshApplyState, 5000);
@@ -1388,7 +1473,9 @@
         storageUsedLabel.textContent = "-";
         storageAddedLabel.textContent = "-";
         storageFreeLabel.textContent = "-";
-        storageWarning.className = "storage-warning";
+        storageLimitExceeded = false;
+        storageWarning.className = "storage-warning warn";
+        storageWarning.classList.remove("hidden");
         storageWarning.textContent = "Unable to estimate storage usage.";
         return;
       }
@@ -1396,19 +1483,18 @@
       const disk = storageState.disk;
       const totalBytes = Number(disk.total_bytes || 0);
       const usedBytes = Number(disk.used_bytes || 0);
-      const freeBytes = Number(disk.free_bytes || 0);
       const selectedWikipedia = selectedWikipediaOption();
-      const wikipediaMb = Number(selectedWikipedia?.size_mb || 0);
-      const baseMb = Number(storageState.base_library_mb || 0);
+      const baseMb = Number(storageState.missing_by_wikipedia?.[selectedWikipedia?.id || ""] || 0);
       const kolibriMb = setupState.installKolibri && !storageState.kolibri_installed
         ? Number(storageState.kolibri_estimated_mb || 0)
         : 0;
-      const addedBytes = Math.round((baseMb + wikipediaMb + kolibriMb) * 1024 * 1024);
+      const addedBytes = Math.round((baseMb + kolibriMb) * 1024 * 1024);
       const projectedUsedBytes = usedBytes + addedBytes;
       const projectedFreeBytes = totalBytes - projectedUsedBytes;
       const projectedFreePercent = totalBytes > 0 ? (projectedFreeBytes / totalBytes) * 100 : 0;
       const exceedsDisk = projectedFreeBytes < 0;
       const nearFull = !exceedsDisk && projectedFreePercent <= Number(storageState.warning_free_percent || 10);
+      storageLimitExceeded = exceedsDisk;
 
       const usedPercent = totalBytes > 0 ? Math.max(0, Math.min(100, (usedBytes / totalBytes) * 100)) : 0;
       const addedPercent = totalBytes > 0 ? Math.max(0, Math.min(100 - usedPercent, (addedBytes / totalBytes) * 100)) : 0;
@@ -1423,24 +1509,24 @@
       storageFreeLabel.textContent = exceedsDisk ? "Not enough space" : formatBytes(projectedFreeBytes);
       storageSummary.textContent = `This setup is estimated to add ${formatBytes(addedBytes)} on top of the ${formatBytes(usedBytes)} already in use.`;
 
-      storageWarning.className = "storage-warning";
-      storageWarning.classList.remove("hidden", "warn", "danger");
+      storageWarning.className = "storage-warning hidden";
 
       if (exceedsDisk) {
         storageWarning.classList.add("danger");
+        storageWarning.classList.remove("hidden");
         storageWarning.textContent = "Not enough free space for this setup. Choose a smaller Wikipedia option or skip learning tools.";
       } else if (nearFull) {
         storageWarning.classList.add("warn");
+        storageWarning.classList.remove("hidden");
         storageWarning.textContent = "Warning: this setup would leave less than 10% free space on the device.";
-      } else {
-        storageWarning.textContent = "Storage looks okay for the current setup choices.";
       }
 
       applyConfigButton.disabled = Boolean(exceedsDisk || applyRunning);
     }
 
     function renderMode(state) {
-      const setupMode = forceSetup || !state.setup_complete;
+      latestSetupComplete = Boolean(state.setup_complete);
+      const setupMode = forceSetup || !state.setup_complete || applyRunning || applyNeedsAttention;
       setupView.classList.toggle("hidden", !setupMode);
       dashboardView.classList.toggle("hidden", setupMode);
       introText.classList.add("hidden");
@@ -1457,9 +1543,15 @@
         panel.classList.toggle("active", index === currentStep);
       });
 
-      prevStepButton.disabled = currentStep === 0;
-      nextStepButton.classList.toggle("hidden", currentStep === totalSteps - 1);
+      const lockNavigation = applyRunning;
+      prevStepButton.disabled = currentStep === 0 || lockNavigation;
+      nextStepButton.disabled = lockNavigation;
+      nextStepButton.classList.toggle("hidden", currentStep === totalSteps - 1 || lockNavigation);
       applyConfigButton.classList.toggle("hidden", currentStep !== totalSteps - 1);
+      homeDoneButton.classList.toggle("hidden", !(currentStep === totalSteps - 1 && latestSetupComplete && !lockNavigation));
+      stepButtons.forEach((button) => {
+        button.disabled = lockNavigation;
+      });
 
       const notes = [
         "Step 1 of 4. Start by choosing what to include on this device.",
@@ -1468,6 +1560,9 @@
         "Step 4 of 4. Review your choices and complete setup when ready."
       ];
       footerNote.textContent = notes[currentStep];
+      if (lockNavigation) {
+        footerNote.textContent = "Setup is running. Downloads and service changes will continue in the background until complete.";
+      }
     }
 
     function goToStep(stepIndex) {
@@ -1529,11 +1624,11 @@
         renderApplyState(payload);
         if (payload.status === "succeeded") {
           showMessage("Configuration applied successfully. The dashboard is ready.");
-          if (forceSetup) {
-            window.location.assign("/");
-          }
+          renderMode({ setup_complete: latestSetupComplete || true });
+          window.location.assign("/");
         } else if (payload.status === "failed") {
           showMessage(payload.error || "Configuration apply failed. Review the log excerpt below.", true);
+          renderMode({ setup_complete: latestSetupComplete });
         }
       } catch (error) {
         showMessage(error.message, true);
@@ -1542,6 +1637,10 @@
 
     async function applyConfiguration() {
       clearMessage();
+      if (storageLimitExceeded) {
+        window.alert("There is not enough free space for the current setup choices. Pick a smaller Wikipedia option or turn off learning tools before completing setup.");
+        return;
+      }
       applyConfigButton.disabled = true;
 
       try {
@@ -1591,8 +1690,8 @@
         renderWikipediaOptions();
         renderSetupSummary();
         renderDashboardProfile(state.profile);
-        renderMode(state);
         renderApplyState(applyState);
+        renderMode(state);
         renderStorageEstimate();
         updateWizardStep();
       } catch (error) {
@@ -1626,12 +1725,19 @@
 
     stepButtons.forEach((button) => {
       button.addEventListener("click", () => {
+        if (applyRunning) return;
         goToStep(Number(button.dataset.step || "0"));
       });
     });
 
-    prevStepButton.addEventListener("click", () => goToStep(currentStep - 1));
-    nextStepButton.addEventListener("click", () => goToStep(currentStep + 1));
+    prevStepButton.addEventListener("click", () => {
+      if (applyRunning) return;
+      goToStep(currentStep - 1);
+    });
+    nextStepButton.addEventListener("click", () => {
+      if (applyRunning) return;
+      goToStep(currentStep + 1);
+    });
     applyConfigButton.addEventListener("click", applyConfiguration);
 
     initialize();

@@ -296,6 +296,71 @@
       background: rgba(4, 10, 19, 0.32);
     }
 
+    .content-storage {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.32);
+    }
+
+    .content-storage-summary {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .content-storage-bar {
+      display: flex;
+      width: 100%;
+      min-height: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      background: rgba(5, 11, 21, 0.92);
+      overflow: hidden;
+    }
+
+    .content-storage-segment {
+      min-width: 0;
+    }
+
+    .content-storage-segment.other {
+      background: linear-gradient(180deg, rgba(121, 165, 222, 0.92), rgba(60, 95, 147, 0.98));
+    }
+
+    .content-storage-segment.content {
+      background: linear-gradient(180deg, rgba(154, 214, 179, 0.94), rgba(74, 143, 101, 0.98));
+    }
+
+    .content-storage-segment.free {
+      background: linear-gradient(180deg, rgba(24, 38, 59, 0.95), rgba(10, 17, 29, 0.98));
+    }
+
+    .content-storage-legend {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .content-storage-chip {
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(7, 15, 27, 0.58);
+      padding: 8px 10px;
+      font-size: 0.8rem;
+    }
+
+    .content-storage-chip strong,
+    .content-storage-chip span {
+      display: block;
+    }
+
+    .content-storage-chip strong {
+      margin-bottom: 2px;
+      font-family: var(--ui-display);
+      font-size: 0.72rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
     .progress-top {
       display: flex;
       align-items: center;
@@ -647,41 +712,39 @@
     <section class="panel-group" data-panel-group="content">
       <div class="grid">
         <section class="card">
-          <h2>Library Setup</h2>
-          <p class="muted">
-            Pick a simple curated preset, or switch to Custom when you want to start from a preset and add your own ZIM files.
-          </p>
-          <div class="field">
-            <label for="library-preset">Content Preset</label>
-            <select id="library-preset">
-              <option value="compact">Compact Library</option>
-              <option value="full">Full Library</option>
-              <option value="custom">Custom Library</option>
-              <option value="quick-test">Quick Test Library</option>
-            </select>
-          </div>
-          <div class="field" id="custom-base-field">
-            <label for="custom-base-preset">Custom Base</label>
-            <select id="custom-base-preset">
-              <option value="compact">Start from Compact</option>
-              <option value="full">Start from Full</option>
-              <option value="empty">Start Empty</option>
-            </select>
-          </div>
-          <div class="status-cluster" id="content-status" aria-live="polite"></div>
-          <p class="status" id="mode-status">Content preset: loading</p>
-          <p class="substatus" id="content-library-note">Loading content library state.</p>
-          <div class="actions">
-            <button class="button" id="save-content-settings-button" type="button">Save Library Setup</button>
-            <button class="button" id="refresh-content-button" type="button">Download Missing Content</button>
-          </div>
-          <p class="muted" id="content-library-root">Library root: loading</p>
-        </section>
-        <section class="card">
           <h2>Installed Content</h2>
           <p class="muted">
             Review what is already on the device, remove files you no longer want, and rebuild the Kiwix library from what is on disk.
           </p>
+          <div class="content-storage">
+            <p class="content-storage-summary" id="content-storage-summary">Checking disk usage.</p>
+            <div class="content-storage-bar" aria-hidden="true">
+              <div class="content-storage-segment other" id="content-storage-other"></div>
+              <div class="content-storage-segment content" id="content-storage-library"></div>
+              <div class="content-storage-segment free" id="content-storage-free"></div>
+            </div>
+            <div class="content-storage-legend">
+              <div class="content-storage-chip">
+                <strong>Other Used</strong>
+                <span id="content-storage-other-label">-</span>
+              </div>
+              <div class="content-storage-chip">
+                <strong>ZIM Library</strong>
+                <span id="content-storage-library-label">-</span>
+              </div>
+              <div class="content-storage-chip">
+                <strong>Free</strong>
+                <span id="content-storage-free-label">-</span>
+              </div>
+            </div>
+          </div>
+          <div class="status-cluster" id="content-status" aria-live="polite"></div>
+          <p class="status" id="mode-status">Content library: loading</p>
+          <p class="substatus" id="content-library-note">Loading content library state.</p>
+          <p class="muted" id="content-library-root">Library root: loading</p>
+          <div class="actions">
+            <button class="button" id="refresh-content-button" type="button">Download Missing Content</button>
+          </div>
           <div class="field">
             <label>Installed ZIM Files</label>
             <div id="content-local-list" class="log-panel muted">Checking local ZIM files...</div>
@@ -716,7 +779,7 @@
         <section class="card">
           <h2>Add More Content</h2>
           <p class="muted">
-            Use this browser only when Custom Library is active. Start from Compact, Full, or Empty, then add extra ZIM files from the online Kiwix catalog.
+            Browse the online Kiwix catalog here and add more ZIM files to this device whenever you want.
           </p>
           <p class="muted" id="zim-catalog-source">Catalog source: online check on demand</p>
           <div class="actions">
@@ -746,7 +809,7 @@
             <p class="substatus" id="zim-page-status">Page 1</p>
             <button class="button" id="zim-next-page-button" type="button">Next 50</button>
           </div>
-          <p class="substatus" id="zim-catalog-note">Custom Library lets you start from Compact, Full, or Empty, then add individual ZIM files.</p>
+          <p class="substatus" id="zim-catalog-note">Choose any ZIM files you want to add, then download them into the local library.</p>
         </section>
       </div>
     </section>
@@ -897,15 +960,13 @@
           : "No active download log.";
 
       const running = apply.status === "running";
-      const isCustomLibrary = currentContent && currentContent.library_preset === "custom";
-      document.getElementById("save-content-settings-button").disabled = running;
       document.getElementById("refresh-installed-zims-button").disabled = running;
       document.getElementById("remove-local-zims-button").disabled = running;
       document.getElementById("select-all-local-zims-button").disabled = running;
       document.getElementById("clear-local-zims-button").disabled = running;
       document.getElementById("refresh-content-button").disabled = running;
       document.getElementById("rebuild-library-button").disabled = running;
-      updateCustomLibraryVisibility(isCustomLibrary, running);
+      updateCustomLibraryVisibility(true, running);
 
       updatePolling();
     }
@@ -935,6 +996,56 @@
           <span class="status-chip-value">${escapeHtml(item.value)}</span>
         </span>`;
       }).join("");
+    }
+
+    function formatBytes(bytes) {
+      const value = Number(bytes || 0);
+      if (!Number.isFinite(value) || value <= 0) return "0 GB";
+      const gb = value / (1024 ** 3);
+      if (gb >= 10) return `${gb.toFixed(0)} GB`;
+      if (gb >= 1) return `${gb.toFixed(1)} GB`;
+      return `${(value / (1024 ** 2)).toFixed(0)} MB`;
+    }
+
+    function renderContentStorage(state, content) {
+      const summary = document.getElementById("content-storage-summary");
+      const other = document.getElementById("content-storage-other");
+      const library = document.getElementById("content-storage-library");
+      const free = document.getElementById("content-storage-free");
+      const otherLabel = document.getElementById("content-storage-other-label");
+      const libraryLabel = document.getElementById("content-storage-library-label");
+      const freeLabel = document.getElementById("content-storage-free-label");
+
+      const disk = state && state.storage && state.storage.disk;
+      if (!disk) {
+        summary.textContent = "Disk usage is unavailable right now.";
+        other.style.width = "0%";
+        library.style.width = "0%";
+        free.style.width = "100%";
+        otherLabel.textContent = "-";
+        libraryLabel.textContent = "-";
+        freeLabel.textContent = "-";
+        return;
+      }
+
+      const totalBytes = Number(disk.total_bytes || 0);
+      const usedBytes = Number(disk.used_bytes || 0);
+      const freeBytes = Number(disk.free_bytes || 0);
+      const libraryBytes = Number(content && content.installed_size_bytes || 0);
+      const otherUsedBytes = Math.max(0, usedBytes - libraryBytes);
+
+      const otherPercent = totalBytes > 0 ? Math.max(0, Math.min(100, (otherUsedBytes / totalBytes) * 100)) : 0;
+      const libraryPercent = totalBytes > 0 ? Math.max(0, Math.min(100 - otherPercent, (libraryBytes / totalBytes) * 100)) : 0;
+      const freePercent = Math.max(0, 100 - otherPercent - libraryPercent);
+
+      other.style.width = `${otherPercent}%`;
+      library.style.width = `${libraryPercent}%`;
+      free.style.width = `${freePercent}%`;
+
+      otherLabel.textContent = formatBytes(otherUsedBytes);
+      libraryLabel.textContent = formatBytes(libraryBytes);
+      freeLabel.textContent = formatBytes(freeBytes);
+      summary.textContent = `${content ? (content.installed_count || 0) : 0} ZIMs are installed and using ${formatBytes(libraryBytes)}.`;
     }
 
     async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 5000) {
@@ -1233,6 +1344,7 @@
         currentContent = contentResult.payload;
         const apply = applyResult.payload;
         renderContentState(currentContent);
+        renderContentStorage(currentState, currentContent);
         renderApplyState(apply);
         if (currentContentCatalog) {
           renderZimCatalog(currentContentCatalog);
@@ -1241,10 +1353,11 @@
           document.getElementById("zim-catalog-list").textContent = "Online catalog is idle. Click Check Online Catalog when you want to query Kiwix.";
         }
       } catch (error) {
-        document.getElementById("mode-status").textContent = "Content preset: unavailable";
+        document.getElementById("mode-status").textContent = "Content library: unavailable";
         document.getElementById("content-library-root").textContent = "Library root: unavailable";
         document.getElementById("content-local-list").textContent = "Unable to load local ZIM files.";
         document.getElementById("content-action-status").textContent = "Content actions: unavailable";
+        renderContentStorage(null, null);
       }
     }
 
@@ -1259,16 +1372,14 @@
 
     function renderContentState(content, note = "") {
       pendingCustomSelection = new Set(content.custom_selected_paths || []);
-      document.getElementById("library-preset").value = content.library_preset || "compact";
-      document.getElementById("custom-base-preset").value = content.custom_base_preset || "compact";
       document.getElementById("content-library-root").textContent = `Library root: ${content.library_root}`;
-      document.getElementById("mode-status").textContent = `Content preset: ${content.library_preset || "compact"}`;
+      document.getElementById("mode-status").textContent = `Content library: ${content.mode === "quick-test" ? "quick test" : "ready"}`;
 
       setStatusChips("content-status", [
         {
-          label: "Preset",
-          value: content.library_preset || "compact",
-          tone: content.library_preset === "custom" ? "status-chip--ok" : "status-chip--muted"
+          label: "Library",
+          value: content.mode === "quick-test" ? "Quick Test" : "Installed",
+          tone: content.mode === "quick-test" ? "status-chip--warn" : "status-chip--ok"
         },
         {
           label: "Installed",
@@ -1281,40 +1392,33 @@
           tone: "status-chip--muted"
         },
         {
-          label: "Custom",
-          value: `${content.custom_selected_count || 0} extras`,
+          label: "Extras",
+          value: `${content.custom_selected_count || 0} saved`,
           tone: (content.custom_selected_count || 0) > 0 ? "status-chip--ok" : "status-chip--muted"
         }
       ]);
 
       document.getElementById("content-library-note").textContent = note || (
-        content.library_preset === "custom"
-          ? `Custom Library starts from ${content.custom_base_preset || "compact"} and adds ${content.custom_selected_count || 0} saved extra ZIMs.`
-          : content.mode === "quick-test"
-            ? "Quick test mode uses the tiny validation manifest."
-            : content.library_preset === "full"
-              ? "Full Library uses the broader curated SOPR manifest."
-              : "Compact Library uses the smaller curated SOPR manifest."
+        content.mode === "quick-test"
+          ? "Quick test mode is active with the tiny validation library."
+          : (content.custom_selected_count || 0) > 0
+            ? `This device has ${content.custom_selected_count || 0} saved extra ZIM ${content.custom_selected_count === 1 ? "selection" : "selections"} in addition to the installed library.`
+            : "This device is using the installed SOPR content library."
       );
 
-      updateCustomLibraryVisibility(content.library_preset === "custom");
+      updateCustomLibraryVisibility(true);
       renderLocalInstalledZims(content);
     }
 
-    function updateCustomLibraryVisibility(isCustom, running = false) {
-      document.getElementById("custom-base-field").style.display = isCustom ? "block" : "none";
-      document.getElementById("zim-category-filter").disabled = !isCustom || running;
-      document.getElementById("zim-catalog-filter").disabled = !isCustom || running;
-      document.getElementById("refresh-zim-catalog-button").disabled = !isCustom || running;
-      document.getElementById("select-all-zims-button").disabled = !isCustom || running;
-      document.getElementById("clear-all-zims-button").disabled = !isCustom || running;
-      document.getElementById("download-selected-zims-button").disabled = !isCustom || running;
-      document.getElementById("zim-prev-page-button").disabled = !isCustom || running;
-      document.getElementById("zim-next-page-button").disabled = !isCustom || running;
-      if (!isCustom) {
-        document.getElementById("zim-catalog-note").textContent =
-          "Switch Content Preset to Custom Library if you want to add individual ZIM files on top of a curated base.";
-      }
+    function updateCustomLibraryVisibility(_enabled = true, running = false) {
+      document.getElementById("zim-category-filter").disabled = running;
+      document.getElementById("zim-catalog-filter").disabled = running;
+      document.getElementById("refresh-zim-catalog-button").disabled = running;
+      document.getElementById("select-all-zims-button").disabled = running;
+      document.getElementById("clear-all-zims-button").disabled = running;
+      document.getElementById("download-selected-zims-button").disabled = running;
+      document.getElementById("zim-prev-page-button").disabled = running;
+      document.getElementById("zim-next-page-button").disabled = running;
     }
 
     function renderLocalInstalledZims(content) {
@@ -1419,7 +1523,7 @@
           ? effectiveCatalog.error
           : effectiveCatalog.stale
             ? "Showing cached Kiwix catalog data."
-            : `${filterNote} Checked ZIM files can be downloaded directly or saved as the custom content selection.`;
+            : `${filterNote} Checked ZIM files will be added to this device's saved library selection when you download them.`;
     }
 
     function populateCategoryFilter(catalog) {
@@ -1689,49 +1793,6 @@
       return Array.from(pendingCustomSelection).sort();
     }
 
-    async function saveContentSettings() {
-      if (!currentContent) {
-        document.getElementById("mode-status").textContent = "Content preset: unavailable";
-        return;
-      }
-
-      const button = document.getElementById("save-content-settings-button");
-      const selectedPreset = document.getElementById("library-preset").value;
-      const customBasePreset = document.getElementById("custom-base-preset").value;
-      button.disabled = true;
-      button.textContent = "Saving...";
-
-      try {
-        const response = await fetch("/api/content/settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            library_preset: selectedPreset,
-            custom_base_preset: customBasePreset,
-            selected_paths: selectedCatalogPaths()
-          })
-        });
-
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload.error || "Unable to save content settings");
-        }
-
-        currentContent = payload;
-        renderContentState(payload, selectedPreset === "custom"
-          ? `Custom Library saved. Downloads will start from ${customBasePreset} and include your selected extra ZIMs.`
-          : `Library preset saved: ${selectedPreset}.`);
-        if (currentContentCatalog) {
-          renderZimCatalog(currentContentCatalog);
-        }
-      } catch (error) {
-        document.getElementById("mode-status").textContent = `Content preset: ${error.message}`;
-      } finally {
-        button.disabled = false;
-        button.textContent = "Save Library Setup";
-      }
-    }
-
     async function downloadSelectedZims() {
       if (!pendingCustomSelection.size) {
         document.getElementById("zim-catalog-note").textContent = "Select one or more ZIM files from the online catalog first.";
@@ -1739,7 +1800,11 @@
       }
 
       const button = document.getElementById("download-selected-zims-button");
-      const basePreset = document.getElementById("custom-base-preset").value;
+      const basePreset = currentContent && currentContent.library_preset === "custom"
+        ? (currentContent.custom_base_preset || "compact")
+        : (currentContent && ["compact", "full"].includes(currentContent.library_preset)
+            ? currentContent.library_preset
+            : "compact");
       button.disabled = true;
       button.textContent = "Starting...";
 
@@ -1761,8 +1826,9 @@
         currentContent = settingsPayload;
         renderContentState(
           settingsPayload,
-          `Saved ${pendingCustomSelection.size} custom ZIM selection${pendingCustomSelection.size === 1 ? "" : "s"} on top of ${basePreset}. Starting download now.`
+          `Saved ${pendingCustomSelection.size} extra ZIM ${pendingCustomSelection.size === 1 ? "selection" : "selections"} to the device library. Starting download now.`
         );
+        renderContentStorage(currentState, settingsPayload);
         if (currentContentCatalog) {
           renderZimCatalog(currentContentCatalog);
         }
@@ -1779,7 +1845,7 @@
 
         renderApplyState(applyPayload);
         document.getElementById("zim-catalog-note").textContent =
-          "Custom ZIM download started. Watch Content Actions for progress.";
+          "ZIM download started. Watch Content Actions for progress.";
       } catch (error) {
         document.getElementById("zim-catalog-note").textContent = error.message;
       } finally {
@@ -1843,6 +1909,7 @@
         const { payload } = await fetchJsonWithTimeout("/api/content", {}, 3000);
         currentContent = payload;
         renderContentState(payload, "Installed ZIM files refreshed from local storage.");
+        renderContentStorage(currentState, payload);
         if (currentContentCatalog) {
           renderZimCatalog(currentContentCatalog);
         }
@@ -1913,6 +1980,7 @@
         }
         currentContent = payload;
         renderContentState(payload, "Selected ZIM files were removed and the Kiwix library was rebuilt.");
+        renderContentStorage(currentState, payload);
         if (currentContentCatalog) {
           renderZimCatalog(currentContentCatalog);
         }
@@ -2142,7 +2210,6 @@
       }
     }
 
-    document.getElementById("save-content-settings-button").addEventListener("click", saveContentSettings);
     [
       "ap-ssid",
       "ap-passphrase",
@@ -2199,9 +2266,6 @@
       } else {
         pendingCustomSelection.delete(event.target.value);
       }
-    });
-    document.getElementById("library-preset").addEventListener("change", () => {
-      updateCustomLibraryVisibility(document.getElementById("library-preset").value === "custom");
     });
     document.getElementById("refresh-content-button").addEventListener("click", () => triggerApplyAction("refresh-content"));
     document.getElementById("rebuild-library-button").addEventListener("click", () => triggerApplyAction("rebuild-library"));
