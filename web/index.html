@@ -720,6 +720,25 @@
       padding-top: 14px;
     }
 
+    .dashboard-tile.disabled {
+      opacity: 0.58;
+    }
+
+    .dashboard-tile.disabled .dashboard-icon,
+    .dashboard-tile.disabled .eyebrow,
+    .dashboard-tile.disabled h2,
+    .dashboard-tile.disabled p {
+      color: rgba(235, 242, 250, 0.68);
+    }
+
+    .button.disabled,
+    .button[aria-disabled="true"] {
+      pointer-events: none;
+      opacity: 0.55;
+      filter: saturate(0.3);
+      cursor: default;
+    }
+
     .status-panel {
       margin-top: 18px;
       border: 1px solid rgba(255, 255, 255, 0.42);
@@ -1249,19 +1268,19 @@
           <div class="dashboard-icon">⛺</div>
           <span class="eyebrow">Sustainment</span>
           <h2>Preparedness & Repair</h2>
-          <p>Open repair, cooking, and preparedness references.</p>
+          <p>Open cooking, water, shelter, and repair references.</p>
           <div class="actions">
             <a class="button" id="sustainment-link" href="/kiwix">Open Sustainment</a>
           </div>
         </section>
 
-        <section class="dashboard-tile">
+        <section class="dashboard-tile" id="kolibri-tile">
           <div class="dashboard-icon">⟡</div>
           <span class="eyebrow">Rebuild</span>
           <h2>Education & Skills</h2>
-          <p id="dashboard-profile-text">Wikipedia and optional education tools are configured for this device.</p>
+          <p>Open classroom-style offline learning tools.</p>
           <div class="actions">
-            <a class="button" id="rebuild-link" href="/kiwix">Open Learning</a>
+            <a class="button" id="kolibri-link" href="#" aria-disabled="true">Kolibri Not Installed</a>
           </div>
         </section>
       </main>
@@ -1307,10 +1326,10 @@
     const storageAddedLabel = document.getElementById("storage-added-label");
     const storageFreeLabel = document.getElementById("storage-free-label");
     const storageWarning = document.getElementById("storage-warning");
-    const dashboardProfileText = document.getElementById("dashboard-profile-text");
     const medicalLink = document.getElementById("medical-link");
     const sustainmentLink = document.getElementById("sustainment-link");
-    const rebuildLink = document.getElementById("rebuild-link");
+    const kolibriTile = document.getElementById("kolibri-tile");
+    const kolibriLink = document.getElementById("kolibri-link");
     const applyStatusText = document.getElementById("apply-status-text");
     const applyLogText = document.getElementById("apply-log-text");
 
@@ -1350,44 +1369,36 @@
       return value ? `/content/${value}` : "/kiwix";
     }
 
+    function kiwixSearchHref(query) {
+      return `/kiwix/#lang=eng&tag=&q=${encodeURIComponent(query)}`;
+    }
+
     function configureDashboardQuickLinks(installedItems = []) {
-      const installedNames = new Set((installedItems || []).map((item) => item.name));
-      const firstInstalled = (choices) => choices.find((name) => installedNames.has(name)) || null;
+      medicalLink.href = kiwixSearchHref("medicine");
+      sustainmentLink.href = kiwixSearchHref("prep");
 
-      const medicalTarget = firstInstalled([
-        "zimgit-medicine_en_2024-08.zim",
-        "nhs.uk_en_medicines_2025-12.zim",
-        "fas-military-medicine_en_2025-06.zim",
-        "wwwnc.cdc.gov_en_all_2024-11.zim"
-      ]);
-      const sustainmentTarget = firstInstalled([
-        "ifixit_en_all_2025-12.zim",
-        "mechanics.stackexchange.com_en_all_2025-12.zim",
-        "woodworking.stackexchange.com_en_all_2025-12.zim",
-        "based.cooking_en_all_2025-11.zim",
-        "foss.cooking_en_all_2025-11.zim",
-        "canadian_prepper_winterprepping_en_2025-11.zim",
-        "canadian_prepper_bugoutroll_en_2025-08.zim"
-      ]);
-      const rebuildTarget = firstInstalled([
-        "freecodecamp_en_all_2025-11.zim",
-        "devdocs_en_python_2026-02.zim",
-        "devdocs_en_python_2026-01.zim",
-        "devdocs_en_javascript_2026-01.zim",
-        "devdocs_en_html_2026-01.zim",
-        "devdocs_en_css_2026-01.zim",
-        "wikibooks_en_all_nopic_2025-10.zim",
-        "wikipedia_en_top_nopic_2026-03.zim",
-        "wikipedia_en_top_mini_2025-12.zim"
-      ]);
+      medicalLink.title = "Search Kiwix for medical and medicine content";
+      sustainmentLink.title = "Search Kiwix for preparedness content";
+    }
 
-      medicalLink.href = kiwixContentHref(medicalTarget);
-      sustainmentLink.href = kiwixContentHref(sustainmentTarget);
-      rebuildLink.href = kiwixContentHref(rebuildTarget);
+    function configureKolibriTile(state) {
+      const kolibriInstalled = Boolean(state?.storage?.kolibri_installed);
+      if (kolibriInstalled) {
+        kolibriTile.classList.remove("disabled");
+        kolibriLink.classList.remove("disabled");
+        kolibriLink.removeAttribute("aria-disabled");
+        kolibriLink.textContent = "Open Kolibri";
+        kolibriLink.href = `${window.location.protocol}//${window.location.hostname}:8080`;
+        kolibriLink.title = "Open Kolibri";
+        return;
+      }
 
-      medicalLink.title = medicalTarget ? `Open ${medicalTarget}` : "Open Kiwix library";
-      sustainmentLink.title = sustainmentTarget ? `Open ${sustainmentTarget}` : "Open Kiwix library";
-      rebuildLink.title = rebuildTarget ? `Open ${rebuildTarget}` : "Open Kiwix library";
+      kolibriTile.classList.add("disabled");
+      kolibriLink.classList.add("disabled");
+      kolibriLink.setAttribute("aria-disabled", "true");
+      kolibriLink.textContent = "Kolibri Not Installed";
+      kolibriLink.href = "#";
+      kolibriLink.title = "Kolibri is not installed on this device";
     }
 
     function showMessage(text, isError = false) {
@@ -1642,29 +1653,7 @@
       reviewMaps.textContent = mapsText;
       reviewNetwork.textContent = networkText;
 
-      renderDashboardProfile({
-        install_kolibri: setupState.installKolibri,
-        install_ka_lite: false,
-        wikipedia_option: setupState.wikipediaOption,
-        map_collections: setupState.mapCollections,
-        ap_enabled: setupState.apEnabled
-      });
       renderStorageEstimate();
-    }
-
-    function renderDashboardProfile(profile) {
-      const option = getWikipediaOptionById(profile.wikipedia_option);
-      const wikiLabel = option ? option.name : profile.wikipedia_option;
-      const addOnText = profile.install_kolibri
-        ? "Learning tools included"
-        : "Learning tools not included";
-      const mapText = Array.isArray(profile.map_collections) && profile.map_collections.length
-        ? profile.map_collections.includes("all")
-          ? "All map regions selected"
-          : `${profile.map_collections.length} map region${profile.map_collections.length === 1 ? "" : "s"} selected`
-        : "No offline maps selected";
-      const apText = profile.ap_enabled ? "Device Wi-Fi enabled" : "Using existing network";
-      dashboardProfileText.textContent = `${wikiLabel}. ${mapText}. ${addOnText}. ${apText}.`;
     }
 
     function renderApplyState(state) {
@@ -1852,7 +1841,6 @@
         renderWikipediaOptions();
         renderMapOptions();
         renderSetupSummary();
-        renderDashboardProfile(latestProfile);
         renderMode(payload);
         return payload;
       } catch (error) {
@@ -1949,8 +1937,8 @@
         renderWikipediaOptions();
         renderMapOptions();
         renderSetupSummary();
-        renderDashboardProfile(state.profile);
         configureDashboardQuickLinks(contentResponse.installed_items || []);
+        configureKolibriTile(state);
         renderApplyState(applyState);
         renderMode(state);
         renderStorageEstimate();
@@ -1961,6 +1949,7 @@
         renderMapOptions();
         renderSetupSummary();
         configureDashboardQuickLinks([]);
+        configureKolibriTile(null);
         renderMode({ setup_complete: false });
         renderStorageEstimate();
         updateWizardStep();

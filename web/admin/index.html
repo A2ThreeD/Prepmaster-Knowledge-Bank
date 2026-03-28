@@ -75,6 +75,7 @@
 
     .top-actions {
       display: flex;
+      gap: 10px;
       justify-content: flex-end;
       margin-bottom: 10px;
     }
@@ -124,6 +125,39 @@
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
     }
 
+    .wifi-summary {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(7, 14, 26, 0.28);
+    }
+
+    .wifi-summary-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .wifi-summary-label {
+      color: var(--muted);
+      font-size: 0.9rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-family: var(--ui-display);
+    }
+
+    .wifi-summary-value {
+      color: var(--text);
+      font-size: 1.08rem;
+      line-height: 1.3;
+      font-family: var(--ui-display);
+      word-break: break-word;
+    }
+
     .actions {
       display: flex;
       gap: 10px;
@@ -135,6 +169,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      gap: 0.48rem;
       min-width: 160px;
       text-decoration: none;
       color: var(--text);
@@ -164,7 +199,16 @@
       font-size: 0.9rem;
     }
 
-    .home-link {
+    .button[data-icon]::before {
+      content: attr(data-icon);
+      display: inline-block;
+      line-height: 1;
+      font-size: 0.95em;
+      flex: 0 0 auto;
+    }
+
+    .home-link,
+    .back-link {
       width: 42px;
       height: 42px;
       min-width: 42px;
@@ -706,6 +750,7 @@
 <body>
   <main>
     <div class="top-actions">
+      <button class="button back-link" id="back-button" type="button" aria-label="Go back" title="Back">←</button>
       <a class="button home-link" href="/" aria-label="Return to main page" title="Home">⌂</a>
     </div>
     <span class="tag">SOPR</span>
@@ -715,18 +760,29 @@
     </p>
 
     <div class="section-tabs">
-      <button class="button tab-button active" type="button" data-panel="system">System</button>
-      <button class="button tab-button" type="button" data-panel="content">Content</button>
-      <button class="button tab-button" type="button" data-panel="maps">Maps</button>
+      <button class="button tab-button active" data-icon="📶" type="button" data-panel="wifi">WiFi</button>
+      <button class="button tab-button" data-icon="⌘" type="button" data-panel="content">Content</button>
+      <button class="button tab-button" data-icon="⌖" type="button" data-panel="maps">Maps</button>
+      <button class="button tab-button" data-icon="⚙" type="button" data-panel="system">System</button>
     </div>
 
-    <section class="panel-group active" data-panel-group="system">
+    <section class="panel-group active" data-panel-group="wifi">
       <div class="grid">
         <section class="card">
           <h2>Wireless Access Point</h2>
           <p class="muted">
             Configure and enable direct Wi-Fi access so phones, tablets, and laptops can join the Pi and reach local content without another router.
           </p>
+          <div class="wifi-summary">
+            <div class="wifi-summary-row">
+              <span class="wifi-summary-label">Hotspot Name</span>
+              <span class="wifi-summary-value" id="ap-summary-ssid">Loading...</span>
+            </div>
+            <div class="wifi-summary-row">
+              <span class="wifi-summary-label">Web Address</span>
+              <span class="wifi-summary-value" id="ap-summary-address">Loading...</span>
+            </div>
+          </div>
           <div class="field-grid">
             <div class="field">
               <label for="ap-ssid">SSID</label>
@@ -774,10 +830,10 @@
             </div>
           </div>
           <div class="actions">
-            <button class="button" id="save-ap-button" type="button">Save AP Config</button>
-            <button class="button" id="apply-ap-button" type="button">Apply AP Config</button>
-            <button class="button" id="toggle-ap-button" type="button">Enable / Start Access Point</button>
-            <button class="button" id="toggle-ap-clients-button" type="button">Show Connected Clients</button>
+            <button class="button" data-icon="💾" id="save-ap-button" type="button">Save AP Config</button>
+            <button class="button" data-icon="✓" id="apply-ap-button" type="button">Apply AP Config</button>
+            <button class="button" data-icon="📶" id="toggle-ap-button" type="button">Enable / Start Access Point</button>
+            <button class="button" data-icon="◫" id="toggle-ap-clients-button" type="button">Show Connected Clients</button>
           </div>
           <div class="status-cluster" id="ap-status" aria-live="polite"></div>
           <p class="status" id="ap-action-status">Access point controls ready.</p>
@@ -785,6 +841,11 @@
             No connected access point clients detected.
           </div>
         </section>
+      </div>
+    </section>
+
+    <section class="panel-group" data-panel-group="system">
+      <div class="grid">
         <section class="card">
           <h2>System</h2>
           <p class="muted">
@@ -809,8 +870,8 @@
             </div>
           </div>
           <div class="actions">
-            <button class="button secondary" id="restart-system-button" type="button">Restart</button>
-            <button class="button secondary" id="shutdown-system-button" type="button">Shutdown</button>
+            <button class="button secondary" data-icon="↻" id="restart-system-button" type="button">Restart</button>
+            <button class="button secondary" data-icon="⏻" id="shutdown-system-button" type="button">Shutdown</button>
           </div>
           <p class="status" id="system-power-status">Power controls ready.</p>
         </section>
@@ -854,11 +915,11 @@
             <div id="content-local-list" class="log-panel muted">Checking local ZIM files...</div>
           </div>
           <div class="actions">
-            <button class="button" id="refresh-installed-zims-button" type="button">Refresh Installed ZIMs</button>
-            <button class="button" id="select-all-local-zims-button" type="button">Select All</button>
-            <button class="button" id="clear-local-zims-button" type="button">Clear All</button>
-            <button class="button" id="remove-local-zims-button" type="button">Remove Selected ZIMs</button>
-            <button class="button" id="rebuild-library-button" type="button">Rebuild Kiwix Library</button>
+            <button class="button" data-icon="↻" id="refresh-installed-zims-button" type="button">Refresh Installed ZIMs</button>
+            <button class="button" data-icon="☑" id="select-all-local-zims-button" type="button">Select All</button>
+            <button class="button" data-icon="☐" id="clear-local-zims-button" type="button">Clear All</button>
+            <button class="button" data-icon="✖" id="remove-local-zims-button" type="button">Remove Selected ZIMs</button>
+            <button class="button" data-icon="⌘" id="rebuild-library-button" type="button">Rebuild Kiwix Library</button>
           </div>
           <p class="status" id="content-action-status">Content actions: ready</p>
           <div class="progress-shell">
@@ -873,7 +934,7 @@
             <p class="substatus" id="content-summary-status">No active operation.</p>
           </div>
           <div class="actions">
-            <button class="button" id="toggle-apply-log-button" type="button">Show Content Log</button>
+            <button class="button" data-icon="▤" id="toggle-apply-log-button" type="button">Show Content Log</button>
           </div>
           <div class="log-panel hidden" id="apply-log-panel">
             <strong>Recent Log</strong>
@@ -887,8 +948,8 @@
           </p>
           <p class="muted" id="zim-catalog-source">Catalog source: online check on demand</p>
           <div class="actions">
-            <button class="button" id="refresh-zim-catalog-button" type="button">Check Online Catalog</button>
-            <button class="button" id="refresh-content-button" type="button">Download Missing Content</button>
+            <button class="button" data-icon="☁" id="refresh-zim-catalog-button" type="button">Check Online Catalog</button>
+            <button class="button" data-icon="↓" id="refresh-content-button" type="button">Download Missing Content</button>
           </div>
           <div class="field-grid">
             <div class="field">
@@ -907,14 +968,14 @@
             <div id="zim-catalog-list" class="log-panel muted">Online catalog is idle. Click Check Online Catalog when you want to query Kiwix.</div>
           </div>
           <div class="actions">
-            <button class="button" id="download-selected-zims-button" type="button">DOWNLOAD SELECTED</button>
-            <button class="button" id="select-all-zims-button" type="button">SELECT ALL</button>
-            <button class="button" id="clear-all-zims-button" type="button">CLEAR ALL</button>
+            <button class="button" data-icon="↓" id="download-selected-zims-button" type="button">DOWNLOAD SELECTED</button>
+            <button class="button" data-icon="☑" id="select-all-zims-button" type="button">SELECT ALL</button>
+            <button class="button" data-icon="☐" id="clear-all-zims-button" type="button">CLEAR ALL</button>
           </div>
           <div class="pager">
-            <button class="button" id="zim-prev-page-button" type="button">← Previous 50</button>
+            <button class="button" data-icon="←" id="zim-prev-page-button" type="button">Previous 50</button>
             <p class="substatus" id="zim-page-status">Page 1</p>
-            <button class="button" id="zim-next-page-button" type="button">Next 50</button>
+            <button class="button" data-icon="→" id="zim-next-page-button" type="button">Next 50</button>
           </div>
           <p class="substatus" id="zim-catalog-note">Choose any ZIM files you want to add, then download them into the local library.</p>
         </section>
@@ -961,17 +1022,17 @@
             </select>
           </div>
           <div class="actions">
-            <button class="button" id="refresh-maps-button" type="button">Refresh Installed Maps</button>
-            <button class="button" id="save-map-button" type="button">Save Map Theme</button>
+            <button class="button" data-icon="↻" id="refresh-maps-button" type="button">Refresh Installed Maps</button>
+            <button class="button" data-icon="💾" id="save-map-button" type="button">Save Map Theme</button>
           </div>
           <div class="field">
             <label>Installed Map Regions</label>
             <div id="maps-local-list" class="log-panel muted">Checking local PMTiles packages...</div>
           </div>
           <div class="actions">
-            <button class="button" id="select-all-local-maps-button" type="button">SELECT ALL</button>
-            <button class="button" id="clear-local-maps-button" type="button">CLEAR ALL</button>
-            <button class="button" id="remove-local-maps-button" type="button">REMOVE SELECTED REGIONS</button>
+            <button class="button" data-icon="☑" id="select-all-local-maps-button" type="button">SELECT ALL</button>
+            <button class="button" data-icon="☐" id="clear-local-maps-button" type="button">CLEAR ALL</button>
+            <button class="button" data-icon="✖" id="remove-local-maps-button" type="button">REMOVE SELECTED REGIONS</button>
           </div>
           <div class="status-cluster" id="maps-status" aria-live="polite"></div>
           <p class="substatus" id="maps-status-note">Loading map package status.</p>
@@ -987,9 +1048,9 @@
             <div id="maps-catalog-list" class="log-panel muted">Online catalog is idle. Click Check Online Catalog when you want to query the latest regional map catalog.</div>
           </div>
           <div class="actions">
-            <button class="button" id="select-all-maps-button" type="button">SELECT ALL</button>
-            <button class="button" id="refresh-catalog-button" type="button">Check Online Catalog</button>
-            <button class="button" id="sync-maps-button" type="button">Update Installed Maps</button>
+            <button class="button" data-icon="☑" id="select-all-maps-button" type="button">SELECT ALL</button>
+            <button class="button" data-icon="☁" id="refresh-catalog-button" type="button">Check Online Catalog</button>
+            <button class="button" data-icon="↓" id="sync-maps-button" type="button">Update Installed Maps</button>
           </div>
           <p class="status" id="maps-sync-status">Map sync: idle</p>
           <div class="progress-shell">
@@ -1004,7 +1065,7 @@
             <p class="substatus" id="maps-summary-status">No active map sync.</p>
           </div>
           <div class="actions">
-            <button class="button" id="toggle-maps-log-button" type="button">Show Map Sync Log</button>
+            <button class="button" data-icon="▤" id="toggle-maps-log-button" type="button">Show Map Sync Log</button>
           </div>
           <div class="log-panel hidden" id="maps-log-panel">
             <strong>Map Sync Log</strong>
@@ -1015,8 +1076,7 @@
     </section>
 
     <div class="actions">
-      <a class="button" href="/">Return to main page</a>
-      <a class="button" href="/?mode=setup">Open Setup Preferences</a>
+      <button class="button" data-icon="⚙" id="run-setup-again-button" type="button">Run Setup Again</button>
     </div>
   </main>
   <script>
@@ -1034,7 +1094,7 @@
     let pendingMapSelection = new Set();
     let currentAccessPoint = null;
     let mapsSyncPollHandle = null;
-    let currentPanel = "system";
+    let currentPanel = "wifi";
     let apFormDirty = false;
     let apClientsPanelVisible = false;
 
@@ -1046,7 +1106,7 @@
       document.querySelectorAll(".tab-button").forEach((button) => {
         button.classList.toggle("active", button.dataset.panel === panelName);
       });
-      if (panelName === "system") {
+      if (panelName === "wifi" || panelName === "system") {
         loadSystemPanelData();
       } else if (panelName === "content") {
         loadContentPanelData();
@@ -1614,6 +1674,8 @@
 
     function renderAccessPointState(ap, note = "", preserveDirty = true) {
       setAccessPointFormValues(ap, !preserveDirty);
+      document.getElementById("ap-summary-ssid").textContent = ap.ssid || "SOPR";
+      document.getElementById("ap-summary-address").textContent = ap.address ? `http://${ap.address}` : "Unavailable";
       const enabledTone = ap.enabled ? "status-chip--ok" : "status-chip--muted";
       const runtimeTone = ap.running ? "status-chip--ok" : (ap.enabled ? "status-chip--warn" : "status-chip--muted");
       setStatusChips("ap-status", [
@@ -2862,7 +2924,30 @@
     document.querySelectorAll(".tab-button").forEach((button) => {
       button.addEventListener("click", () => setActivePanel(button.dataset.panel));
     });
-    setActivePanel("system");
+    document.getElementById("back-button").addEventListener("click", () => {
+      if (window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+      window.location.href = "/";
+    });
+    document.getElementById("run-setup-again-button").addEventListener("click", () => {
+      const confirmed = window.confirm("Run setup again? This will take you back into the setup flow.");
+      if (!confirmed) {
+        return;
+      }
+      window.location.href = "/?mode=setup";
+    });
+
+    function initialPanelFromLocation() {
+      const hash = (window.location.hash || "").replace(/^#/, "").trim().toLowerCase();
+      if (["wifi", "system", "content", "maps"].includes(hash)) {
+        return hash;
+      }
+      return "system";
+    }
+
+    setActivePanel(initialPanelFromLocation());
   </script>
 </body>
 </html>

@@ -79,6 +79,7 @@
 
     .top-actions {
       display: flex;
+      gap: 10px;
       justify-content: flex-end;
       margin-bottom: 10px;
     }
@@ -182,7 +183,8 @@
       background: linear-gradient(180deg, rgba(82, 101, 130, 0.96), rgba(28, 41, 61, 0.98));
     }
 
-    .home-link {
+    .home-link,
+    .settings-link {
       width: 42px;
       height: 42px;
       min-width: 42px;
@@ -219,6 +221,10 @@
 
     .field {
       margin-top: 14px;
+    }
+
+    .hidden {
+      display: none !important;
     }
 
     .field label {
@@ -403,16 +409,10 @@
     <aside class="sidebar">
       <div class="top-actions">
         <a class="button home-link" href="/" aria-label="Return to main page" title="Home">⌂</a>
+        <a class="button secondary settings-link" href="/admin#maps" aria-label="Open map settings" title="Map Settings">⚙</a>
       </div>
       <span class="tag">SOPR Navigation</span>
       <h1>Offline Maps</h1>
-      <p class="muted">
-        This map view uses MapLibre with a local PMTiles basemap. It is designed for packaged offline archives, including regional offline map files.
-      </p>
-
-      <div class="actions">
-        <a class="button secondary" href="/admin">⚙ Settings</a>
-      </div>
 
       <section class="card">
         <h2>Search Position</h2>
@@ -439,9 +439,19 @@
       </section>
 
       <section class="card">
-        <p>Select an offline map to view.</p>
         <h2>Map Selection</h2>
         <div class="field">
+          <label for="map-browse-mode">Browse Mode</label>
+          <select id="map-browse-mode">
+            <option value="region">Browse by Region</option>
+            <option value="individual">Browse All Maps</option>
+          </select>
+        </div>
+        <div class="field" id="map-region-field">
+          <label for="map-region-select">Select Region</label>
+          <select id="map-region-select"></select>
+        </div>
+        <div class="field" id="map-package-field">
           <label for="map-package-select">Select Map</label>
           <select id="map-package-select"></select>
         </div>
@@ -490,17 +500,64 @@
     const lonInput = document.getElementById("lon-input");
     const zoomInput = document.getElementById("zoom-input");
     const zoomValue = document.getElementById("zoom-value");
+    const mapBrowseModeSelect = document.getElementById("map-browse-mode");
+    const mapRegionField = document.getElementById("map-region-field");
+    const mapPackageField = document.getElementById("map-package-field");
+    const mapRegionSelect = document.getElementById("map-region-select");
     const mapPackageSelect = document.getElementById("map-package-select");
     const saveMapSettingsButton = document.getElementById("save-map-settings-button");
+    const MAP_SELECTION_STORAGE_KEY = "sopr.offlineMaps.selection";
     let mapInstance = null;
     let currentConfigSignature = "";
     let mapReloadInProgress = false;
+    let installedMapEntries = [];
+    let preferredMapRegion = "all";
+    let preferredBrowseMode = "region";
+    let preferredMapPackage = "";
 
     function setMapMetaChips(items) {
       mapMeta.innerHTML = items.map((item) => {
         const tone = item.tone ? ` ${item.tone}` : "";
         return `<span class="status-chip${tone}">${item.label} ${item.value}</span>`;
       }).join("");
+    }
+
+    function clearMapStatus() {
+      mapStatus.textContent = "";
+      mapStatus.classList.add("hidden");
+    }
+
+    function showMapStatus(message) {
+      mapStatus.textContent = message;
+      mapStatus.classList.remove("hidden");
+    }
+
+    function loadStoredMapSelection() {
+      try {
+        const raw = window.localStorage.getItem(MAP_SELECTION_STORAGE_KEY);
+        if (!raw) return;
+        const stored = JSON.parse(raw);
+        preferredBrowseMode = stored.browseMode === "individual" ? "individual" : "region";
+        preferredMapRegion = typeof stored.region === "string" && stored.region ? stored.region : "all";
+        preferredMapPackage = typeof stored.map === "string" ? stored.map : "";
+      } catch (_error) {
+        // Ignore malformed saved state and keep defaults.
+      }
+    }
+
+    function saveStoredMapSelection() {
+      try {
+        window.localStorage.setItem(
+          MAP_SELECTION_STORAGE_KEY,
+          JSON.stringify({
+            browseMode: preferredBrowseMode,
+            region: preferredMapRegion,
+            map: preferredMapPackage || mapPackageSelect.value || "",
+          })
+        );
+      } catch (_error) {
+        // Ignore storage write failures.
+      }
     }
 
     async function loadMapState() {
@@ -517,6 +574,24 @@
       }
       if (!response.ok) {
         throw new Error("Unable to load map package state");
+      }
+      return response.json();
+    }
+
+    async function loadMapCatalog() {
+      const controller = new AbortController();
+      const timeoutHandle = window.setTimeout(() => controller.abort(), 4000);
+      let response;
+      try {
+        response = await fetch("/api/maps/catalog", {
+          cache: "no-store",
+          signal: controller.signal
+        });
+      } finally {
+        window.clearTimeout(timeoutHandle);
+      }
+      if (!response.ok) {
+        throw new Error("Unable to load map catalog");
       }
       return response.json();
     }
@@ -550,25 +625,131 @@
       });
     }
 
-    function populateMapControls(state, config) {
+    function titleCaseWord(value) {
+      return String(value || "").charAt(0).toUpperCase() + String(value || "").slice(1);
+    }
+
+    function friendlyMapName(filename) {
+      const raw = String(filename || "").replace(/\.pmtiles$/i, "");
+      if (!raw) return "Offline Map";
+      if (raw === "basemap") return "Base Map";
+
+      const parts = raw.split("_").filter(Boolean);
+      const yearMonthPattern = /^\d{4}-\d{2}$/;
+      const regionParts = parts.filter((part) => !yearMonthPattern.test(part));
+      const versionPart = parts.find((part) => yearMonthPattern.test(part));
+      const regionName = regionParts.map((part) => titleCaseWord(part)).join(" ");
+
+      return versionPart ? `${regionName} (${versionPart})` : regionName;
+    }
+
+    function buildInstalledMapEntries(state, catalog) {
+      const catalogItems = Array.isArray(catalog?.items) ? catalog.items : [];
+      const byName = new Map(catalogItems.map((item) => [item.name, item]));
+      return (state.available_files || []).map((filename) => {
+        const item = byName.get(filename);
+        return {
+          filename,
+          title: item?.title || friendlyMapName(filename),
+          regionSlug: item?.region_slug || "other",
+          regionName: item?.region_name || "Other Installed Maps",
+          description: item?.description || "",
+          version: item?.version || ""
+        };
+      });
+    }
+
+    function populateRegionControl(entries, activeFile) {
+      const previousRegion = mapRegionSelect.value;
+      const activeEntry = entries.find((entry) => entry.filename === activeFile);
+      const activeRegion = activeEntry?.regionSlug || "all";
+      const regionOptions = [];
+      const seen = new Set();
+      for (const entry of entries) {
+        if (!entry.regionSlug || seen.has(entry.regionSlug)) {
+          continue;
+        }
+        seen.add(entry.regionSlug);
+        regionOptions.push({ slug: entry.regionSlug, name: entry.regionName });
+      }
+
+      mapRegionSelect.innerHTML = "";
+      const allOption = document.createElement("option");
+      allOption.value = "all";
+      allOption.textContent = "All Installed Maps";
+      mapRegionSelect.appendChild(allOption);
+
+      for (const region of regionOptions) {
+        const option = document.createElement("option");
+        option.value = region.slug;
+        option.textContent = region.name;
+        mapRegionSelect.appendChild(option);
+      }
+
+      const nextRegion = [preferredMapRegion, previousRegion, activeRegion, "all"].find((value) =>
+        Array.from(mapRegionSelect.options).some((option) => option.value === value)
+      ) || "all";
+      mapRegionSelect.value = nextRegion;
+      preferredMapRegion = nextRegion;
+      mapRegionSelect.disabled = entries.length === 0;
+    }
+
+    function populateMapPackageControl(entries, preferredFile) {
+      const selectedRegion = preferredBrowseMode === "individual"
+        ? "all"
+        : (mapRegionSelect.value || "all");
+      const filteredEntries = selectedRegion === "all"
+        ? entries
+        : entries.filter((entry) => entry.regionSlug === selectedRegion);
+
       mapPackageSelect.innerHTML = "";
+      if (!filteredEntries.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No maps found for this region";
+        mapPackageSelect.appendChild(option);
+        mapPackageSelect.disabled = true;
+        return;
+      }
+
+      mapPackageSelect.disabled = false;
+      for (const entry of filteredEntries) {
+        const option = document.createElement("option");
+        option.value = entry.filename;
+        option.textContent = entry.title;
+        if (entry.filename === (preferredMapPackage || preferredFile)) {
+          option.selected = true;
+        }
+        mapPackageSelect.appendChild(option);
+      }
+
+      if (!Array.from(mapPackageSelect.options).some((option) => option.selected)) {
+        mapPackageSelect.value = filteredEntries[0].filename;
+      }
+      preferredMapPackage = mapPackageSelect.value || "";
+    }
+
+    function populateMapControls(state, config) {
       if (!state.available_files.length) {
+        mapBrowseModeSelect.value = preferredBrowseMode;
+        mapBrowseModeSelect.disabled = true;
+        mapRegionField.classList.toggle("hidden", preferredBrowseMode === "individual");
+        mapPackageField.classList.toggle("hidden", preferredBrowseMode === "region");
+        mapRegionSelect.innerHTML = `<option value="all">All Installed Maps</option>`;
+        mapRegionSelect.disabled = true;
+        mapPackageSelect.innerHTML = "";
         const option = document.createElement("option");
         option.value = "";
         option.textContent = "No PMTiles files found";
         mapPackageSelect.appendChild(option);
         mapPackageSelect.disabled = true;
       } else {
-        mapPackageSelect.disabled = false;
-        for (const filename of state.available_files) {
-          const option = document.createElement("option");
-          option.value = filename;
-          option.textContent = filename;
-          if (filename === state.active_file) {
-            option.selected = true;
-          }
-          mapPackageSelect.appendChild(option);
-        }
+        mapBrowseModeSelect.disabled = false;
+        mapBrowseModeSelect.value = preferredBrowseMode;
+        mapRegionField.classList.toggle("hidden", preferredBrowseMode === "individual");
+        mapPackageField.classList.toggle("hidden", preferredBrowseMode === "region");
+        populateRegionControl(installedMapEntries, state.active_file);
+        populateMapPackageControl(installedMapEntries, state.active_file);
       }
       setMapMetaChips([
         { label: "Archive", value: state.active_valid ? "Valid" : (state.active_exists ? "Invalid" : "Missing"), tone: state.active_valid ? "ok" : (state.active_exists ? "error" : "warn") },
@@ -578,7 +759,14 @@
     }
 
     function populateFallbackControls(config) {
-      mapPackageSelect.innerHTML = `<option value="${config.pmtilesFile}">${config.pmtilesFile}</option>`;
+      mapBrowseModeSelect.value = preferredBrowseMode;
+      mapBrowseModeSelect.disabled = true;
+      mapRegionField.classList.toggle("hidden", preferredBrowseMode === "individual");
+      mapPackageField.classList.toggle("hidden", preferredBrowseMode === "region");
+      mapRegionSelect.innerHTML = `<option value="${preferredMapRegion}">${preferredMapRegion === "all" ? "All Installed Maps" : "Loading region..."}</option>`;
+      mapRegionSelect.value = preferredMapRegion;
+      mapRegionSelect.disabled = true;
+      mapPackageSelect.innerHTML = `<option value="${config.pmtilesFile}">${friendlyMapName(config.pmtilesFile)}</option>`;
       mapPackageSelect.disabled = true;
       setMapMetaChips([
         { label: "Archive", value: "Checking", tone: "warn" },
@@ -633,7 +821,7 @@
     async function buildMap() {
       mapReloadInProgress = true;
       try {
-        mapStatus.textContent = "Loading map configuration...";
+        clearMapStatus();
         mapBanner.classList.add("hidden");
         const config = await loadConfig();
         currentConfigSignature = configSignature(config);
@@ -653,7 +841,6 @@
         maplibregl.addProtocol("pmtiles", protocol.tile);
         const pmtilesSource = new pmtiles.PMTiles(window.location.origin + config.pmtilesUrl);
         protocol.add(pmtilesSource);
-        mapStatus.textContent = `Initializing renderer for ${config.pmtilesFile}...`;
 
         mapInstance = new maplibregl.Map({
           container: "map",
@@ -682,11 +869,8 @@
         });
 
         mapInstance.addControl(new maplibregl.NavigationControl(), "top-right");
-        mapInstance.once("load", () => {
-          mapStatus.textContent = `Map loaded. ${config.pmtilesFile} is ready for navigation.`;
-        });
         mapInstance.once("idle", () => {
-          mapStatus.textContent = `Map ready. ${config.pmtilesFile} is active.`;
+          clearMapStatus();
           mapReloadInProgress = false;
         });
 
@@ -694,14 +878,24 @@
           centerMapOnActiveArchive(pmtilesSource, config);
         });
 
-        loadMapState()
-          .then((state) => {
+        Promise.allSettled([loadMapState(), loadMapCatalog()])
+          .then((results) => {
+            const stateResult = results[0];
+            const catalogResult = results[1];
+            if (stateResult.status !== "fulfilled") {
+              throw stateResult.reason || new Error("Unable to load map package state");
+            }
+            const state = stateResult.value;
+            const catalog = catalogResult.status === "fulfilled" ? catalogResult.value : { items: [] };
+            installedMapEntries = buildInstalledMapEntries(state, catalog);
             populateMapControls(state, config);
             if (!state.active_valid) {
               const problem = state.active_error || "Configured archive is missing or invalid.";
-              mapStatus.textContent = `Map archive issue: ${problem}`;
+              showMapStatus(`Map archive issue: ${problem}`);
               mapBanner.textContent = `Map archive issue: ${problem}`;
               mapBanner.classList.remove("hidden");
+            } else {
+              clearMapStatus();
             }
           })
           .catch((error) => {
@@ -720,7 +914,7 @@
             }
           })
           .catch(() => {
-            mapStatus.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
+            showMapStatus("Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.");
             mapBanner.textContent = "Offline PMTiles archive not found yet. Add a local archive to the configured PMTiles path.";
             mapBanner.classList.remove("hidden");
             mapReloadInProgress = false;
@@ -730,7 +924,7 @@
           const errorMessage = event && event.error && event.error.message
             ? event.error.message
             : "MapLibre could not render the active PMTiles archive.";
-          mapStatus.textContent = `Map error: ${errorMessage}`;
+          showMapStatus(`Map error: ${errorMessage}`);
           mapBanner.textContent = `Map error: ${errorMessage}`;
           mapBanner.classList.remove("hidden");
           mapReloadInProgress = false;
@@ -744,7 +938,7 @@
     async function saveMapSettings() {
       const filename = mapPackageSelect.value;
       if (!filename) {
-        mapStatus.textContent = "Choose a valid PMTiles archive before applying map settings.";
+        showMapStatus("Choose a valid PMTiles archive before applying map settings.");
         return;
       }
 
@@ -752,7 +946,7 @@
       mapPackageSelect.disabled = true;
       saveMapSettingsButton.textContent = "Applying...";
       try {
-        mapStatus.textContent = `Applying ${filename}...`;
+        clearMapStatus();
         const response = await fetch("/api/maps/select", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -766,12 +960,13 @@
         }
         if (payload && payload.active_file) {
           mapPackageSelect.value = payload.active_file;
+          preferredMapPackage = payload.active_file;
+          saveStoredMapSelection();
         }
-        mapStatus.textContent = `Active map saved as ${payload.active_file}. Reloading viewer...`;
         await new Promise((resolve) => window.setTimeout(resolve, 50));
         await buildMap();
       } catch (error) {
-        mapStatus.textContent = `Map settings error: ${error.message}`;
+        showMapStatus(`Map settings error: ${error.message}`);
       } finally {
         saveMapSettingsButton.disabled = false;
         mapPackageSelect.disabled = false;
@@ -791,7 +986,7 @@
         const config = await loadConfig();
         const nextSignature = configSignature(config);
         if (nextSignature !== currentConfigSignature) {
-          mapStatus.textContent = `Detected updated map configuration for ${config.pmtilesFile}. Reloading viewer...`;
+          clearMapStatus();
           await buildMap();
         }
       } catch (error) {
@@ -806,14 +1001,34 @@
 
       if (mapInstance && Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(zoom)) {
         mapInstance.flyTo({ center: [lon, lat], zoom });
-        mapStatus.textContent = `Centered on ${lat.toFixed(4)}, ${lon.toFixed(4)} at zoom ${zoom}.`;
+        clearMapStatus();
       }
+    });
+
+    mapRegionSelect.addEventListener("change", () => {
+      preferredMapRegion = mapRegionSelect.value || "all";
+      populateMapPackageControl(installedMapEntries, mapPackageSelect.value);
+      saveStoredMapSelection();
+    });
+
+    mapBrowseModeSelect.addEventListener("change", () => {
+      preferredBrowseMode = mapBrowseModeSelect.value === "individual" ? "individual" : "region";
+      mapRegionField.classList.toggle("hidden", preferredBrowseMode === "individual");
+      mapPackageField.classList.toggle("hidden", preferredBrowseMode === "region");
+      populateMapPackageControl(installedMapEntries, mapPackageSelect.value);
+      saveStoredMapSelection();
+    });
+
+    mapPackageSelect.addEventListener("change", () => {
+      preferredMapPackage = mapPackageSelect.value || "";
+      saveStoredMapSelection();
     });
 
     saveMapSettingsButton.addEventListener("click", saveMapSettings);
 
+    loadStoredMapSelection();
     buildMap().catch((error) => {
-      mapStatus.textContent = `Map startup error: ${error.message}`;
+      showMapStatus(`Map startup error: ${error.message}`);
       mapBanner.textContent = `Map startup error: ${error.message}`;
       mapBanner.classList.remove("hidden");
     });
