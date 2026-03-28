@@ -209,6 +209,13 @@ def parse_size_label_to_bytes(label: str) -> int | None:
     return int(value * multiplier)
 
 
+def parse_git_lfs_pointer_size(text: str) -> int | None:
+    match = re.search(r"^size\s+(\d+)\s*$", text, re.MULTILINE)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
 class PortalState:
     def __init__(self, repo_root: Path, data_dir: Path) -> None:
         self.repo_root = repo_root
@@ -395,6 +402,27 @@ class PortalState:
         if profile not in {"essential", "standard", "comprehensive"}:
             profile = "essential"
         kolibri_installed = Path("/usr/bin/kolibri").exists()
+        try:
+            maps_catalog = self.fetch_nomad_maps_catalog_cached(force_refresh=False)
+        except RuntimeError:
+            maps_catalog = {"collections": [], "items": []}
+        installed_map_names = set(self.list_pmtiles_packages(valid_only=True))
+        missing_by_map_collection: dict[str, int] = {}
+        for collection in maps_catalog.get("collections", []):
+            slug = str(collection.get("slug", "")).strip()
+            if not slug:
+                continue
+            missing_bytes = sum(
+                int(item.get("size_bytes", 0))
+                for item in maps_catalog.get("items", [])
+                if item.get("region_slug") == slug and str(item.get("name", "")) not in installed_map_names
+            )
+            missing_by_map_collection[slug] = round(missing_bytes / (1024 * 1024))
+        missing_all_map_bytes = sum(
+            int(item.get("size_bytes", 0))
+            for item in maps_catalog.get("items", [])
+            if str(item.get("name", "")) not in installed_map_names
+        )
         return {
             "disk": {
                 "total_bytes": total,
@@ -416,6 +444,8 @@ class PortalState:
             "zim_profile": profile,
             "kolibri_estimated_mb": 1500,
             "kolibri_installed": kolibri_installed,
+            "missing_by_map_collection": missing_by_map_collection,
+            "missing_all_maps_mb": round(missing_all_map_bytes / (1024 * 1024)),
             "warning_free_percent": 10,
         }
 
@@ -432,6 +462,11 @@ class PortalState:
         wikipedia_option = prepmaster.get("PREPMASTER_WIKIPEDIA_OPTION", "top-mini")
         if wikipedia_ids and wikipedia_option not in wikipedia_ids:
             wikipedia_option = wikipedia_ids[0]
+        try:
+            maps_catalog = self.fetch_nomad_maps_catalog_cached(force_refresh=False)
+        except RuntimeError:
+            maps_catalog = {"collections": [], "items": []}
+        map_collections = self.selected_map_collections()
         state = read_json(
             self.state_file,
             {"setup_complete": False, "last_saved_at": None},
@@ -441,12 +476,27 @@ class PortalState:
             "last_saved_at": state.get("last_saved_at"),
             "setup_options": {
                 "wikipedia": wikipedia_catalog,
+                "maps": {
+                    "collections": maps_catalog.get("collections", []),
+                    "all": {
+                        "slug": "all",
+                        "name": "All Regions",
+                        "description": "Download the full Project NOMAD regional map collection.",
+                        "size_bytes": sum(int(item.get("size_bytes", 0)) for item in maps_catalog.get("items", [])),
+                        "size_label": format_size_bytes(
+                            sum(int(item.get("size_bytes", 0)) for item in maps_catalog.get("items", []))
+                        ) if maps_catalog.get("items") else "",
+                        "resource_count": len(maps_catalog.get("items", [])),
+                    },
+                },
             },
             "profile": {
                 "install_kolibri": profile.get("INSTALL_KOLIBRI", "0") == "1",
                 "install_ka_lite": profile.get("INSTALL_KA_LITE", "0") == "1",
                 "wikipedia_option": wikipedia_option,
                 "ap_enabled": prepmaster.get("PREPMASTER_AP_ENABLED", "0") == "1",
+                "map_collections": map_collections,
+                "map_selected_count": len(self.selected_map_files(map_collections)),
                 "zim_mode": prepmaster.get("PREPMASTER_ZIM_MODE", "full"),
                 "zim_profile": prepmaster.get("PREPMASTER_ZIM_PROFILE", "essential"),
                 "custom_zim_count": len(custom_selection.get("selected_items", [])),
@@ -495,6 +545,39 @@ class PortalState:
     def active_pmtiles_file(self) -> str:
         env = self.maps_env()
         return env.get("PREPMASTER_MAP_PMTILES_FILE", "basemap.pmtiles")
+
+    def selected_map_collections(self) -> list[str]:
+        env = self.maps_env()
+        raw = env.get("PREPMASTER_MAP_SELECTED_COLLECTIONS", "")
+        values = [value.strip() for value in raw.split(",") if value.strip()]
+        if "all" in values:
+            return ["all"]
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for value in values:
+            if value in seen:
+                continue
+            seen.add(value)
+            ordered.append(value)
+        return ordered
+
+    def selected_map_files(self, collections: list[str] | None = None) -> list[str]:
+        chosen = collections if collections is not None else self.selected_map_collections()
+        try:
+            catalog = self.fetch_nomad_maps_catalog_cached(force_refresh=False)
+        except RuntimeError:
+            return []
+        items = catalog.get("items", [])
+        if "all" in chosen:
+            return sorted({str(item.get("name", "")) for item in items if str(item.get("name", "")).endswith(".pmtiles")})
+        wanted = set(chosen)
+        return sorted(
+            {
+                str(item.get("name", ""))
+                for item in items
+                if str(item.get("region_slug", "")) in wanted and str(item.get("name", "")).endswith(".pmtiles")
+            }
+        )
 
     def list_pmtiles_packages(self, valid_only: bool = False) -> list[str]:
         root = self.maps_root()
@@ -1029,10 +1112,17 @@ class PortalState:
             "repo": env.get("PREPMASTER_MAP_REPO_NAME", "project-nomad-maps"),
             "branch": env.get("PREPMASTER_MAP_REPO_BRANCH", "master"),
             "subdir": env.get("PREPMASTER_MAP_REPO_SUBDIR", "pmtiles"),
+            "collections_url": env.get(
+                "PREPMASTER_MAP_COLLECTIONS_URL",
+                "https://raw.githubusercontent.com/Crosstalk-Solutions/project-nomad/refs/heads/main/collections/maps.json",
+            ),
         }
 
     def nomad_repo_cache_root(self) -> Path:
         return self.data_dir / "nomad-maps-repo"
+
+    def local_nomad_maps_catalog_path(self) -> Path:
+        return self.repo_root / "catalog" / "nomad-maps.json"
 
     def ensure_git_lfs_available(self) -> None:
         result = subprocess.run(
@@ -1093,6 +1183,50 @@ class PortalState:
     def fetch_nomad_maps_catalog(self) -> dict:
         return self.fetch_nomad_maps_catalog_cached(force_refresh=False)
 
+    def fetch_nomad_maps_collections_document(self, force_refresh: bool = False) -> dict:
+        local_path = self.local_nomad_maps_catalog_path()
+        if not force_refresh and local_path.exists():
+            cached = read_json(local_path, {})
+            if cached:
+                return cached
+
+        source = self.maps_catalog_source()
+        req = request.Request(
+            source["collections_url"],
+            headers={"User-Agent": "SOPR-Portal"},
+        )
+        try:
+            with request.urlopen(req, timeout=30) as response:
+                document = json.loads(response.read().decode("utf-8"))
+        except error.URLError as exc:
+            cached = read_json(local_path, {})
+            if cached:
+                return cached
+            raise RuntimeError(f"Unable to fetch Project NOMAD maps catalog: {exc}") from exc
+
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        local_path.write_text(json.dumps(document, indent=2) + "\n")
+        return document
+
+    def lfs_pointer_size_bytes(self, download_url: str | None) -> int | None:
+        if not download_url:
+            return None
+        req = request.Request(
+            download_url,
+            headers={
+                "Accept": "application/vnd.github.raw",
+                "User-Agent": "SOPR-Portal",
+            },
+        )
+        try:
+            with request.urlopen(req, timeout=15) as response:
+                pointer_text = response.read(1024).decode("utf-8", errors="replace")
+        except error.URLError:
+            return None
+        if "git-lfs.github.com/spec" not in pointer_text:
+            return None
+        return parse_git_lfs_pointer_size(pointer_text)
+
     def fetch_nomad_maps_catalog_cached(self, force_refresh: bool = False) -> dict:
         cache_ttl_seconds = 600
         if not force_refresh and self.maps_catalog_cache_file.exists():
@@ -1106,49 +1240,63 @@ class PortalState:
                     return cached["payload"]
 
         source = self.maps_catalog_source()
-        api_url = (
-            f"https://api.github.com/repos/{source['owner']}/{source['repo']}"
-            f"/contents/{source['subdir']}?ref={source['branch']}"
-        )
-        req = request.Request(
-            api_url,
-            headers={
-                "Accept": "application/vnd.github+json",
-                "User-Agent": "SOPR-Portal",
-            },
-        )
-        try:
-            with request.urlopen(req, timeout=30) as response:
-                payload = json.loads(response.read().decode("utf-8"))
-        except error.URLError as exc:
-            raise RuntimeError(f"Unable to fetch NOMAD maps catalog: {exc}") from exc
-
+        document = self.fetch_nomad_maps_collections_document(force_refresh=force_refresh)
         installed_info = {item["name"]: item for item in self.pmtiles_inventory()}
         active = self.active_pmtiles_file()
         items = []
-        for entry in payload:
-            if entry.get("type") != "file":
-                continue
-            name = entry.get("name", "")
-            if not name.endswith(".pmtiles"):
-                continue
-            items.append(
-                {
+        collections = []
+        for collection in document.get("collections", []):
+            resources = []
+            collection_size_bytes = 0
+            installed_count = 0
+            for resource in collection.get("resources", []):
+                url = str(resource.get("url", ""))
+                name = Path(urlparse(url).path).name
+                if not name.endswith(".pmtiles"):
+                    continue
+                size_mb = int(resource.get("size_mb", 0) or 0)
+                size_bytes = size_mb * 1024 * 1024
+                installed = name in installed_info
+                if installed:
+                    installed_count += 1
+                entry = {
                     "name": name,
-                    "size_bytes": entry.get("size", 0),
-                    "lfs_backed": int(entry.get("size", 0) or 0) < 2048,
-                    "download_url": entry.get("download_url"),
-                    "html_url": entry.get("html_url"),
-                    "installed": name in installed_info,
+                    "id": str(resource.get("id", "")),
+                    "title": str(resource.get("title", name)),
+                    "description": str(resource.get("description", "")),
+                    "version": str(resource.get("version", "")),
+                    "region_slug": str(collection.get("slug", "")),
+                    "region_name": str(collection.get("name", "")),
+                    "size_bytes": size_bytes,
+                    "size_label": format_size_bytes(size_bytes) if size_bytes else "",
+                    "lfs_backed": True,
+                    "download_url": url,
+                    "installed": installed,
                     "installed_valid": bool(installed_info.get(name, {}).get("valid")),
                     "installed_size_bytes": int(installed_info.get(name, {}).get("size_bytes", 0)),
                     "installed_error": installed_info.get(name, {}).get("error"),
                     "active": name == active,
                 }
+                resources.append(entry)
+                items.append(entry)
+                collection_size_bytes += size_bytes
+
+            collections.append(
+                {
+                    "slug": str(collection.get("slug", "")),
+                    "name": str(collection.get("name", "")),
+                    "description": str(collection.get("description", "")),
+                    "size_bytes": collection_size_bytes,
+                    "size_label": format_size_bytes(collection_size_bytes) if collection_size_bytes else "",
+                    "resource_names": [item["name"] for item in resources],
+                    "resource_count": len(resources),
+                    "installed_count": installed_count,
+                }
             )
 
         payload = {
             "source": source,
+            "collections": collections,
             "items": sorted(items, key=lambda item: item["name"]),
         }
         self.maps_catalog_cache_file.write_text(
@@ -1445,6 +1593,33 @@ class PortalState:
         zim_mode = payload.get("zim_mode", "full")
         if zim_mode not in {"full", "quick-test", "custom"}:
             raise ValueError("Invalid zim_mode")
+        map_collections = payload.get("map_collections", [])
+        if map_collections is None:
+            map_collections = []
+        if not isinstance(map_collections, list):
+            raise ValueError("Invalid map_collections")
+        try:
+            maps_catalog = self.fetch_nomad_maps_catalog_cached(force_refresh=False)
+        except RuntimeError:
+            maps_catalog = {"collections": [], "items": []}
+        valid_map_collections = {
+            str(collection.get("slug", "")).strip()
+            for collection in maps_catalog.get("collections", [])
+            if str(collection.get("slug", "")).strip()
+        }
+        cleaned_map_collections: list[str] = []
+        for value in map_collections:
+            slug = str(value).strip()
+            if not slug:
+                continue
+            if slug != "all" and slug not in valid_map_collections:
+                raise ValueError(f"Invalid map collection: {slug}")
+            cleaned_map_collections.append(slug)
+        if "all" in cleaned_map_collections:
+            cleaned_map_collections = ["all"]
+        else:
+            cleaned_map_collections = sorted(set(cleaned_map_collections))
+        selected_map_files = self.selected_map_files(cleaned_map_collections)
 
         install_kolibri = bool(payload.get("install_kolibri", False))
         install_ka_lite = bool(payload.get("install_ka_lite", False))
@@ -1466,6 +1641,8 @@ class PortalState:
                 "PREPMASTER_WIKIPEDIA_OPTION": wikipedia_option,
                 "PREPMASTER_AP_ENABLED": "1" if ap_enabled else "0",
                 "PREPMASTER_ZIM_MODE": zim_mode,
+                "PREPMASTER_MAP_SELECTED_COLLECTIONS": ",".join(cleaned_map_collections),
+                "PREPMASTER_MAP_SELECTED_FILES": ",".join(selected_map_files),
             },
         )
         self.write_maps_runtime_config()
@@ -1895,6 +2072,10 @@ class PortalState:
                 [str(self.repo_root / "scripts" / "download_kiwix_zims.sh")],
             ),
             (
+                "Installing selected offline maps",
+                ["__internal_map_sync__"],
+            ),
+            (
                 "Installing optional components",
                 [str(self.repo_root / "scripts" / "install_optional_components.sh")],
             ),
@@ -1943,6 +2124,39 @@ class PortalState:
                 )
                 log_handle.write(f"\n== {step} ==\n")
                 log_handle.flush()
+                if command == ["__internal_map_sync__"]:
+                    selected_files = self.selected_map_files()
+                    if not selected_files:
+                        log_handle.write("No offline maps selected for setup.\n")
+                        log_handle.flush()
+                        continue
+                    self.map_sync_log_file.write_text("")
+                    self.save_map_sync_state(
+                        {
+                            "status": "running",
+                            "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                            "finished_at": None,
+                            "current_file": None,
+                            "current_index": 0,
+                            "total_files": len(selected_files),
+                            "progress_percent": 0,
+                            "error": None,
+                            "selected_files": selected_files,
+                        }
+                    )
+                    log_handle.write(f"Selected map packages: {', '.join(selected_files)}\n")
+                    log_handle.write(
+                        "Detailed map-sync progress is also available from the Maps section in Settings.\n"
+                    )
+                    log_handle.flush()
+                    self.run_map_sync(selected_files)
+                    map_sync_state = self.load_map_sync_state()
+                    if map_sync_state.get("status") != "succeeded":
+                        exit_code = 1
+                        error_message = map_sync_state.get("error") or f"{step} failed"
+                        break
+                    continue
+
                 result = subprocess.run(
                     command,
                     cwd=self.repo_root,

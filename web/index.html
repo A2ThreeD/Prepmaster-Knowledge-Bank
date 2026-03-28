@@ -983,12 +983,19 @@
             <button class="step-button" data-step="2" type="button">
               <span class="step-index">3</span>
               <span class="step-meta">
-                <strong>Network</strong>
-                <span>Choose how people connect</span>
+                <strong>Maps</strong>
+                <span>Choose which regions to include</span>
               </span>
             </button>
             <button class="step-button" data-step="3" type="button">
               <span class="step-index">4</span>
+              <span class="step-meta">
+                <strong>Network</strong>
+                <span>Choose how people connect</span>
+              </span>
+            </button>
+            <button class="step-button" data-step="4" type="button">
+              <span class="step-index">5</span>
               <span class="step-meta">
                 <strong>Review</strong>
                 <span>Check your choices</span>
@@ -1040,6 +1047,7 @@
                 <p>Offline reference material for everyday use, emergencies, and practical skills.</p>
                 <ul>
                   <li>Includes the Wikipedia choice from the next step</li>
+                  <li>Includes any map regions selected later in setup</li>
                   <li>Includes medical, repair, and preparedness references</li>
                   <li>Includes the core SOPR tools</li>
                 </ul>
@@ -1083,6 +1091,17 @@
           <section class="step-panel" data-step-panel="2">
             <div class="panel-head">
               <span class="eyebrow">Step 3</span>
+              <h2>Choose Your Map Regions</h2>
+              <p>Select one or more offline map regions to install now. You can choose all regions, or just the areas you want on this device.</p>
+            </div>
+
+            <div class="options-grid three-up" id="map-options"></div>
+            <p class="small-note" id="map-note">Map choices will appear here once setup information loads.</p>
+          </section>
+
+          <section class="step-panel" data-step-panel="3">
+            <div class="panel-head">
+              <span class="eyebrow">Step 4</span>
               <h2>Choose How People Connect</h2>
               <p>Use an existing network for the simplest setup, or let this device create its own Wi-Fi so phones and laptops can connect directly.</p>
             </div>
@@ -1118,9 +1137,9 @@
             </div>
           </section>
 
-          <section class="step-panel" data-step-panel="3">
+          <section class="step-panel" data-step-panel="4">
             <div class="panel-head">
-              <span class="eyebrow">Step 4</span>
+              <span class="eyebrow">Step 5</span>
               <h2>Review Your Choices</h2>
               <p>Complete setup to download content, turn on services, and finish preparing this device.</p>
             </div>
@@ -1133,6 +1152,10 @@
               <article class="review-card">
                 <h3>Wikipedia Package</h3>
                 <p id="review-wikipedia">Loading Wikipedia package details.</p>
+              </article>
+              <article class="review-card">
+                <h3>Maps</h3>
+                <p id="review-maps">No offline maps selected.</p>
               </article>
               <article class="review-card">
                 <h3>Connection</h3>
@@ -1149,7 +1172,7 @@
 
         <section class="wizard-footer">
           <div class="footer-note" id="wizard-footer-note">
-            Step 1 of 4. Start by choosing the modules this device should install.
+            Step 1 of 5. Start by choosing the modules this device should install.
           </div>
           <div class="actions">
             <button class="button ghost" id="prev-step-button" type="button">← Previous</button>
@@ -1229,7 +1252,7 @@
     const apiBase = "/api";
     const params = new URLSearchParams(window.location.search);
     const forceSetup = params.get("mode") === "setup";
-    const totalSteps = 4;
+    const totalSteps = 5;
 
     const message = document.getElementById("message");
     const setupView = document.getElementById("setup-view");
@@ -1249,9 +1272,12 @@
     const networkApCard = document.getElementById("network-ap-card");
     const wikipediaOptionsContainer = document.getElementById("wikipedia-options");
     const wikipediaNote = document.getElementById("wikipedia-note");
+    const mapOptionsContainer = document.getElementById("map-options");
+    const mapNote = document.getElementById("map-note");
 
     const reviewModules = document.getElementById("review-modules");
     const reviewWikipedia = document.getElementById("review-wikipedia");
+    const reviewMaps = document.getElementById("review-maps");
     const reviewNetwork = document.getElementById("review-network");
     const storageSummary = document.getElementById("storage-summary");
     const storageUsedSegment = document.getElementById("storage-used-segment");
@@ -1274,9 +1300,11 @@
     let setupState = {
       installKolibri: false,
       wikipediaOption: "top-mini",
+      mapCollections: [],
       apEnabled: false
     };
     let wikipediaOptions = [];
+    let mapCollections = [];
     let storageState = null;
 
     function formatSize(sizeMb) {
@@ -1314,6 +1342,37 @@
       return getWikipediaOptionById(setupState.wikipediaOption) || wikipediaOptions[0] || null;
     }
 
+    function getMapCollectionBySlug(slug) {
+      return mapCollections.find((collection) => collection.slug === slug) || null;
+    }
+
+    function normalizeMapSelection(selection) {
+      const cleaned = Array.from(new Set((selection || []).filter(Boolean)));
+      if (cleaned.includes("all")) {
+        return ["all"];
+      }
+      return cleaned;
+    }
+
+    function selectedMapCollectionMb(selection = setupState.mapCollections) {
+      const normalized = normalizeMapSelection(selection);
+      if (normalized.includes("all")) {
+        return Number(storageState?.missing_all_maps_mb || 0);
+      }
+      return normalized.reduce(
+        (total, slug) => total + Number(storageState?.missing_by_map_collection?.[slug] || 0),
+        0
+      );
+    }
+
+    function selectedSetupAddedBytes(mapSelection = setupState.mapCollections, wikipediaOptionId = setupState.wikipediaOption) {
+      const wikiMb = Number(storageState?.missing_by_wikipedia?.[wikipediaOptionId || ""] || 0);
+      const kolibriMb = setupState.installKolibri && !storageState?.kolibri_installed
+        ? Number(storageState?.kolibri_estimated_mb || 0)
+        : 0;
+      return Math.round((wikiMb + kolibriMb + selectedMapCollectionMb(mapSelection)) * 1024 * 1024);
+    }
+
     function updateCardPressedState(card, selected) {
       card.classList.toggle("selected", selected);
       card.setAttribute("aria-pressed", selected ? "true" : "false");
@@ -1335,11 +1394,7 @@
 
       wikipediaOptions.forEach((option) => {
         const freeBytes = Number(storageState?.disk?.free_bytes || 0);
-        const baseMb = Number(storageState?.missing_by_wikipedia?.[option.id] || 0);
-        const kolibriMb = setupState.installKolibri && !storageState?.kolibri_installed
-          ? Number(storageState?.kolibri_estimated_mb || 0)
-          : 0;
-        const projectedChoiceBytes = Math.round((baseMb + kolibriMb) * 1024 * 1024);
+        const projectedChoiceBytes = selectedSetupAddedBytes(setupState.mapCollections, option.id);
         const exceedsFreeSpace = freeBytes > 0 && projectedChoiceBytes > freeBytes;
 
         const button = document.createElement("button");
@@ -1391,10 +1446,102 @@
         button.addEventListener("click", () => {
           setupState.wikipediaOption = option.id;
           renderWikipediaOptions();
+          renderMapOptions();
           renderSetupSummary();
         });
 
         wikipediaOptionsContainer.appendChild(button);
+      });
+    }
+
+    function renderMapOptions() {
+      mapOptionsContainer.textContent = "";
+
+      if (!mapCollections.length) {
+        mapNote.textContent = "Map choices are unavailable right now.";
+        return;
+      }
+
+      mapNote.textContent = "Choose one or more regions, or install all regions if you want the full offline map set.";
+      const freeBytes = Number(storageState?.disk?.free_bytes || 0);
+      const allChoice = {
+        slug: "all",
+        name: "All Regions",
+        description: "Download the full Project NOMAD regional map collection.",
+        size_label: formatSize(Number(storageState?.missing_all_maps_mb || 0)),
+        resource_count: mapCollections.reduce((count, collection) => count + Number(collection.resource_count || 0), 0)
+      };
+
+      [allChoice, ...mapCollections].forEach((collection) => {
+        const selected = setupState.mapCollections.includes(collection.slug);
+        let nextSelection;
+        if (collection.slug === "all") {
+          nextSelection = selected ? [] : ["all"];
+        } else if (setupState.mapCollections.includes("all")) {
+          nextSelection = [collection.slug];
+        } else if (selected) {
+          nextSelection = setupState.mapCollections.filter((slug) => slug !== collection.slug);
+        } else {
+          nextSelection = [...setupState.mapCollections, collection.slug];
+        }
+        nextSelection = normalizeMapSelection(nextSelection);
+        const projectedChoiceBytes = selectedSetupAddedBytes(nextSelection);
+        const exceedsFreeSpace = freeBytes > 0 && projectedChoiceBytes > freeBytes;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "option-card";
+        button.dataset.collectionSlug = collection.slug;
+        button.setAttribute("aria-pressed", selected ? "true" : "false");
+        if (exceedsFreeSpace) {
+          button.classList.add("storage-danger");
+          button.title = "This map choice is larger than the free space currently available.";
+        }
+
+        const top = document.createElement("div");
+        top.className = "option-top";
+
+        const badge = document.createElement("span");
+        badge.className = "option-badge";
+        badge.textContent = collection.size_label || "Size not listed";
+
+        const indicator = document.createElement("span");
+        indicator.className = "option-indicator";
+        indicator.textContent = selected ? "✓" : "○";
+
+        top.appendChild(badge);
+        top.appendChild(indicator);
+
+        const title = document.createElement("h3");
+        title.textContent = collection.name;
+
+        const description = document.createElement("p");
+        description.textContent = collection.description || "Offline maps for this region.";
+
+        const meta = document.createElement("div");
+        meta.className = "meta-line";
+
+        const count = document.createElement("span");
+        count.textContent = `${Number(collection.resource_count || 0)} map package${Number(collection.resource_count || 0) === 1 ? "" : "s"}`;
+
+        meta.appendChild(count);
+        button.appendChild(top);
+        button.appendChild(title);
+        button.appendChild(description);
+        button.appendChild(meta);
+
+        if (selected) {
+          button.classList.add("selected");
+        }
+
+        button.addEventListener("click", () => {
+          setupState.mapCollections = nextSelection;
+          renderWikipediaOptions();
+          renderMapOptions();
+          renderSetupSummary();
+        });
+
+        mapOptionsContainer.appendChild(button);
       });
     }
 
@@ -1406,24 +1553,32 @@
 
     function renderSetupSummary() {
       const selectedWikipedia = selectedWikipediaOption();
+      const selectedMaps = normalizeMapSelection(setupState.mapCollections);
       const modulesText = setupState.installKolibri
         ? "Main library + learning tools."
         : "Main library only.";
       const wikipediaText = selectedWikipedia
         ? `${selectedWikipedia.name} (${formatSize(selectedWikipedia.size_mb)}).`
         : "Wikipedia package not selected.";
+      const mapsText = selectedMaps.includes("all")
+        ? "All offline map regions."
+        : selectedMaps.length
+          ? `${selectedMaps.map((slug) => getMapCollectionBySlug(slug)?.name || slug).join(", ")}.`
+          : "No offline maps selected.";
       const networkText = setupState.apEnabled
         ? "Device Wi-Fi enabled for direct access."
         : "Use an existing network connection.";
 
       reviewModules.textContent = modulesText;
       reviewWikipedia.textContent = wikipediaText;
+      reviewMaps.textContent = mapsText;
       reviewNetwork.textContent = networkText;
 
       renderDashboardProfile({
         install_kolibri: setupState.installKolibri,
         install_ka_lite: false,
         wikipedia_option: setupState.wikipediaOption,
+        map_collections: setupState.mapCollections,
         ap_enabled: setupState.apEnabled
       });
       renderStorageEstimate();
@@ -1435,8 +1590,13 @@
       const addOnText = profile.install_kolibri
         ? "Learning tools included"
         : "Learning tools not included";
+      const mapText = Array.isArray(profile.map_collections) && profile.map_collections.length
+        ? profile.map_collections.includes("all")
+          ? "All map regions selected"
+          : `${profile.map_collections.length} map region${profile.map_collections.length === 1 ? "" : "s"} selected`
+        : "No offline maps selected";
       const apText = profile.ap_enabled ? "Device Wi-Fi enabled" : "Using existing network";
-      dashboardProfileText.textContent = `${wikiLabel}. ${addOnText}. ${apText}.`;
+      dashboardProfileText.textContent = `${wikiLabel}. ${mapText}. ${addOnText}. ${apText}.`;
     }
 
     function renderApplyState(state) {
@@ -1487,10 +1647,12 @@
       const selectedWikipedia = selectedWikipediaOption();
       const baseMb = Number(storageState.missing_by_wikipedia?.[selectedWikipedia?.id || ""] || 0);
       const wikiBytes = Math.round(baseMb * 1024 * 1024);
+      const mapMb = selectedMapCollectionMb();
+      const mapBytes = Math.round(mapMb * 1024 * 1024);
       const kolibriMb = setupState.installKolibri && !storageState.kolibri_installed
         ? Number(storageState.kolibri_estimated_mb || 0)
         : 0;
-      const addedBytes = Math.round((baseMb + kolibriMb) * 1024 * 1024);
+      const addedBytes = Math.round((baseMb + kolibriMb + mapMb) * 1024 * 1024);
       const projectedUsedBytes = usedBytes + addedBytes;
       const projectedFreeBytes = totalBytes - projectedUsedBytes;
       const projectedFreePercent = totalBytes > 0 ? (projectedFreeBytes / totalBytes) * 100 : 0;
@@ -1509,16 +1671,25 @@
       storageUsedLabel.textContent = formatBytes(usedBytes);
       storageAddedLabel.textContent = formatBytes(addedBytes);
       storageFreeLabel.textContent = exceedsDisk ? "Not enough space" : formatBytes(projectedFreeBytes);
-      storageSummary.textContent = selectedWikipedia
-        ? `This setup is estimated to add ${formatBytes(addedBytes)}, including ${formatBytes(wikiBytes)} for ${selectedWikipedia.name}.`
-        : `This setup is estimated to add ${formatBytes(addedBytes)} on top of the ${formatBytes(usedBytes)} already in use.`;
+      if (selectedWikipedia) {
+        const summaryParts = [`${formatBytes(wikiBytes)} for ${selectedWikipedia.name}`];
+        if (mapBytes > 0) {
+          summaryParts.push(`${formatBytes(mapBytes)} for offline maps`);
+        }
+        if (kolibriMb > 0) {
+          summaryParts.push(`${formatBytes(Math.round(kolibriMb * 1024 * 1024))} for learning tools`);
+        }
+        storageSummary.textContent = `This setup is estimated to add ${formatBytes(addedBytes)}, including ${summaryParts.join(", ")}.`;
+      } else {
+        storageSummary.textContent = `This setup is estimated to add ${formatBytes(addedBytes)} on top of the ${formatBytes(usedBytes)} already in use.`;
+      }
 
       storageWarning.className = "storage-warning hidden";
 
       if (exceedsDisk) {
         storageWarning.classList.add("danger");
         storageWarning.classList.remove("hidden");
-        storageWarning.textContent = "Not enough free space for this setup. Choose a smaller Wikipedia option or skip learning tools.";
+        storageWarning.textContent = "Not enough free space for this setup. Choose a smaller Wikipedia option, fewer map regions, or skip learning tools.";
       } else if (nearFull) {
         storageWarning.classList.add("warn");
         storageWarning.classList.remove("hidden");
@@ -1558,10 +1729,11 @@
       });
 
       const notes = [
-        "Step 1 of 4. Start by choosing what to include on this device.",
-        "Step 2 of 4. Choose how much Wikipedia to include.",
-        "Step 3 of 4. Choose how people will connect to this device.",
-        "Step 4 of 4. Review your choices and complete setup when ready."
+        "Step 1 of 5. Start by choosing what to include on this device.",
+        "Step 2 of 5. Choose how much Wikipedia to include.",
+        "Step 3 of 5. Choose which offline map regions to include.",
+        "Step 4 of 5. Choose how people will connect to this device.",
+        "Step 5 of 5. Review your choices and complete setup when ready."
       ];
       footerNote.textContent = notes[currentStep];
       if (lockNavigation) {
@@ -1591,6 +1763,7 @@
             install_kolibri: setupState.installKolibri,
             install_ka_lite: false,
             wikipedia_option: setupState.wikipediaOption,
+            map_collections: setupState.mapCollections,
             ap_enabled: setupState.apEnabled,
             setup_complete: setupComplete
           })
@@ -1604,10 +1777,12 @@
         const latestProfile = payload.profile || {};
         setupState.installKolibri = Boolean(latestProfile.install_kolibri);
         setupState.wikipediaOption = latestProfile.wikipedia_option || setupState.wikipediaOption;
+        setupState.mapCollections = normalizeMapSelection(latestProfile.map_collections || setupState.mapCollections);
         setupState.apEnabled = Boolean(latestProfile.ap_enabled);
 
         renderSelectionCards();
         renderWikipediaOptions();
+        renderMapOptions();
         renderSetupSummary();
         renderDashboardProfile(latestProfile);
         renderMode(payload);
@@ -1642,7 +1817,7 @@
     async function applyConfiguration() {
       clearMessage();
       if (storageLimitExceeded) {
-        window.alert("There is not enough free space for the current setup choices. Pick a smaller Wikipedia option or turn off learning tools before completing setup.");
+        window.alert("There is not enough free space for the current setup choices. Pick a smaller Wikipedia option, choose fewer map regions, or turn off learning tools before completing setup.");
         return;
       }
       applyConfigButton.disabled = true;
@@ -1680,10 +1855,14 @@
         wikipediaOptions = Array.isArray(state.setup_options?.wikipedia?.options)
           ? state.setup_options.wikipedia.options
           : [];
+        mapCollections = Array.isArray(state.setup_options?.maps?.collections)
+          ? state.setup_options.maps.collections
+          : [];
 
         setupState.installKolibri = Boolean(state.profile.install_kolibri);
         setupState.apEnabled = Boolean(state.profile.ap_enabled);
         setupState.wikipediaOption = state.profile.wikipedia_option || "top-mini";
+        setupState.mapCollections = normalizeMapSelection(state.profile.map_collections || []);
         storageState = state.storage || null;
 
         if (!getWikipediaOptionById(setupState.wikipediaOption) && wikipediaOptions.length) {
@@ -1692,6 +1871,7 @@
 
         renderSelectionCards();
         renderWikipediaOptions();
+        renderMapOptions();
         renderSetupSummary();
         renderDashboardProfile(state.profile);
         renderApplyState(applyState);
@@ -1701,6 +1881,7 @@
       } catch (error) {
         renderSelectionCards();
         renderWikipediaOptions();
+        renderMapOptions();
         renderSetupSummary();
         renderMode({ setup_complete: false });
         renderStorageEstimate();
@@ -1712,6 +1893,8 @@
     educationModuleCard.addEventListener("click", () => {
       setupState.installKolibri = !setupState.installKolibri;
       renderSelectionCards();
+      renderWikipediaOptions();
+      renderMapOptions();
       renderSetupSummary();
     });
 
