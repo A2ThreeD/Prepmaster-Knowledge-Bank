@@ -587,6 +587,49 @@
       ]);
     }
 
+    function isUsableBounds(header) {
+      if (!header) return false;
+      const minLon = Number(header.minLon);
+      const minLat = Number(header.minLat);
+      const maxLon = Number(header.maxLon);
+      const maxLat = Number(header.maxLat);
+      if (![minLon, minLat, maxLon, maxLat].every(Number.isFinite)) return false;
+      if (minLon >= maxLon || minLat >= maxLat) return false;
+      if (minLon === -180 && minLat <= -85 && maxLon === 180 && maxLat >= 85) return false;
+      return true;
+    }
+
+    async function centerMapOnActiveArchive(pmtilesSource, config) {
+      if (!mapInstance || !pmtilesSource || typeof pmtilesSource.getHeader !== "function") {
+        return;
+      }
+      try {
+        const header = await pmtilesSource.getHeader();
+        if (!isUsableBounds(header)) {
+          return;
+        }
+        mapInstance.fitBounds(
+          [
+            [header.minLon, header.minLat],
+            [header.maxLon, header.maxLat]
+          ],
+          {
+            padding: { top: 36, right: 36, bottom: 36, left: 36 },
+            maxZoom: Math.max(config.minZoom || 2, Math.min(config.maxZoom || 14, 10)),
+            duration: 0
+          }
+        );
+        const center = mapInstance.getCenter();
+        const zoom = mapInstance.getZoom();
+        latInput.value = center.lat.toFixed(4);
+        lonInput.value = center.lng.toFixed(4);
+        zoomInput.value = String(Math.round(zoom));
+        zoomValue.textContent = String(Math.round(zoom));
+      } catch (_error) {
+        // Fall back to configured defaults if PMTiles header bounds are unavailable.
+      }
+    }
+
     async function buildMap() {
       mapReloadInProgress = true;
       try {
@@ -645,6 +688,10 @@
         mapInstance.once("idle", () => {
           mapStatus.textContent = `Map ready. ${config.pmtilesFile} is active.`;
           mapReloadInProgress = false;
+        });
+
+        mapInstance.once("load", () => {
+          centerMapOnActiveArchive(pmtilesSource, config);
         });
 
         loadMapState()

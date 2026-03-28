@@ -1,6 +1,61 @@
 # Custom SOPR ZIM selection from https://download.kiwix.org/zim/
-# Saved at: 2026-03-27T06:35:00Z
-# Resource count: 1
+# Saved at: 2026-03-28T06:41:20Z
+# Base preset: compact
+# Resource count: 19
+
+# Curated Base | compact
+https://download.kiwix.org/zim/other/zimgit-medicine_en_2024-08.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/zimit/nhs.uk_en_medicines_2025-12.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/zimit/fas-military-medicine_en_2025-06.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/zimit/wwwnc.cdc.gov_en_all_2024-11.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/videos/canadian_prepper_winterprepping_en_2025-11.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/videos/canadian_prepper_bugoutroll_en_2025-08.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/wikibooks/wikibooks_en_all_nopic_2025-10.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/stack_exchange/woodworking.stackexchange.com_en_all_2025-12.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/stack_exchange/mechanics.stackexchange.com_en_all_2025-12.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/zimit/foss.cooking_en_all_2025-11.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/zimit/based.cooking_en_all_2025-11.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/freecodecamp/freecodecamp_en_all_2025-11.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/devdocs/devdocs_en_python_2026-01.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/devdocs/devdocs_en_javascript_2026-01.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/devdocs/devdocs_en_html_2026-01.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/devdocs/devdocs_en_css_2026-01.zim
+
+# Curated Base | compact
+https://download.kiwix.org/zim/wikipedia/wikipedia_en_top_nopic_2026-03.zim
+
+# devdocs | devdocs_en_python_2026-02.zim
+https://download.kiwix.org/zim/devdocs/devdocs_en_python_2026-02.zim
 
 # ifixit | ifixit_en_all_2025-12.zim
 https://download.kiwix.org/zim/ifixit/ifixit_en_all_2025-12.zim

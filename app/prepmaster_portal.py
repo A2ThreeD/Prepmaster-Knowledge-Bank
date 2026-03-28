@@ -230,6 +230,7 @@ class PortalState:
         self.content_catalog_lock = threading.Lock()
         self.content_catalog_refresh_thread: threading.Thread | None = None
         self.write_maps_runtime_config()
+        self.recover_interrupted_map_sync()
         self.recover_interrupted_apply()
 
     def wikipedia_catalog(self) -> dict:
@@ -1235,6 +1236,19 @@ class PortalState:
         if not self.map_sync_log_file.exists():
             return []
         return self.map_sync_log_file.read_text().splitlines()[-lines:]
+
+    def recover_interrupted_map_sync(self) -> None:
+        state = read_json(self.map_sync_state_file, {})
+        if state.get("status") != "running":
+            return
+        self.save_map_sync_state(
+            {
+                "status": "failed",
+                "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "error": "Map sync was interrupted and is no longer running. Start the sync again if you still want these maps.",
+                "current_file": None,
+            }
+        )
 
     def load_map_sync_state(self) -> dict:
         state = read_json(

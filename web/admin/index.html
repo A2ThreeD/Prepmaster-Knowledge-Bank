@@ -449,34 +449,35 @@
     .zim-entry {
       display: grid;
       grid-template-columns: auto 1fr;
-      align-items: start;
+      align-items: center;
       gap: 6px 10px;
       margin-bottom: 8px;
-      font-size: 0.78rem;
-      line-height: 1.25;
+      font-size: 0.75rem;
+      line-height: 1.2;
     }
 
     .zim-entry input[type="checkbox"] {
-      margin-top: 3px;
+      margin-top: 0;
     }
 
     .zim-entry-body {
       min-width: 0;
+      line-height: 1.2;
     }
 
     .zim-entry-title {
-      display: block;
+      display: inline;
       color: var(--text);
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       line-height: 1.2;
     }
 
     .zim-entry-desc {
-      display: block;
-      margin-top: 2px;
+      display: inline;
+      margin-left: 0.35rem;
       color: var(--muted);
-      font-size: 0.7rem;
-      line-height: 1.25;
+      font-size: 0.68rem;
+      line-height: 1.2;
     }
 
     .log-panel.hidden {
@@ -1169,19 +1170,45 @@
       }).join(" ");
     }
 
+    function inferredZimDescription(name, category = "") {
+      const value = String(name || "").toLowerCase();
+      const categoryText = String(category || "").trim();
+      if (value.startsWith("wikipedia_")) return "Offline encyclopedia articles and general reference.";
+      if (value.startsWith("wikibooks_")) return "Open textbooks and study guides for offline learning.";
+      if (value.startsWith("wikiversity_")) return "Courses, lessons, and self-directed learning materials.";
+      if (value.startsWith("freecodecamp_")) return "Programming tutorials and coding practice lessons.";
+      if (value.startsWith("devdocs_")) return "Developer documentation and technical reference materials.";
+      if (value.includes("stackexchange.com")) return "Community questions and answers for practical problem-solving.";
+      if (value.startsWith("canadian_prepper_")) return "Preparedness and survival video content for emergencies.";
+      if (value.startsWith("nhs.uk_")) return "Medicine, dosage, and treatment reference information.";
+      if (value.startsWith("wwwnc.cdc.gov_")) return "Public health, disease prevention, and travel health guidance.";
+      if (value.startsWith("zimgit-medicine_")) return "Field medicine books and emergency care guides.";
+      if (value.startsWith("fas-military-medicine_")) return "Military and tactical medicine manuals.";
+      if (value.startsWith("foss.cooking_") || value.startsWith("based.cooking_")) return "Recipes, cooking methods, and kitchen reference.";
+      if (value.startsWith("ifixit_")) return "Repair manuals, troubleshooting steps, and teardown guides.";
+      if (categoryText) return `${categoryText} reference content for offline use.`;
+      return "Offline reference content.";
+    }
+
+    function zimVersionLabel(name) {
+      const value = String(name || "");
+      const match = value.match(/_(\d{4}-\d{2})\.zim$/i);
+      return match ? `v${match[1]}` : "";
+    }
+
     function installedZimDescription(item) {
       const fromCatalog = currentContentCatalog && (currentContentCatalog.items || []).find((entry) => entry.name === item.name);
-      if (fromCatalog && fromCatalog.category) {
-        return String(fromCatalog.category);
+      if (fromCatalog) {
+        return inferredZimDescription(item.name, fromCatalog.category);
       }
       if (item.selected) {
-        return "Saved extra selection";
+        return "Extra Content";
       }
-      return "Installed on this device";
+      return inferredZimDescription(item.name);
     }
 
     function catalogZimDescription(item) {
-      return String(item.category || "Kiwix library");
+      return inferredZimDescription(item.name, item.category);
     }
 
     function renderContentStorage(state, content) {
@@ -1636,14 +1663,18 @@
 
       container.innerHTML = items.map((item) => {
         const details = [];
-        if (item.selected) details.push("selected for custom");
+        const version = zimVersionLabel(item.name);
+        if (version) details.push(version);
+        if (item.selected) details.push("saved for library");
         if (item.size_label) details.push(item.size_label);
-        const descriptionBits = [installedZimDescription(item), ...details];
+        const descriptionBits = [installedZimDescription(item), ...details].filter(Boolean);
+        const descriptionText = descriptionBits.length
+          ? `<span class="zim-entry-desc">- ${escapeHtml(descriptionBits.join(" - "))}</span>`
+          : "";
         return `<label class="zim-entry">
           <input type="checkbox" class="local-zim-checkbox" value="${escapeHtml(item.name)}">
           <span class="zim-entry-body">
-            <span class="zim-entry-title">${escapeHtml(friendlyZimTitle(item.name))}</span>
-            <span class="zim-entry-desc">${escapeHtml(descriptionBits.join(" - "))}</span>
+            <span class="zim-entry-title">${escapeHtml(friendlyZimTitle(item.name))}</span>${descriptionText}
           </span>
         </label>`;
       }).join("");
@@ -1725,6 +1756,8 @@
 
       container.innerHTML = items.map((item) => {
         const details = [];
+        const version = zimVersionLabel(item.name);
+        if (version) details.push(version);
         if (item.size_bytes) {
           details.push(iconLabel("download", formatBytes(item.size_bytes)));
         } else if (item.size_label && item.size_label !== "-") {
@@ -1738,8 +1771,7 @@
         return `<label class="zim-entry">
           <input type="checkbox" class="zim-catalog-checkbox" value="${escapeHtml(item.path)}" ${pendingCustomSelection.has(item.path) ? "checked" : ""}>
           <span class="zim-entry-body">
-            <span class="zim-entry-title">${escapeHtml(friendlyZimTitle(item.name))}</span>
-            <span class="zim-entry-desc">${escapeHtml(descriptionBits.join(" - "))}${detailText}</span>
+            <span class="zim-entry-title">${escapeHtml(friendlyZimTitle(item.name))}</span><span class="zim-entry-desc">- ${escapeHtml(descriptionBits.join(" - "))}${detailText}</span>
           </span>
         </label>`;
       }).join("");
@@ -1834,6 +1866,15 @@
       } else if (applyPollHandle !== null) {
         window.clearInterval(applyPollHandle);
         applyPollHandle = null;
+      }
+
+      if (currentPanel === "maps") {
+        if (mapsSyncPollHandle === null) {
+          mapsSyncPollHandle = window.setInterval(loadMapSyncState, 5000);
+        }
+      } else if (mapsSyncPollHandle !== null) {
+        window.clearInterval(mapsSyncPollHandle);
+        mapsSyncPollHandle = null;
       }
     }
 
@@ -2012,14 +2053,6 @@
         checkbox.disabled = running;
       });
 
-      if (running && mapsSyncPollHandle === null) {
-        mapsSyncPollHandle = window.setInterval(loadMapSyncState, 4000);
-      }
-
-      if (!running && mapsSyncPollHandle !== null) {
-        window.clearInterval(mapsSyncPollHandle);
-        mapsSyncPollHandle = null;
-      }
     }
 
     function selectedCatalogPaths() {
