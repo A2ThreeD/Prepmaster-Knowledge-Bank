@@ -227,10 +227,48 @@ class PortalState:
         self.write_maps_runtime_config()
         self.recover_interrupted_apply()
 
+    def wikipedia_catalog(self) -> dict:
+        catalog = read_json(
+            self.repo_root / "wikipedia.json",
+            {"spec_version": None, "options": []},
+        )
+        options = catalog.get("options")
+        if not isinstance(options, list):
+            options = []
+        normalized: list[dict[str, object]] = []
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            option_id = str(option.get("id", "")).strip()
+            if not option_id:
+                continue
+            normalized.append(
+                {
+                    "id": option_id,
+                    "name": str(option.get("name", option_id)),
+                    "description": str(option.get("description", "")),
+                    "size_mb": int(option.get("size_mb", 0) or 0),
+                    "version": str(option.get("version", "")),
+                }
+            )
+        return {
+            "spec_version": catalog.get("spec_version"),
+            "options": normalized,
+        }
+
     def load_state(self) -> dict:
         prepmaster = read_env_file(self.prepmaster_env)
         profile = read_env_file(self.install_profile_env)
         custom_selection = self.read_custom_zim_selection()
+        wikipedia_catalog = self.wikipedia_catalog()
+        wikipedia_ids = [
+            str(option.get("id", "")).strip()
+            for option in wikipedia_catalog["options"]
+            if str(option.get("id", "")).strip()
+        ]
+        wikipedia_option = prepmaster.get("PREPMASTER_WIKIPEDIA_OPTION", "top-mini")
+        if wikipedia_ids and wikipedia_option not in wikipedia_ids:
+            wikipedia_option = wikipedia_ids[0]
         state = read_json(
             self.state_file,
             {"setup_complete": False, "last_saved_at": None},
@@ -238,12 +276,13 @@ class PortalState:
         return {
             "setup_complete": bool(state.get("setup_complete", False)),
             "last_saved_at": state.get("last_saved_at"),
+            "setup_options": {
+                "wikipedia": wikipedia_catalog,
+            },
             "profile": {
                 "install_kolibri": profile.get("INSTALL_KOLIBRI", "0") == "1",
                 "install_ka_lite": profile.get("INSTALL_KA_LITE", "0") == "1",
-                "wikipedia_option": prepmaster.get(
-                    "PREPMASTER_WIKIPEDIA_OPTION", "top-mini"
-                ),
+                "wikipedia_option": wikipedia_option,
                 "ap_enabled": prepmaster.get("PREPMASTER_AP_ENABLED", "0") == "1",
                 "zim_mode": prepmaster.get("PREPMASTER_ZIM_MODE", "full"),
                 "zim_profile": prepmaster.get("PREPMASTER_ZIM_PROFILE", "essential"),
@@ -1159,7 +1198,12 @@ class PortalState:
 
     def save_setup(self, payload: dict) -> dict:
         wikipedia_option = payload.get("wikipedia_option", "top-mini")
-        if wikipedia_option not in {"top-mini", "mini", "maxi"}:
+        valid_wikipedia_options = {
+            str(option.get("id", "")).strip()
+            for option in self.wikipedia_catalog()["options"]
+            if str(option.get("id", "")).strip()
+        }
+        if valid_wikipedia_options and wikipedia_option not in valid_wikipedia_options:
             raise ValueError("Invalid wikipedia_option")
         zim_mode = payload.get("zim_mode", "full")
         if zim_mode not in {"full", "quick-test", "custom"}:

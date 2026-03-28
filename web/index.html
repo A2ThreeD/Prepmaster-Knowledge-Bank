@@ -18,6 +18,7 @@
       --bg-deep: #030916;
       --panel: #102238;
       --panel-2: #16304d;
+      --panel-3: #0d1c30;
       --text: #edf4fb;
       --muted: #9bb0c7;
       --accent: #7bb7ff;
@@ -25,12 +26,9 @@
       --accent-strong: #c8ddff;
       --border: rgba(255, 255, 255, 0.88);
       --shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
-      --legacy: #d5b6b6;
       --ok: #a9d4ba;
       --ui-display: "Michroma Local", "Michroma", "OCR A Std", "OCR A Extended", "Aldrich", "Eurostile", "Bank Gothic", "Rajdhani", "Cascadia Mono", "Consolas", monospace;
       --ui-body: "Michroma Local", "Michroma", "OCR A Std", "OCR A Extended", "Aldrich", "Cascadia Mono", "Consolas", monospace;
-      --chamfer: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px);
-      --chamfer-tight: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
     }
 
     * { box-sizing: border-box; }
@@ -103,12 +101,10 @@
       min-height: clamp(130px, 18vw, 220px);
     }
 
-    h1 {
-      margin: 0 0 12px;
-      font-size: clamp(1.55rem, 2.8vw, 2.1rem);
-      line-height: 1.05;
-      position: relative;
-      z-index: 1;
+    h1,
+    h2,
+    h3 {
+      margin: 0;
       font-family: var(--ui-display);
       letter-spacing: 0.05em;
       text-transform: uppercase;
@@ -136,7 +132,7 @@
     .message {
       display: none;
       margin: 0 auto 18px;
-      max-width: 980px;
+      max-width: 1120px;
       border: 1px solid var(--border);
       background: rgba(16, 34, 56, 0.72);
       color: var(--accent-strong);
@@ -152,81 +148,6 @@
       display: none !important;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-      margin-top: 22px;
-    }
-
-    .tile {
-      position: relative;
-      min-height: 236px;
-      padding: 24px 24px 22px;
-      border: 1px solid var(--border);
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015)),
-        linear-gradient(135deg, rgba(32, 60, 101, 0.92), rgba(14, 29, 52, 0.96));
-      box-shadow:
-        0 22px 54px rgba(0, 0, 0, 0.3),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-      backdrop-filter: blur(12px);
-      overflow: hidden;
-      border-radius: 0;
-    }
-
-    .tile::after {
-      content: "";
-      position: absolute;
-      inset: auto -24px -26px auto;
-      width: 140px;
-      height: 140px;
-      border-radius: 999px;
-      background: radial-gradient(circle, rgba(130, 184, 255, 0.16), transparent 68%);
-      pointer-events: none;
-    }
-
-    .tile.wide {
-      grid-column: span 2;
-    }
-
-    .tile.legacy {
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
-        linear-gradient(135deg, rgba(56, 41, 58, 0.96), rgba(26, 22, 39, 0.98));
-    }
-
-    .tile-icon {
-      width: 56px;
-      height: 56px;
-      background: linear-gradient(180deg, rgba(105, 150, 220, 0.3), rgba(67, 103, 156, 0.18));
-      border: 1px solid rgba(174, 207, 241, 0.2);
-      display: grid;
-      place-items: center;
-      font-size: 24px;
-      margin-bottom: 18px;
-      color: var(--accent-strong);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-      border-radius: 0;
-    }
-
-    .tile-icon svg {
-      width: 30px;
-      height: 30px;
-      display: block;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 1.8;
-      stroke-linecap: square;
-      stroke-linejoin: miter;
-      vector-effect: non-scaling-stroke;
-    }
-
-    .tile.legacy .tile-icon {
-      color: #efd5d5;
-      background: rgba(205, 162, 162, 0.12);
-    }
-
     .eyebrow {
       display: inline-block;
       margin-bottom: 10px;
@@ -237,82 +158,387 @@
       font-family: var(--ui-display);
     }
 
-    .tile h2 {
-      margin: 0 0 8px;
-      font-size: 1.42rem;
-      line-height: 1.12;
-      font-family: var(--ui-display);
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
+    .wizard-shell {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+        var(--panel);
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.32),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12);
     }
 
-    .tile p,
-    .tile li,
-    .status-text {
+    .wizard-top {
+      padding: 24px 24px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)),
+        rgba(6, 16, 29, 0.42);
+    }
+
+    .wizard-copy {
+      max-width: 760px;
+    }
+
+    .wizard-copy h1 {
+      font-size: clamp(1.4rem, 2.3vw, 1.95rem);
+      margin-bottom: 12px;
+    }
+
+    .wizard-copy p {
       margin: 0;
       color: var(--muted);
     }
 
-    .tile ul {
+    .stepper {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .step-button {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 76px;
+      padding: 14px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.42);
+      background: rgba(6, 14, 26, 0.52);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+      transition:
+        border-color 0.16s ease,
+        background-color 0.16s ease,
+        box-shadow 0.16s ease,
+        transform 0.08s ease;
+    }
+
+    .step-button:hover {
+      border-color: rgba(255, 255, 255, 0.88);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+    }
+
+    .step-button:focus-visible,
+    .option-card:focus-visible,
+    .button:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.95);
+      outline-offset: 2px;
+    }
+
+    .step-button:active,
+    .option-card:active,
+    .button:active {
+      transform: translateY(1px);
+    }
+
+    .step-button.active {
+      background: linear-gradient(135deg, rgba(123, 183, 255, 0.24), rgba(123, 183, 255, 0.06));
+      border-color: rgba(164, 205, 255, 0.92);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 0 0 1px rgba(123, 183, 255, 0.16);
+    }
+
+    .step-button.complete {
+      border-color: rgba(169, 212, 186, 0.82);
+    }
+
+    .step-index {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid currentColor;
+      color: var(--accent-strong);
+      background: rgba(255, 255, 255, 0.04);
+      flex: 0 0 auto;
+      font-size: 0.85rem;
+    }
+
+    .step-button.active .step-index {
+      background: rgba(123, 183, 255, 0.18);
+    }
+
+    .step-meta strong,
+    .step-meta span {
+      display: block;
+    }
+
+    .step-meta strong {
+      font-family: var(--ui-display);
+      font-size: 0.88rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .step-meta span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .wizard-body {
+      padding: 24px;
+    }
+
+    .step-panel {
+      display: none;
+      animation: panel-in 180ms ease;
+    }
+
+    .step-panel.active {
+      display: block;
+    }
+
+    @keyframes panel-in {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .panel-head {
+      max-width: 780px;
+      margin-bottom: 22px;
+    }
+
+    .panel-head h2 {
+      font-size: clamp(1.2rem, 2vw, 1.6rem);
+      margin-bottom: 10px;
+    }
+
+    .panel-head p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .options-grid.three-up {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .option-card {
+      position: relative;
+      width: 100%;
+      min-height: 236px;
+      padding: 22px 22px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+        linear-gradient(135deg, rgba(32, 60, 101, 0.9), rgba(13, 28, 48, 0.96));
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      transition:
+        border-color 0.16s ease,
+        box-shadow 0.16s ease,
+        background-color 0.16s ease,
+        transform 0.08s ease;
+      box-shadow:
+        0 18px 42px rgba(0, 0, 0, 0.24),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+    }
+
+    .option-card::after {
+      content: "";
+      position: absolute;
+      right: -24px;
+      bottom: -22px;
+      width: 150px;
+      height: 150px;
+      background: radial-gradient(circle, rgba(130, 184, 255, 0.18), transparent 68%);
+      pointer-events: none;
+    }
+
+    .option-card:hover {
+      border-color: rgba(255, 255, 255, 0.92);
+      box-shadow:
+        0 20px 48px rgba(0, 0, 0, 0.3),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+    }
+
+    .option-card.selected {
+      border-color: rgba(164, 205, 255, 0.94);
+      background:
+        linear-gradient(180deg, rgba(170, 206, 255, 0.1), rgba(255, 255, 255, 0.02)),
+        linear-gradient(135deg, rgba(52, 84, 130, 0.94), rgba(13, 28, 48, 0.98));
+      box-shadow:
+        0 20px 52px rgba(0, 0, 0, 0.32),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 0 0 1px rgba(123, 183, 255, 0.16);
+    }
+
+    .option-card.locked {
+      cursor: default;
+    }
+
+    .option-card.network-card {
+      min-height: 210px;
+    }
+
+    .option-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .option-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 104px;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.46);
+      color: var(--accent-strong);
+      font-size: 0.76rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .option-indicator {
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      display: grid;
+      place-items: center;
+      color: transparent;
+      background: rgba(255, 255, 255, 0.04);
+      flex: 0 0 auto;
+      font-size: 0.95rem;
+    }
+
+    .option-card.selected .option-indicator {
+      color: var(--bg-deep);
+      background: var(--accent-strong);
+    }
+
+    .option-card h3 {
+      font-size: 1.14rem;
+      line-height: 1.18;
+      margin-bottom: 10px;
+    }
+
+    .option-card p,
+    .option-card li,
+    .muted,
+    .review-detail {
+      color: var(--muted);
+    }
+
+    .option-card p {
+      margin: 0;
+    }
+
+    .option-card ul {
       margin: 16px 0 0;
       padding: 0;
       list-style: none;
     }
 
-    .tile li + li {
+    .option-card li + li {
       margin-top: 6px;
     }
 
-    .field {
-      margin-top: 18px;
-    }
-
-    .field label {
-      display: block;
-      margin-bottom: 6px;
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
-
-    .checkbox-row {
-      margin-top: 18px;
+    .meta-line {
+      margin-top: 16px;
       display: flex;
-      gap: 12px;
-      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--accent-strong);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
     }
 
-    input[type="checkbox"] {
-      margin-top: 5px;
-      transform: scale(1.18);
-      accent-color: var(--accent);
+    .small-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
     }
 
-    select {
-      width: 100%;
+    .review-grid,
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .review-grid {
+      margin-bottom: 16px;
+    }
+
+    .review-card,
+    .dashboard-tile {
       border: 1px solid var(--border);
-      background: rgba(4, 10, 19, 0.44);
-      color: var(--text);
-      padding: 12px 14px;
-      font: inherit;
-      border-radius: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+        var(--panel-2);
+      padding: 18px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    }
+
+    .review-card h3,
+    .dashboard-tile h2 {
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+
+    .review-card p,
+    .dashboard-tile p {
+      margin: 0;
     }
 
     .command {
-      margin-top: 18px;
+      margin-top: 16px;
       border: 1px solid var(--border);
       background: rgba(4, 10, 19, 0.44);
       color: var(--accent-strong);
       padding: 14px 16px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       white-space: pre-wrap;
-      border-radius: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .wizard-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 24px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(5, 12, 22, 0.48);
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 0.92rem;
+      max-width: 520px;
     }
 
     .actions {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-top: 18px;
+      justify-content: flex-end;
     }
 
     .button {
@@ -327,7 +553,6 @@
       background: rgba(7, 17, 31, 0.4);
       cursor: pointer;
       font: inherit;
-      border-radius: 0;
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
       transition:
         background-color 0.14s ease,
@@ -349,7 +574,11 @@
       background: linear-gradient(135deg, rgba(109, 190, 144, 0.22), rgba(109, 190, 144, 0.08));
     }
 
-    .button:hover {
+    .button.ghost {
+      min-width: 132px;
+    }
+
+    .button:hover:not(:disabled) {
       border-color: rgba(255, 255, 255, 1);
       background: rgba(17, 33, 54, 0.86);
       box-shadow:
@@ -357,37 +586,67 @@
         0 0 0 1px rgba(255, 255, 255, 0.12);
     }
 
-    .button:active {
-      transform: translateY(1px);
-      background: rgba(233, 242, 255, 0.16);
-      box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.32),
-        inset 0 0 18px rgba(255, 255, 255, 0.08);
+    .button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
     }
 
-    .button:focus-visible {
-      outline: 2px solid rgba(255, 255, 255, 0.95);
-      outline-offset: 2px;
-      border-color: rgba(255, 255, 255, 1);
+    .dashboard-grid {
+      width: min(1120px, 100%);
+      margin: 0 auto;
     }
 
-    .small {
-      margin-top: 14px;
-      color: var(--muted);
-      font-size: 0.94rem;
+    .dashboard-tile {
+      position: relative;
+      min-height: 220px;
+      overflow: hidden;
     }
 
-    .warn {
-      color: var(--legacy);
+    .dashboard-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(180deg, rgba(105, 150, 220, 0.3), rgba(67, 103, 156, 0.18));
+      border: 1px solid rgba(174, 207, 241, 0.2);
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      margin-bottom: 18px;
+      color: var(--accent-strong);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    }
+
+    .dashboard-icon svg {
+      width: 30px;
+      height: 30px;
+      display: block;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
+      vector-effect: non-scaling-stroke;
     }
 
     @media (max-width: 980px) {
-      .grid {
+      .stepper,
+      .options-grid,
+      .options-grid.three-up,
+      .review-grid,
+      .dashboard-grid {
         grid-template-columns: 1fr;
       }
 
-      .tile.wide {
-        grid-column: span 2;
+      .wizard-footer {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .actions {
+        justify-content: stretch;
+      }
+
+      .button {
+        width: 100%;
       }
     }
 
@@ -396,38 +655,21 @@
         padding: 16px 10px 20px;
       }
 
-      .grid {
-        grid-template-columns: 1fr;
+      .wizard-top,
+      .wizard-body,
+      .wizard-footer {
+        padding-left: 16px;
+        padding-right: 16px;
       }
 
-      .tile,
-      .tile.wide {
-        grid-column: auto;
+      .option-card,
+      .option-card.network-card,
+      .dashboard-tile {
         min-height: auto;
-        padding: 16px 16px 14px;
       }
 
-      .tile h2 {
-        font-size: 1.16rem;
-      }
-
-      .tile-icon {
-        width: 44px;
-        height: 44px;
-        margin-bottom: 12px;
-        font-size: 18px;
-      }
-
-      .tile ul {
-        margin-top: 10px;
-      }
-
-      .actions {
-        flex-direction: column;
-      }
-
-      .button {
-        width: 100%;
+      .step-button {
+        min-height: auto;
       }
     }
   </style>
@@ -448,93 +690,190 @@
     <div class="message" id="message"></div>
 
     <section id="setup-view">
-      <main class="grid">
-        <section class="tile wide">
-          <div class="tile-icon">⌘</div>
-          <span class="eyebrow">First-Start Setup</span>
-          <h2>Choose Your Deployment</h2>
-          <p>
-            The base install is always included: Kiwix, OpenStreetMaps support, local web tools, and Raspberry Pi service scaffolding.
-          </p>
-          <ul>
-            <li>Kiwix knowledge library</li>
-            <li>Maps support and direct local access</li>
-            <li>Admin tools and update automation</li>
-          </ul>
+      <main class="wizard-shell">
+        <section class="wizard-top">
+          <div class="wizard-copy">
+            <span class="eyebrow">Initial Setup</span>
+            <h1>Easy Setup Wizard</h1>
+            <p>Move step by step, choose the modules you want, pick a Wikipedia package, and review everything before downloads and services begin.</p>
+          </div>
+
+          <nav class="stepper" aria-label="Setup steps">
+            <button class="step-button" data-step="0" type="button">
+              <span class="step-index">1</span>
+              <span class="step-meta">
+                <strong>Modules</strong>
+                <span>Pick what this device should install</span>
+              </span>
+            </button>
+            <button class="step-button" data-step="1" type="button">
+              <span class="step-index">2</span>
+              <span class="step-meta">
+                <strong>Wikipedia</strong>
+                <span>Choose your offline library size</span>
+              </span>
+            </button>
+            <button class="step-button" data-step="2" type="button">
+              <span class="step-index">3</span>
+              <span class="step-meta">
+                <strong>Network</strong>
+                <span>Decide how users will connect</span>
+              </span>
+            </button>
+            <button class="step-button" data-step="3" type="button">
+              <span class="step-index">4</span>
+              <span class="step-meta">
+                <strong>Review</strong>
+                <span>Save or apply the configuration</span>
+              </span>
+            </button>
+          </nav>
+        </section>
+
+        <section class="wizard-body">
+          <section class="step-panel" data-step-panel="0">
+            <div class="panel-head">
+              <span class="eyebrow">Step 1</span>
+              <h2>Select What To Install</h2>
+              <p>Knowledge Library is included by default. Add the Education Module if you want Kolibri and structured offline learning tools on this device.</p>
+            </div>
+
+            <div class="options-grid">
+              <button class="option-card selected locked" id="knowledge-library-card" type="button" aria-pressed="true">
+                <div class="option-top">
+                  <span class="option-badge">Default</span>
+                  <span class="option-indicator">✓</span>
+                </div>
+                <h3>Knowledge Library</h3>
+                <p>Offline reference and practical knowledge through Kiwix.</p>
+                <ul>
+                  <li>Wikipedia package from the next step</li>
+                  <li>Medical, repair, and preparedness references</li>
+                  <li>Core SOPR portal and local content tools</li>
+                </ul>
+                <div class="meta-line">
+                  <span>Always Included</span>
+                </div>
+              </button>
+
+              <button class="option-card" id="education-module-card" type="button" aria-pressed="false">
+                <div class="option-top">
+                  <span class="option-badge">Optional</span>
+                  <span class="option-indicator" id="education-module-indicator">+</span>
+                </div>
+                <h3>Education Module</h3>
+                <p>Installs Kolibri for organized offline learning channels, classes, and educational content.</p>
+                <ul>
+                  <li>Kolibri learning platform</li>
+                  <li>Structured learning experience for classrooms and self-study</li>
+                  <li>Designed for offline education deployments</li>
+                </ul>
+                <div class="meta-line">
+                  <span>Powered By Kolibri</span>
+                </div>
+              </button>
+            </div>
+
+            <p class="small-note">Knowledge Library stays selected because it is the base of the SOPR appliance. The Education Module can be added now or later.</p>
+          </section>
+
+          <section class="step-panel" data-step-panel="1">
+            <div class="panel-head">
+              <span class="eyebrow">Step 2</span>
+              <h2>Choose Your Wikipedia Level</h2>
+              <p>Select the package that fits your storage budget and expected use. These options are loaded directly from the project JSON so they can be updated without editing the page.</p>
+            </div>
+
+            <div class="options-grid three-up" id="wikipedia-options"></div>
+            <p class="small-note" id="wikipedia-note">Wikipedia package details will appear here once the setup data loads.</p>
+          </section>
+
+          <section class="step-panel" data-step-panel="2">
+            <div class="panel-head">
+              <span class="eyebrow">Step 3</span>
+              <h2>Choose How People Connect</h2>
+              <p>Use an existing network for simpler installs, or enable the onboard access point so phones and laptops can join the device directly.</p>
+            </div>
+
+            <div class="options-grid">
+              <button class="option-card network-card" id="network-standard-card" type="button" aria-pressed="false">
+                <div class="option-top">
+                  <span class="option-badge">Standard</span>
+                  <span class="option-indicator" id="network-standard-indicator">○</span>
+                </div>
+                <h3>Use Existing Network</h3>
+                <p>Best when the Raspberry Pi will live on a router, switch, or already-managed local network.</p>
+                <ul>
+                  <li>No hotspot services enabled</li>
+                  <li>Lower setup complexity</li>
+                  <li>Recommended when infrastructure already exists</li>
+                </ul>
+              </button>
+
+              <button class="option-card network-card" id="network-ap-card" type="button" aria-pressed="false">
+                <div class="option-top">
+                  <span class="option-badge">Offline Ready</span>
+                  <span class="option-indicator" id="network-ap-indicator">○</span>
+                </div>
+                <h3>Enable Device Hotspot</h3>
+                <p>Turns the Pi into its own wireless access point so nearby devices can connect directly without another router.</p>
+                <ul>
+                  <li>Useful in field or standalone deployments</li>
+                  <li>Lets users connect directly to SOPR</li>
+                  <li>Enables local Wi-Fi service setup</li>
+                </ul>
+              </button>
+            </div>
+          </section>
+
+          <section class="step-panel" data-step-panel="3">
+            <div class="panel-head">
+              <span class="eyebrow">Step 4</span>
+              <h2>Review Your Setup</h2>
+              <p>Save your preferences if you want to come back later, or apply the configuration now to run downloads, enable services, and finish setup.</p>
+            </div>
+
+            <div class="review-grid">
+              <article class="review-card">
+                <h3>Install Selection</h3>
+                <p id="review-modules">Knowledge Library only.</p>
+              </article>
+              <article class="review-card">
+                <h3>Wikipedia Package</h3>
+                <p id="review-wikipedia">Loading Wikipedia package details.</p>
+              </article>
+              <article class="review-card">
+                <h3>Network Mode</h3>
+                <p id="review-network">Using an existing network.</p>
+              </article>
+            </div>
+
+            <div class="command" id="profile-command">./scripts/select_install_profile.sh --base-only</div>
+            <div class="command" id="wikipedia-command">PREPMASTER_WIKIPEDIA_OPTION=top-mini</div>
+            <div class="command" id="network-command">PREPMASTER_AP_ENABLED=0</div>
+            <div class="command" id="apply-status-text">Apply status: idle</div>
+            <div class="command" id="apply-log-text">Apply log will appear here once configuration runs.</div>
+          </section>
+        </section>
+
+        <section class="wizard-footer">
+          <div class="footer-note" id="wizard-footer-note">
+            Step 1 of 4. Start by choosing the modules this device should install.
+          </div>
           <div class="actions">
+            <button class="button ghost" id="prev-step-button" type="button">Previous</button>
+            <button class="button primary" id="next-step-button" type="button">Next</button>
             <button class="button" id="save-setup-button" type="button">Save Preferences</button>
             <button class="button success" id="apply-config-button" type="button">Apply Configuration</button>
           </div>
-        </section>
-
-        <section class="tile">
-          <div class="tile-icon">◫</div>
-          <span class="eyebrow">Education Add-On</span>
-          <h2>Kolibri</h2>
-          <p>Add modern offline learning content and structured channel support.</p>
-          <label class="checkbox-row">
-            <input id="install-kolibri" type="checkbox">
-            <span>Install Kolibri</span>
-          </label>
-        </section>
-
-        <section class="tile legacy">
-          <div class="tile-icon">△</div>
-          <span class="eyebrow">Legacy Add-On</span>
-          <h2>KA Lite</h2>
-          <p class="warn">Compatibility-only path for older offline Khan Academy style deployments.</p>
-          <label class="checkbox-row">
-            <input id="install-ka-lite" type="checkbox">
-            <span>Request legacy KA Lite</span>
-          </label>
-        </section>
-
-        <section class="tile">
-          <div class="tile-icon">W</div>
-          <span class="eyebrow">Wikipedia Package</span>
-          <h2>Select Wikipedia ZIM</h2>
-          <p>Choose the Wikipedia package that best matches your storage budget.</p>
-          <div class="field">
-            <label for="wikipedia-choice">Wikipedia Variant</label>
-            <select id="wikipedia-choice">
-              <option value="top-mini">Quick Reference - 313 MB</option>
-              <option value="mini">Complete Wikipedia (Mini) - 11.4 GB</option>
-              <option value="maxi">Complete Wikipedia (Maxi) - 115 GB</option>
-            </select>
-          </div>
-        </section>
-
-        <section class="tile">
-          <div class="tile-icon">⌁</div>
-          <span class="eyebrow">Network Option</span>
-          <h2>Wireless Access Point</h2>
-          <p>Allow devices to connect directly to the Pi and access content without another router.</p>
-          <label class="checkbox-row">
-            <input id="ap-enabled" type="checkbox">
-            <span>Enable AP mode</span>
-          </label>
-        </section>
-
-        <section class="tile wide">
-          <div class="tile-icon">→</div>
-          <span class="eyebrow">Selected Setup</span>
-          <h2 id="setup-summary">Base Install only.</h2>
-          <p>Saving writes the selected profile into the project config so install scripts and the dashboard stay in sync.</p>
-          <div class="command" id="profile-command">./scripts/select_install_profile.sh --base-only</div>
-          <div class="command" id="wikipedia-command">PREPMASTER_WIKIPEDIA_OPTION=top-mini</div>
-          <div class="command" id="apply-status-text">Apply status: idle</div>
-          <div class="command" id="apply-log-text">Apply log will appear here once configuration runs.</div>
-          <p class="small">
-            The appliance flow is: save preferences, apply configuration, then return to the dashboard once services and content are ready.
-          </p>
         </section>
       </main>
     </section>
 
     <section id="dashboard-view" class="hidden">
-      <main class="grid">
-        <section class="tile">
-          <div class="tile-icon" aria-hidden="true">
+      <main class="dashboard-grid">
+        <section class="dashboard-tile">
+          <div class="dashboard-icon" aria-hidden="true">
             <svg viewBox="0 0 32 32" role="img">
               <path d="M6 8.5h8.5v17H6z"></path>
               <path d="M9 6h8.5v17H9"></path>
@@ -551,8 +890,8 @@
           </div>
         </section>
 
-        <section class="tile">
-          <div class="tile-icon">⌖</div>
+        <section class="dashboard-tile">
+          <div class="dashboard-icon">⌖</div>
           <span class="eyebrow">Navigation</span>
           <h2>Offline Maps</h2>
           <p>Open maps and field navigation tools prepared for disconnected use.</p>
@@ -561,38 +900,37 @@
           </div>
         </section>
 
-        <section class="tile">
-          <div class="tile-icon">⚙</div>
+        <section class="dashboard-tile">
+          <div class="dashboard-icon">⚙</div>
           <span class="eyebrow">System Tools</span>
           <h2>Settings</h2>
           <p>Manage services, review health, and reopen the setup interface when settings need to change.</p>
           <div class="actions">
-          <a class="button" href="/admin">Open Settings</a>
+            <a class="button" href="/admin">Open Settings</a>
           </div>
         </section>
 
-        <section class="tile">
-          <div class="tile-icon">✚</div>
+        <section class="dashboard-tile">
+          <div class="dashboard-icon">✚</div>
           <span class="eyebrow">Critical</span>
           <h2>Medical & First Aid</h2>
           <p>Fast access to treatment guides, field medicine references, and health information.</p>
         </section>
 
-        <section class="tile">
-          <div class="tile-icon">⛺</div>
+        <section class="dashboard-tile">
+          <div class="dashboard-icon">⛺</div>
           <span class="eyebrow">Sustainment</span>
           <h2>Preparedness & Repair</h2>
           <p>Water, food, shelter, sanitation, mechanical repair, and practical sustainment knowledge.</p>
         </section>
 
-        <section class="tile">
-          <div class="tile-icon">⟡</div>
+        <section class="dashboard-tile">
+          <div class="dashboard-icon">⟡</div>
           <span class="eyebrow">Rebuild</span>
           <h2>Education & Skills</h2>
           <p id="dashboard-profile-text">Wikipedia and optional education tools are configured for this device.</p>
         </section>
       </main>
-
     </section>
   </div>
 
@@ -600,30 +938,54 @@
     const apiBase = "/api";
     const params = new URLSearchParams(window.location.search);
     const forceSetup = params.get("mode") === "setup";
+    const totalSteps = 4;
 
     const message = document.getElementById("message");
     const setupView = document.getElementById("setup-view");
     const dashboardView = document.getElementById("dashboard-view");
     const introText = document.getElementById("intro-text");
 
-    const installKolibri = document.getElementById("install-kolibri");
-    const installKaLite = document.getElementById("install-ka-lite");
-    const wikipediaChoice = document.getElementById("wikipedia-choice");
-    const apEnabled = document.getElementById("ap-enabled");
-    const setupSummary = document.getElementById("setup-summary");
-    const profileCommand = document.getElementById("profile-command");
-    const wikipediaCommand = document.getElementById("wikipedia-command");
+    const stepButtons = Array.from(document.querySelectorAll(".step-button"));
+    const stepPanels = Array.from(document.querySelectorAll(".step-panel"));
+    const prevStepButton = document.getElementById("prev-step-button");
+    const nextStepButton = document.getElementById("next-step-button");
+    const footerNote = document.getElementById("wizard-footer-note");
     const saveSetupButton = document.getElementById("save-setup-button");
     const applyConfigButton = document.getElementById("apply-config-button");
+
+    const educationModuleCard = document.getElementById("education-module-card");
+    const networkStandardCard = document.getElementById("network-standard-card");
+    const networkApCard = document.getElementById("network-ap-card");
+    const wikipediaOptionsContainer = document.getElementById("wikipedia-options");
+    const wikipediaNote = document.getElementById("wikipedia-note");
+
+    const reviewModules = document.getElementById("review-modules");
+    const reviewWikipedia = document.getElementById("review-wikipedia");
+    const reviewNetwork = document.getElementById("review-network");
+    const profileCommand = document.getElementById("profile-command");
+    const wikipediaCommand = document.getElementById("wikipedia-command");
+    const networkCommand = document.getElementById("network-command");
     const dashboardProfileText = document.getElementById("dashboard-profile-text");
     const applyStatusText = document.getElementById("apply-status-text");
     const applyLogText = document.getElementById("apply-log-text");
-    const kiwixLink = document.getElementById("kiwix-link");
+
+    let currentStep = 0;
     let applyPollHandle = null;
+    let setupState = {
+      installKolibri: false,
+      wikipediaOption: "top-mini",
+      apEnabled: false
+    };
+    let wikipediaOptions = [];
+
+    function formatSize(sizeMb) {
+      if (!sizeMb) return "Size not listed";
+      if (sizeMb >= 1024) return `${(sizeMb / 1024).toFixed(sizeMb >= 10240 ? 0 : 1)} GB`;
+      return `${sizeMb} MB`;
+    }
 
     function showMessage(text, isError = false) {
       message.textContent = text;
-      message.classList.remove("hidden");
       message.style.display = "block";
       message.classList.toggle("error", isError);
     }
@@ -634,37 +996,130 @@
       message.classList.remove("error");
     }
 
+    function getWikipediaOptionById(optionId) {
+      return wikipediaOptions.find((option) => option.id === optionId) || null;
+    }
+
+    function selectedWikipediaOption() {
+      return getWikipediaOptionById(setupState.wikipediaOption) || wikipediaOptions[0] || null;
+    }
+
+    function updateCardPressedState(card, selected) {
+      card.classList.toggle("selected", selected);
+      card.setAttribute("aria-pressed", selected ? "true" : "false");
+      const indicator = card.querySelector(".option-indicator");
+      if (indicator) {
+        indicator.textContent = selected ? "✓" : "○";
+      }
+    }
+
+    function renderWikipediaOptions() {
+      wikipediaOptionsContainer.textContent = "";
+
+      if (!wikipediaOptions.length) {
+        wikipediaNote.textContent = "Wikipedia options are unavailable right now. Check wikipedia.json or the portal API response.";
+        return;
+      }
+
+      wikipediaNote.textContent = "Pick the reference package that matches your available storage and expected use.";
+
+      wikipediaOptions.forEach((option) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "option-card";
+        button.dataset.optionId = option.id;
+        button.setAttribute("aria-pressed", option.id === setupState.wikipediaOption ? "true" : "false");
+
+        const top = document.createElement("div");
+        top.className = "option-top";
+
+        const badge = document.createElement("span");
+        badge.className = "option-badge";
+        badge.textContent = formatSize(option.size_mb);
+
+        const indicator = document.createElement("span");
+        indicator.className = "option-indicator";
+        indicator.textContent = option.id === setupState.wikipediaOption ? "✓" : "○";
+
+        top.appendChild(badge);
+        top.appendChild(indicator);
+
+        const title = document.createElement("h3");
+        title.textContent = option.name;
+
+        const description = document.createElement("p");
+        description.textContent = option.description || "Offline Wikipedia package.";
+
+        const meta = document.createElement("div");
+        meta.className = "meta-line";
+
+        const version = document.createElement("span");
+        version.textContent = option.version ? `Release ${option.version}` : "Wikipedia";
+
+        meta.appendChild(version);
+        button.appendChild(top);
+        button.appendChild(title);
+        button.appendChild(description);
+        button.appendChild(meta);
+
+        if (option.id === setupState.wikipediaOption) {
+          button.classList.add("selected");
+        }
+
+        button.addEventListener("click", () => {
+          setupState.wikipediaOption = option.id;
+          renderWikipediaOptions();
+          renderSetupSummary();
+        });
+
+        wikipediaOptionsContainer.appendChild(button);
+      });
+    }
+
+    function renderSelectionCards() {
+      updateCardPressedState(educationModuleCard, setupState.installKolibri);
+      updateCardPressedState(networkStandardCard, !setupState.apEnabled);
+      updateCardPressedState(networkApCard, setupState.apEnabled);
+    }
+
     function renderSetupSummary() {
-      const parts = ["Base Install"];
-      const flags = [];
+      const selectedWikipedia = selectedWikipediaOption();
+      const modulesText = setupState.installKolibri
+        ? "Knowledge Library + Education Module."
+        : "Knowledge Library only.";
+      const wikipediaText = selectedWikipedia
+        ? `${selectedWikipedia.name} (${formatSize(selectedWikipedia.size_mb)}).`
+        : "Wikipedia package not selected.";
+      const networkText = setupState.apEnabled
+        ? "Device hotspot enabled for direct Wi-Fi access."
+        : "Use an existing network connection.";
 
-      if (installKolibri.checked) {
-        parts.push("Kolibri");
-        flags.push("--enable-kolibri");
-      }
+      reviewModules.textContent = modulesText;
+      reviewWikipedia.textContent = wikipediaText;
+      reviewNetwork.textContent = networkText;
 
-      if (installKaLite.checked) {
-        parts.push("KA Lite");
-        flags.push("--enable-ka-lite");
-      }
+      profileCommand.textContent = setupState.installKolibri
+        ? "./scripts/select_install_profile.sh --enable-kolibri"
+        : "./scripts/select_install_profile.sh --base-only";
+      wikipediaCommand.textContent = `PREPMASTER_WIKIPEDIA_OPTION=${setupState.wikipediaOption}`;
+      networkCommand.textContent = `PREPMASTER_AP_ENABLED=${setupState.apEnabled ? "1" : "0"}`;
 
-      if (flags.length === 0) {
-        flags.push("--base-only");
-      }
-
-      setupSummary.textContent = parts.join(" + ") + ".";
-      profileCommand.textContent = "./scripts/select_install_profile.sh " + flags.join(" ");
-      wikipediaCommand.textContent = "PREPMASTER_WIKIPEDIA_OPTION=" + wikipediaChoice.value;
+      renderDashboardProfile({
+        install_kolibri: setupState.installKolibri,
+        install_ka_lite: false,
+        wikipedia_option: setupState.wikipediaOption,
+        ap_enabled: setupState.apEnabled
+      });
     }
 
     function renderDashboardProfile(profile) {
-      const labels = [];
-      if (profile.install_kolibri) labels.push("Kolibri");
-      if (profile.install_ka_lite) labels.push("KA Lite");
-      const addOns = labels.length ? labels.join(", ") : "No education add-ons selected";
-      const apText = profile.ap_enabled ? "AP mode enabled" : "AP mode disabled";
-      dashboardProfileText.textContent =
-        `Wikipedia: ${profile.wikipedia_option}. ${addOns}. ${apText}.`;
+      const option = getWikipediaOptionById(profile.wikipedia_option);
+      const wikiLabel = option ? option.name : profile.wikipedia_option;
+      const addOnText = profile.install_kolibri
+        ? "Education Module installed with Kolibri"
+        : "Education Module not selected";
+      const apText = profile.ap_enabled ? "Device hotspot enabled" : "Using existing network";
+      dashboardProfileText.textContent = `${wikiLabel}. ${addOnText}. ${apText}.`;
     }
 
     function renderApplyState(state) {
@@ -698,6 +1153,35 @@
         : "The system is configured. Use this dashboard for content access, system tools, and live Raspberry Pi status.";
     }
 
+    function updateWizardStep() {
+      stepButtons.forEach((button, index) => {
+        button.classList.toggle("active", index === currentStep);
+        button.classList.toggle("complete", index < currentStep);
+      });
+
+      stepPanels.forEach((panel, index) => {
+        panel.classList.toggle("active", index === currentStep);
+      });
+
+      prevStepButton.disabled = currentStep === 0;
+      nextStepButton.classList.toggle("hidden", currentStep === totalSteps - 1);
+      saveSetupButton.classList.toggle("hidden", currentStep !== totalSteps - 1);
+      applyConfigButton.classList.toggle("hidden", currentStep !== totalSteps - 1);
+
+      const notes = [
+        "Step 1 of 4. Start by choosing the modules this device should install.",
+        "Step 2 of 4. Choose the Wikipedia package that fits your storage budget.",
+        "Step 3 of 4. Decide whether this device should create its own hotspot.",
+        "Step 4 of 4. Review the full setup and save or apply when ready."
+      ];
+      footerNote.textContent = notes[currentStep];
+    }
+
+    function goToStep(stepIndex) {
+      currentStep = Math.max(0, Math.min(totalSteps - 1, stepIndex));
+      updateWizardStep();
+    }
+
     async function loadState() {
       const response = await fetch(`${apiBase}/state`, { cache: "no-store" });
       if (!response.ok) {
@@ -712,10 +1196,10 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            install_kolibri: installKolibri.checked,
-            install_ka_lite: installKaLite.checked,
-            wikipedia_option: wikipediaChoice.value,
-            ap_enabled: apEnabled.checked,
+            install_kolibri: setupState.installKolibri,
+            install_ka_lite: false,
+            wikipedia_option: setupState.wikipediaOption,
+            ap_enabled: setupState.apEnabled,
             setup_complete: setupComplete
           })
         });
@@ -725,8 +1209,15 @@
           throw new Error(payload.error || "Unable to save setup");
         }
 
+        const latestProfile = payload.profile || {};
+        setupState.installKolibri = Boolean(latestProfile.install_kolibri);
+        setupState.wikipediaOption = latestProfile.wikipedia_option || setupState.wikipediaOption;
+        setupState.apEnabled = Boolean(latestProfile.ap_enabled);
+
+        renderSelectionCards();
+        renderWikipediaOptions();
         renderSetupSummary();
-        renderDashboardProfile(payload.profile);
+        renderDashboardProfile(latestProfile);
         renderMode(payload);
         return payload;
       } catch (error) {
@@ -741,7 +1232,7 @@
 
       try {
         await persistSetup(false);
-        showMessage("Preferences saved. Use Apply Configuration to run downloads, services, and selected add-ons.");
+        showMessage("Preferences saved. Use Apply Configuration when you are ready to start downloads and service changes.");
       } finally {
         saveSetupButton.disabled = false;
       }
@@ -801,25 +1292,62 @@
         const applyState = applyStateResponse.ok
           ? await applyStateResponse.json()
           : { status: "idle", log_tail: [] };
-        installKolibri.checked = state.profile.install_kolibri;
-        installKaLite.checked = state.profile.install_ka_lite;
-        wikipediaChoice.value = state.profile.wikipedia_option || "top-mini";
-        apEnabled.checked = state.profile.ap_enabled;
+
+        wikipediaOptions = Array.isArray(state.setup_options?.wikipedia?.options)
+          ? state.setup_options.wikipedia.options
+          : [];
+
+        setupState.installKolibri = Boolean(state.profile.install_kolibri);
+        setupState.apEnabled = Boolean(state.profile.ap_enabled);
+        setupState.wikipediaOption = state.profile.wikipedia_option || "top-mini";
+
+        if (!getWikipediaOptionById(setupState.wikipediaOption) && wikipediaOptions.length) {
+          setupState.wikipediaOption = wikipediaOptions[0].id;
+        }
+
+        renderSelectionCards();
+        renderWikipediaOptions();
         renderSetupSummary();
         renderDashboardProfile(state.profile);
         renderMode(state);
         renderApplyState(applyState);
+        updateWizardStep();
       } catch (error) {
+        renderSelectionCards();
+        renderWikipediaOptions();
         renderSetupSummary();
         renderMode({ setup_complete: false });
+        updateWizardStep();
         showMessage("Portal API is not reachable yet. Run sudo ./scripts/install_prepmaster.sh on the Pi to install the local portal service.", true);
       }
     }
 
-    installKolibri.addEventListener("change", renderSetupSummary);
-    installKaLite.addEventListener("change", renderSetupSummary);
-    wikipediaChoice.addEventListener("change", renderSetupSummary);
-    apEnabled.addEventListener("change", renderSetupSummary);
+    educationModuleCard.addEventListener("click", () => {
+      setupState.installKolibri = !setupState.installKolibri;
+      renderSelectionCards();
+      renderSetupSummary();
+    });
+
+    networkStandardCard.addEventListener("click", () => {
+      setupState.apEnabled = false;
+      renderSelectionCards();
+      renderSetupSummary();
+    });
+
+    networkApCard.addEventListener("click", () => {
+      setupState.apEnabled = true;
+      renderSelectionCards();
+      renderSetupSummary();
+    });
+
+    stepButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        goToStep(Number(button.dataset.step || "0"));
+      });
+    });
+
+    prevStepButton.addEventListener("click", () => goToStep(currentStep - 1));
+    nextStepButton.addEventListener("click", () => goToStep(currentStep + 1));
     saveSetupButton.addEventListener("click", saveSetup);
     applyConfigButton.addEventListener("click", applyConfiguration);
 
