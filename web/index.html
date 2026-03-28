@@ -103,8 +103,16 @@
       background:
         linear-gradient(180deg, rgba(6, 15, 29, 0.08), rgba(4, 11, 21, 0.5)),
         linear-gradient(180deg, rgba(15, 32, 56, 0.12), rgba(7, 15, 28, 0.4)),
-        url("/images/heroimage.png") center center / contain no-repeat,
         linear-gradient(180deg, #071322, #071322);
+    }
+
+    .masthead::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: url("/images/sopr.png") center center / 42% auto no-repeat;
+      pointer-events: none;
+      z-index: 0;
     }
 
     .title-block {
@@ -881,9 +889,7 @@
     </header>
 
     <section class="title-block">
-      <p class="intro" id="intro-text">
-        Configure this device for calm, reliable offline use. After setup, this page becomes the main dashboard for content, tools, and system status.
-      </p>
+      <p class="intro hidden" id="intro-text"></p>
       <div class="rule"></div>
     </section>
 
@@ -1437,9 +1443,8 @@
       const setupMode = forceSetup || !state.setup_complete;
       setupView.classList.toggle("hidden", !setupMode);
       dashboardView.classList.toggle("hidden", setupMode);
-      introText.textContent = setupMode
-        ? "Set up this device for calm, reliable offline use. After setup, this page becomes the main dashboard for content, tools, and system status."
-        : "The system is configured. Use this dashboard for content access, system tools, and live Raspberry Pi status.";
+      introText.classList.add("hidden");
+      introText.textContent = "";
     }
 
     function updateWizardStep() {
