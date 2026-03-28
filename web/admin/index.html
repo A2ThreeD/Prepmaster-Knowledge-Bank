@@ -49,6 +49,7 @@
 
     body {
       margin: 0;
+      min-height: 100vh;
       background:
         radial-gradient(900px 420px at 50% -10%, rgba(76, 123, 181, 0.24), transparent 60%),
         linear-gradient(180deg, #091426 0%, var(--bg) 100%);
@@ -62,6 +63,7 @@
       max-width: none;
       width: min(1440px, 100%);
       margin: 0 auto;
+      min-height: calc(100vh - 48px);
       padding: 24px;
       border: 1px solid var(--border);
       border-radius: 0;
@@ -89,6 +91,22 @@
 
     .muted {
       color: var(--muted);
+    }
+    .catalog-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1rem;
+      height: 1rem;
+      margin-right: 0.18rem;
+      vertical-align: -0.1rem;
+    }
+    .catalog-icon svg {
+      width: 100%;
+      height: 100%;
+      fill: currentColor;
+      stroke: currentColor;
+      stroke-width: 0;
     }
 
     .grid {
@@ -361,6 +379,30 @@
       text-transform: uppercase;
     }
 
+    .content-storage-warning {
+      display: none;
+      margin-top: 8px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(7, 15, 27, 0.58);
+      font-size: 0.8rem;
+      line-height: 1.35;
+    }
+
+    .content-storage-warning.warn {
+      display: block;
+      border-color: rgba(255, 214, 102, 0.65);
+      background: rgba(255, 214, 102, 0.12);
+      color: #ffe29f;
+    }
+
+    .content-storage-warning.danger {
+      display: block;
+      border-color: rgba(255, 122, 122, 0.78);
+      background: rgba(255, 122, 122, 0.14);
+      color: #ffd5d5;
+    }
+
     .progress-top {
       display: flex;
       align-items: center;
@@ -404,6 +446,39 @@
       padding: 12px 14px;
     }
 
+    .zim-entry {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: start;
+      gap: 6px 10px;
+      margin-bottom: 8px;
+      font-size: 0.78rem;
+      line-height: 1.25;
+    }
+
+    .zim-entry input[type="checkbox"] {
+      margin-top: 3px;
+    }
+
+    .zim-entry-body {
+      min-width: 0;
+    }
+
+    .zim-entry-title {
+      display: block;
+      color: var(--text);
+      font-size: 0.82rem;
+      line-height: 1.2;
+    }
+
+    .zim-entry-desc {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 0.7rem;
+      line-height: 1.25;
+    }
+
     .log-panel.hidden {
       display: none;
     }
@@ -442,9 +517,20 @@
 
     #content-local-list,
     #zim-catalog-list {
-      max-height: 21rem;
+      height: clamp(24rem, 58vh, 44rem);
+      max-height: none;
       overflow-y: auto;
       overflow-x: hidden;
+    }
+
+    .panel-group[data-panel-group="content"] .grid {
+      grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+      align-items: stretch;
+    }
+
+    .panel-group[data-panel-group="content"] .card {
+      display: flex;
+      flex-direction: column;
     }
 
     .pager {
@@ -737,14 +823,10 @@
                 <span id="content-storage-free-label">-</span>
               </div>
             </div>
+            <div class="content-storage-warning" id="content-storage-warning"></div>
           </div>
           <div class="status-cluster" id="content-status" aria-live="polite"></div>
-          <p class="status" id="mode-status">Content library: loading</p>
           <p class="substatus" id="content-library-note">Loading content library state.</p>
-          <p class="muted" id="content-library-root">Library root: loading</p>
-          <div class="actions">
-            <button class="button" id="refresh-content-button" type="button">Download Missing Content</button>
-          </div>
           <div class="field">
             <label>Installed ZIM Files</label>
             <div id="content-local-list" class="log-panel muted">Checking local ZIM files...</div>
@@ -784,9 +866,7 @@
           <p class="muted" id="zim-catalog-source">Catalog source: online check on demand</p>
           <div class="actions">
             <button class="button" id="refresh-zim-catalog-button" type="button">Check Online Catalog</button>
-            <button class="button" id="select-all-zims-button" type="button">Select Page</button>
-            <button class="button" id="clear-all-zims-button" type="button">Clear Page</button>
-            <button class="button" id="download-selected-zims-button" type="button">Download Selected ZIMs</button>
+            <button class="button" id="refresh-content-button" type="button">Download Missing Content</button>
           </div>
           <div class="field-grid">
             <div class="field">
@@ -803,6 +883,11 @@
           <div class="field">
             <label>Kiwix Download Catalog</label>
             <div id="zim-catalog-list" class="log-panel muted">Online catalog is idle. Click Check Online Catalog when you want to query Kiwix.</div>
+          </div>
+          <div class="actions">
+            <button class="button" id="download-selected-zims-button" type="button">DOWNLOAD SELECTED</button>
+            <button class="button" id="select-all-zims-button" type="button">SELECT ALL</button>
+            <button class="button" id="clear-all-zims-button" type="button">CLEAR ALL</button>
           </div>
           <div class="pager">
             <button class="button" id="zim-prev-page-button" type="button">← Previous 50</button>
@@ -1007,6 +1092,98 @@
       return `${(value / (1024 ** 2)).toFixed(0)} MB`;
     }
 
+    function pendingDownloadBytes() {
+      if (!currentContentCatalog || !pendingCustomSelection.size) {
+        return 0;
+      }
+      const seenInstalled = new Set((currentContent && currentContent.installed_items || []).map((item) => item.name));
+      const byPath = new Map((currentContentCatalog.items || []).map((item) => [item.path, item]));
+      let total = 0;
+      pendingCustomSelection.forEach((path) => {
+        const item = byPath.get(path);
+        if (!item) return;
+        if (seenInstalled.has(item.name) || item.installed) return;
+        total += Number(item.size_bytes || 0);
+      });
+      return total;
+    }
+
+    function iconLabel(kind, text) {
+      const cloudDownload = `
+        <span class="catalog-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M7 18a4 4 0 0 1-.5-7.97A6.5 6.5 0 0 1 19 11a3.5 3.5 0 1 1 .5 7H14v-2h5.5a1.5 1.5 0 0 0 0-3h-1.77l-.18-.98A4.5 4.5 0 0 0 8.7 11l-.16 1.01-.99-.01H7a2 2 0 0 0 0 4h3v2H7z"></path>
+            <path d="M11 10h2v6h3l-4 4-4-4h3z"></path>
+          </svg>
+        </span>`;
+      const floppy = `
+        <span class="catalog-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M4 3h12l4 4v14H4z"></path>
+            <path d="M7 3h8v5H7z" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+            <path d="M8 14h8v5H8z" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+            <path d="M9 15.5h6" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+          </svg>
+        </span>`;
+      return `${kind === "download" ? cloudDownload : floppy}${escapeHtml(text)}`;
+    }
+
+    function friendlyZimTitle(name) {
+      const raw = String(name || "").replace(/\.zim$/i, "");
+      const parts = raw.split("_").filter(Boolean);
+      if (!parts.length) {
+        return String(name || "");
+      }
+
+      const stopTokens = new Set([
+        "all", "nopic", "mini", "maxi", "novid", "withpics", "stackexchange.com"
+      ]);
+      const languageTokens = new Set(["en", "mul"]);
+      const versionPattern = /^\d{4}-\d{2}$/;
+
+      const cleaned = parts.filter((part, index) => {
+        const lower = part.toLowerCase();
+        if (index > 0 && languageTokens.has(lower)) return false;
+        if (versionPattern.test(lower)) return false;
+        return !stopTokens.has(lower);
+      });
+
+      if (!cleaned.length) {
+        return raw;
+      }
+
+      const acronyms = new Set(["cdc", "css", "html", "js", "nhs", "ted", "uk", "usa"]);
+      return cleaned.map((part) => {
+        const lower = part.toLowerCase();
+        if (acronyms.has(lower)) return lower.toUpperCase();
+        if (lower === "javascript") return "JavaScript";
+        if (lower === "freecodecamp") return "freeCodeCamp";
+        if (lower === "ifixit") return "iFixit";
+        if (lower === "devdocs") return "DevDocs";
+        if (lower === "wikibooks") return "Wikibooks";
+        if (lower === "wikiversity") return "Wikiversity";
+        return part
+          .split("-")
+          .map((piece) => piece ? piece.charAt(0).toUpperCase() + piece.slice(1) : piece)
+          .join("-");
+      }).join(" ");
+    }
+
+    function installedZimDescription(item) {
+      const fromCatalog = currentContentCatalog && (currentContentCatalog.items || []).find((entry) => entry.name === item.name);
+      if (fromCatalog && fromCatalog.category) {
+        return String(fromCatalog.category);
+      }
+      if (item.selected) {
+        return "Saved extra selection";
+      }
+      return "Installed on this device";
+    }
+
+    function catalogZimDescription(item) {
+      return String(item.category || "Kiwix library");
+    }
+
     function renderContentStorage(state, content) {
       const summary = document.getElementById("content-storage-summary");
       const other = document.getElementById("content-storage-other");
@@ -1015,6 +1192,8 @@
       const otherLabel = document.getElementById("content-storage-other-label");
       const libraryLabel = document.getElementById("content-storage-library-label");
       const freeLabel = document.getElementById("content-storage-free-label");
+      const warning = document.getElementById("content-storage-warning");
+      const downloadButton = document.getElementById("download-selected-zims-button");
 
       const disk = state && state.storage && state.storage.disk;
       if (!disk) {
@@ -1025,6 +1204,8 @@
         otherLabel.textContent = "-";
         libraryLabel.textContent = "-";
         freeLabel.textContent = "-";
+        warning.className = "content-storage-warning";
+        warning.textContent = "";
         return;
       }
 
@@ -1032,10 +1213,16 @@
       const usedBytes = Number(disk.used_bytes || 0);
       const freeBytes = Number(disk.free_bytes || 0);
       const libraryBytes = Number(content && content.installed_size_bytes || 0);
+      const queuedBytes = pendingDownloadBytes();
       const otherUsedBytes = Math.max(0, usedBytes - libraryBytes);
+      const projectedLibraryBytes = libraryBytes + queuedBytes;
+      const projectedFreeBytes = Math.max(0, freeBytes - queuedBytes);
+      const projectedFreePercent = totalBytes > 0 ? (projectedFreeBytes / totalBytes) * 100 : 0;
+      const exceedsDisk = queuedBytes > freeBytes;
+      const nearFull = !exceedsDisk && queuedBytes > 0 && projectedFreePercent <= 10;
 
       const otherPercent = totalBytes > 0 ? Math.max(0, Math.min(100, (otherUsedBytes / totalBytes) * 100)) : 0;
-      const libraryPercent = totalBytes > 0 ? Math.max(0, Math.min(100 - otherPercent, (libraryBytes / totalBytes) * 100)) : 0;
+      const libraryPercent = totalBytes > 0 ? Math.max(0, Math.min(100 - otherPercent, (projectedLibraryBytes / totalBytes) * 100)) : 0;
       const freePercent = Math.max(0, 100 - otherPercent - libraryPercent);
 
       other.style.width = `${otherPercent}%`;
@@ -1043,9 +1230,31 @@
       free.style.width = `${freePercent}%`;
 
       otherLabel.textContent = formatBytes(otherUsedBytes);
-      libraryLabel.textContent = formatBytes(libraryBytes);
-      freeLabel.textContent = formatBytes(freeBytes);
-      summary.textContent = `${content ? (content.installed_count || 0) : 0} ZIMs are installed and using ${formatBytes(libraryBytes)}.`;
+      libraryLabel.textContent = queuedBytes > 0
+        ? `${formatBytes(projectedLibraryBytes)} (+${formatBytes(queuedBytes)})`
+        : formatBytes(libraryBytes);
+      freeLabel.textContent = queuedBytes > 0
+        ? `${formatBytes(projectedFreeBytes)} (-${formatBytes(queuedBytes)})`
+        : formatBytes(freeBytes);
+      if (queuedBytes > 0) {
+        summary.textContent = `${content ? (content.installed_count || 0) : 0} ZIMs are installed. The current selection would add ${formatBytes(queuedBytes)} and leave about ${formatBytes(projectedFreeBytes)} free.`;
+      } else {
+        summary.textContent = `${content ? (content.installed_count || 0) : 0} ZIMs are installed and using ${formatBytes(libraryBytes)}.`;
+      }
+
+      warning.className = "content-storage-warning";
+      warning.textContent = "";
+      if (exceedsDisk) {
+        warning.classList.add("danger");
+        warning.textContent = "Not enough free space for the selected downloads. Choose fewer or smaller ZIM files before downloading.";
+      } else if (nearFull) {
+        warning.classList.add("warn");
+        warning.textContent = "Warning: the selected downloads would leave less than 10% free space on the device.";
+      }
+
+      if (downloadButton) {
+        downloadButton.disabled = exceedsDisk;
+      }
     }
 
     async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 5000) {
@@ -1353,8 +1562,6 @@
           document.getElementById("zim-catalog-list").textContent = "Online catalog is idle. Click Check Online Catalog when you want to query Kiwix.";
         }
       } catch (error) {
-        document.getElementById("mode-status").textContent = "Content library: unavailable";
-        document.getElementById("content-library-root").textContent = "Library root: unavailable";
         document.getElementById("content-local-list").textContent = "Unable to load local ZIM files.";
         document.getElementById("content-action-status").textContent = "Content actions: unavailable";
         renderContentStorage(null, null);
@@ -1372,8 +1579,6 @@
 
     function renderContentState(content, note = "") {
       pendingCustomSelection = new Set(content.custom_selected_paths || []);
-      document.getElementById("content-library-root").textContent = `Library root: ${content.library_root}`;
-      document.getElementById("mode-status").textContent = `Content library: ${content.mode === "quick-test" ? "quick test" : "ready"}`;
 
       setStatusChips("content-status", [
         {
@@ -1433,10 +1638,13 @@
         const details = [];
         if (item.selected) details.push("selected for custom");
         if (item.size_label) details.push(item.size_label);
-        const detailText = details.length ? ` <span class="muted">(${details.join(" | ")})</span>` : "";
-        return `<label style="display:block;margin-bottom:8px;">
+        const descriptionBits = [installedZimDescription(item), ...details];
+        return `<label class="zim-entry">
           <input type="checkbox" class="local-zim-checkbox" value="${escapeHtml(item.name)}">
-          ${escapeHtml(item.name)}${detailText}
+          <span class="zim-entry-body">
+            <span class="zim-entry-title">${escapeHtml(friendlyZimTitle(item.name))}</span>
+            <span class="zim-entry-desc">${escapeHtml(descriptionBits.join(" - "))}</span>
+          </span>
         </label>`;
       }).join("");
     }
@@ -1466,6 +1674,17 @@
       };
     }
 
+    function isEnglishZimCatalogItem(item) {
+      const value = String(item.path || item.name || "").toLowerCase();
+      return /(^|[_-])en([_-]|\.zim$)/.test(value);
+    }
+
+    function defaultCatalogItems(catalog) {
+      const items = catalog.items || [];
+      const englishItems = items.filter(isEnglishZimCatalogItem);
+      return englishItems.length ? englishItems : items;
+    }
+
     function renderZimCatalog(catalog) {
       const effectiveCatalog = contentCatalogWithCurrentLocalState(catalog);
       document.getElementById("zim-catalog-source").textContent =
@@ -1474,7 +1693,7 @@
       const container = document.getElementById("zim-catalog-list");
       const filterValue = document.getElementById("zim-catalog-filter").value.trim().toLowerCase();
       const selectedCategory = document.getElementById("zim-category-filter").value || "all";
-      const allItems = effectiveCatalog.items || [];
+      const allItems = defaultCatalogItems(effectiveCatalog);
       const categoryItems = selectedCategory === "all"
         ? allItems
         : allItems.filter((item) => item.category === selectedCategory);
@@ -1491,8 +1710,13 @@
       const items = filteredItems.slice(pageStart, pageStart + pageSize);
 
       if (!filteredItems.length) {
-        container.textContent = "No ZIM files were returned by the Kiwix catalog.";
-        document.getElementById("zim-catalog-note").textContent = effectiveCatalog.error || "No remote ZIM files were returned.";
+        container.textContent = effectiveCatalog.refreshing
+          ? "Kiwix catalog is building in the background. Check again in a moment."
+          : "No ZIM files were returned by the Kiwix catalog.";
+        document.getElementById("zim-catalog-note").textContent =
+          effectiveCatalog.error || (effectiveCatalog.refreshing
+            ? "Kiwix catalog refresh is running in the background."
+            : "No remote ZIM files were returned.");
         document.getElementById("zim-page-status").textContent = "Page 0 of 0";
         document.getElementById("zim-prev-page-button").disabled = true;
         document.getElementById("zim-next-page-button").disabled = true;
@@ -1500,14 +1724,23 @@
       }
 
       container.innerHTML = items.map((item) => {
-        const details = [item.category];
-        if (item.size_label) details.push(`remote ${item.size_label}`);
+        const details = [];
+        if (item.size_bytes) {
+          details.push(iconLabel("download", formatBytes(item.size_bytes)));
+        } else if (item.size_label && item.size_label !== "-") {
+          details.push(iconLabel("download", item.size_label));
+        }
         if (pendingCustomSelection.has(item.path)) details.push("selected");
-        if (item.installed && item.installed_size_label) details.push(`installed ${item.installed_size_label}`);
-        const detailText = details.length ? ` <span class="muted">(${details.join(" | ")})</span>` : "";
-        return `<label style="display:block;margin-bottom:8px;">
+        if (item.installed && item.installed_size_bytes) details.push(iconLabel("device", formatBytes(item.installed_size_bytes)));
+        else if (item.installed && item.installed_size_label) details.push(iconLabel("device", item.installed_size_label));
+        const descriptionBits = [catalogZimDescription(item)];
+        const detailText = details.length ? ` ${details.join(" ")}` : "";
+        return `<label class="zim-entry">
           <input type="checkbox" class="zim-catalog-checkbox" value="${escapeHtml(item.path)}" ${pendingCustomSelection.has(item.path) ? "checked" : ""}>
-          ${escapeHtml(item.name)}${detailText}
+          <span class="zim-entry-body">
+            <span class="zim-entry-title">${escapeHtml(friendlyZimTitle(item.name))}</span>
+            <span class="zim-entry-desc">${escapeHtml(descriptionBits.join(" - "))}${detailText}</span>
+          </span>
         </label>`;
       }).join("");
 
@@ -1523,12 +1756,12 @@
           ? effectiveCatalog.error
           : effectiveCatalog.stale
             ? "Showing cached Kiwix catalog data."
-            : `${filterNote} Checked ZIM files will be added to this device's saved library selection when you download them.`;
+            : `${filterNote} Showing English ZIM files by default. Checked ZIM files will be added to this device's saved library selection when you download them.`;
     }
 
     function populateCategoryFilter(catalog) {
       const select = document.getElementById("zim-category-filter");
-      const categories = ["all", ...Array.from(new Set((catalog.items || []).map((item) => item.category))).sort()];
+      const categories = ["all", ...Array.from(new Set(defaultCatalogItems(catalog).map((item) => item.category))).sort()];
       const currentValue = categories.includes(currentContentCategory) ? currentContentCategory : "all";
       select.innerHTML = categories.map((category) => {
         const label = category === "all" ? "All Categories" : category;
@@ -1798,6 +2031,10 @@
         document.getElementById("zim-catalog-note").textContent = "Select one or more ZIM files from the online catalog first.";
         return;
       }
+      if (pendingDownloadBytes() > Number(currentState?.storage?.disk?.free_bytes || 0)) {
+        window.alert("There is not enough free space for the selected downloads. Choose fewer or smaller ZIM files before downloading.");
+        return;
+      }
 
       const button = document.getElementById("download-selected-zims-button");
       const basePreset = currentContent && currentContent.library_preset === "custom"
@@ -1914,7 +2151,6 @@
           renderZimCatalog(currentContentCatalog);
         }
       } catch (error) {
-        document.getElementById("content-library-root").textContent = "Library root: unavailable";
         document.getElementById("content-local-list").textContent = "Unable to load local ZIM files.";
         document.getElementById("content-library-note").textContent = "Installed content check failed.";
       } finally {
@@ -1930,7 +2166,7 @@
       try {
         let result;
         try {
-          result = await fetchJsonWithTimeout(`/api/content/catalog${force ? "?refresh=1" : ""}`, {}, force ? 20000 : 10000);
+          result = await fetchJsonWithTimeout(`/api/content/catalog${force ? "?refresh=1" : ""}`, {}, force ? 8000 : 10000);
         } catch (error) {
           if (!force) {
             throw error;
@@ -1997,6 +2233,7 @@
         checkbox.checked = true;
         pendingCustomSelection.add(checkbox.value);
       });
+      renderContentStorage(currentState, currentContent);
     }
 
     function clearAllCatalogZims() {
@@ -2004,6 +2241,7 @@
         checkbox.checked = false;
         pendingCustomSelection.delete(checkbox.value);
       });
+      renderContentStorage(currentState, currentContent);
     }
 
     function selectAllLocalZims() {
@@ -2266,6 +2504,7 @@
       } else {
         pendingCustomSelection.delete(event.target.value);
       }
+      renderContentStorage(currentState, currentContent);
     });
     document.getElementById("refresh-content-button").addEventListener("click", () => triggerApplyAction("refresh-content"));
     document.getElementById("rebuild-library-button").addEventListener("click", () => triggerApplyAction("rebuild-library"));

@@ -181,10 +181,12 @@ class DirectoryIndexParser(HTMLParser):
 
 def parse_apache_index_tail(text: str) -> tuple[int | None, str | None]:
     cleaned = html.unescape(text).replace("\xa0", " ")
-    match = re.search(r"\b(\d+(?:\.\d+)?[KMGTP]?|-)($|\s)", cleaned.strip())
-    if not match:
+    tokens = cleaned.strip().split()
+    if not tokens:
         return None, None
-    label = match.group(1)
+    label = tokens[-1].upper()
+    if not re.fullmatch(r"(\d+(?:\.\d+)?[KMGTP]?|-)", label):
+        return None, None
     if label == "-":
         return None, "-"
     return parse_size_label_to_bytes(label), label
@@ -225,6 +227,8 @@ class PortalState:
         self.apply_thread: threading.Thread | None = None
         self.map_sync_lock = threading.Lock()
         self.map_sync_thread: threading.Thread | None = None
+        self.content_catalog_lock = threading.Lock()
+        self.content_catalog_refresh_thread: threading.Thread | None = None
         self.write_maps_runtime_config()
         self.recover_interrupted_apply()
 
@@ -249,6 +253,8 @@ class PortalState:
                     "name": str(option.get("name", option_id)),
                     "description": str(option.get("description", "")),
                     "size_mb": int(option.get("size_mb", 0) or 0),
+                    "size_label": str(option.get("size_label", "")),
+                    "url": str(option.get("url", "")),
                     "version": str(option.get("version", "")),
                 }
             )
@@ -708,18 +714,16 @@ class PortalState:
         env = self.maps_env()
         return env.get("PREPMASTER_ZIM_CATALOG_URL", "https://download.kiwix.org/zim/")
 
-    def fetch_kiwix_catalog_cached(self, force_refresh: bool = False) -> dict:
-        cache_ttl_seconds = 3600
-        if not force_refresh and self.content_catalog_cache_file.exists():
-            try:
-                cached = json.loads(self.content_catalog_cache_file.read_text())
-            except json.JSONDecodeError:
-                cached = None
-            if cached:
-                fetched_at = float(cached.get("fetched_at", 0))
-                if time.time() - fetched_at < cache_ttl_seconds and "payload" in cached:
-                    return cached["payload"]
+    def load_content_catalog_cache(self) -> dict | None:
+        if not self.content_catalog_cache_file.exists():
+            return None
+        try:
+            return json.loads(self.content_catalog_cache_file.read_text())
+        except json.JSONDecodeError:
+            return None
 
+    def build_kiwix_catalog_payload(self) -> dict:
+        cache_ttl_seconds = 3600
         root_url = self.zim_catalog_root().rstrip("/") + "/"
         installed = {item["name"]: item for item in self.list_installed_zims()}
         custom_selection = self.read_custom_zim_selection()
@@ -784,11 +788,73 @@ class PortalState:
             "items": items,
             "stale": False,
             "error": None,
+            "refreshing": False,
         }
         self.content_catalog_cache_file.write_text(
             json.dumps({"fetched_at": time.time(), "payload": payload}, indent=2) + "\n"
         )
         return payload
+
+    def refresh_kiwix_catalog_in_background(self) -> None:
+        try:
+            self.build_kiwix_catalog_payload()
+        finally:
+            with self.content_catalog_lock:
+                self.content_catalog_refresh_thread = None
+
+    def start_kiwix_catalog_refresh(self) -> bool:
+        with self.content_catalog_lock:
+            if self.content_catalog_refresh_thread and self.content_catalog_refresh_thread.is_alive():
+                return False
+            self.content_catalog_refresh_thread = threading.Thread(
+                target=self.refresh_kiwix_catalog_in_background,
+                daemon=True,
+            )
+            self.content_catalog_refresh_thread.start()
+            return True
+
+    def fetch_kiwix_catalog_cached(self, force_refresh: bool = False) -> dict:
+        cache_ttl_seconds = 3600
+        cached = self.load_content_catalog_cache()
+        cached_payload = cached.get("payload") if cached else None
+        cache_age_seconds = float(cached.get("fetched_at", 0)) if cached else 0
+        cache_is_fresh = bool(
+            cached_payload and cache_age_seconds and (time.time() - cache_age_seconds < cache_ttl_seconds)
+        )
+
+        if force_refresh and cached_payload:
+            self.start_kiwix_catalog_refresh()
+            payload = dict(cached_payload)
+            payload["refreshing"] = True
+            payload["error"] = "Refreshing the Kiwix catalog in the background. Showing the most recent saved results for now."
+            return payload
+
+        if force_refresh and not cached_payload:
+            self.start_kiwix_catalog_refresh()
+            return {
+                "source": {
+                    "root_url": self.zim_catalog_root().rstrip("/") + "/",
+                },
+                "items": [],
+                "stale": False,
+                "error": "Building the Kiwix catalog in the background for the first time. Try again in a moment.",
+                "refreshing": True,
+            }
+
+        if not force_refresh and cache_is_fresh:
+            payload = dict(cached_payload)
+            payload["refreshing"] = False
+            return payload
+
+        if cached_payload and not cache_is_fresh:
+            self.start_kiwix_catalog_refresh()
+            payload = dict(cached_payload)
+            payload["stale"] = True
+            payload["refreshing"] = True
+            payload["error"] = "Refreshing an older Kiwix catalog in the background. Showing the saved results for now."
+            return payload
+
+        return self.build_kiwix_catalog_payload()
 
     def content_status(self) -> dict:
         env = self.maps_env()

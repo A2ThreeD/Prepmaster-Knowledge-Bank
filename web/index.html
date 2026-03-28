@@ -1288,7 +1288,8 @@
     function formatBytes(bytes) {
       if (!Number.isFinite(bytes) || bytes < 0) return "0 GB";
       const gb = bytes / (1024 ** 3);
-      if (gb >= 10) return `${gb.toFixed(0)} GB`;
+      if (gb >= 100) return `${gb.toFixed(0)} GB`;
+      if (gb >= 10) return `${gb.toFixed(1)} GB`;
       if (gb >= 1) return `${gb.toFixed(1)} GB`;
       return `${(bytes / (1024 ** 2)).toFixed(0)} MB`;
     }
@@ -1485,6 +1486,7 @@
       const usedBytes = Number(disk.used_bytes || 0);
       const selectedWikipedia = selectedWikipediaOption();
       const baseMb = Number(storageState.missing_by_wikipedia?.[selectedWikipedia?.id || ""] || 0);
+      const wikiBytes = Math.round(baseMb * 1024 * 1024);
       const kolibriMb = setupState.installKolibri && !storageState.kolibri_installed
         ? Number(storageState.kolibri_estimated_mb || 0)
         : 0;
@@ -1507,7 +1509,9 @@
       storageUsedLabel.textContent = formatBytes(usedBytes);
       storageAddedLabel.textContent = formatBytes(addedBytes);
       storageFreeLabel.textContent = exceedsDisk ? "Not enough space" : formatBytes(projectedFreeBytes);
-      storageSummary.textContent = `This setup is estimated to add ${formatBytes(addedBytes)} on top of the ${formatBytes(usedBytes)} already in use.`;
+      storageSummary.textContent = selectedWikipedia
+        ? `This setup is estimated to add ${formatBytes(addedBytes)}, including ${formatBytes(wikiBytes)} for ${selectedWikipedia.name}.`
+        : `This setup is estimated to add ${formatBytes(addedBytes)} on top of the ${formatBytes(usedBytes)} already in use.`;
 
       storageWarning.className = "storage-warning hidden";
 
