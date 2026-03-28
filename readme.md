@@ -16,7 +16,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `instructions.md` - original project requirements
 - `scripts/bootstrap_pi.sh` - prepares a clean Raspberry Pi OS Lite system
 - `scripts/install_prepmaster.sh` - top-level installer for SOPR
-- `scripts/build_kiwix_zim_manifest.py` - generates the ZIM manifest from Project NOMAD categories
+- `scripts/build_kiwix_zim_manifest.py` - generates the ZIM manifest from the SOPR curated catalog
 - `scripts/download_kiwix_zims.sh` - curated Kiwix ZIM downloader
 - `scripts/select_install_profile.sh` - records first-start install choices for optional education add-ons
 - `scripts/install_optional_components.sh` - installs optional education components from the selected profile
@@ -94,6 +94,7 @@ sudo ./scripts/download_kiwix_zims.sh
 - The installer now provisions `kiwix-serve`, the portal API, and an Nginx site so `/`, `/maps`, `/admin`, and `/api` are served on the main site, while `/kiwix` redirects the browser to the dedicated Kiwix port.
 - The current UI typography now self-hosts `Michroma` from `web/fonts/Michroma-Regular.ttf` under the SIL Open Font License. The main display stack is `"Michroma Local", "Michroma", "OCR A Std", "OCR A Extended", "Aldrich", "Eurostile", "Bank Gothic", "Rajdhani", "Cascadia Mono", "Consolas", monospace`, and the body stack is `"Michroma Local", "Michroma", "OCR A Std", "OCR A Extended", "Aldrich", "Cascadia Mono", "Consolas", monospace`.
 - Scrollable panels use white scrollbars on a dark track as a shared SOPR design rule. New scrollable boxes should keep that treatment for consistency.
+- User-facing UI should describe upstream sources in generic terms like `regional map catalog` or `offline map packages` rather than adopting another project's branding as a primary label. Source attribution can still live in documentation or secondary status text when needed.
 
 ## Validation
 

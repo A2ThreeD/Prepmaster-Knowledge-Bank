@@ -451,9 +451,20 @@
       grid-template-columns: auto 1fr;
       align-items: center;
       gap: 6px 10px;
-      margin-bottom: 8px;
+      margin-bottom: 0;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
       font-size: 0.75rem;
       line-height: 1.2;
+    }
+
+    .zim-entry:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .zim-entry:first-child {
+      padding-top: 0;
     }
 
     .zim-entry input[type="checkbox"] {
@@ -915,7 +926,7 @@
         <section class="card">
           <h2>Offline Maps</h2>
           <p class="muted">
-            SOPR maps use MapLibre with local PMTiles archives. Choose which installed region packages should stay on the device and manage Project NOMAD regional downloads here.
+            SOPR maps use MapLibre with local PMTiles archives. Choose which installed region packages should stay on the device and manage regional map downloads here.
           </p>
           <div class="content-storage">
             <p class="content-storage-summary" id="maps-storage-summary">Checking disk usage.</p>
@@ -966,14 +977,14 @@
           <p class="substatus" id="maps-status-note">Loading map package status.</p>
         </section>
         <section class="card">
-          <h2>Project NOMAD Sync</h2>
+          <h2>Regional Map Sync</h2>
           <p class="muted">
-            Choose All Regions or the specific regions you want on the Pi. Updating installed maps will download the selected regions and remove unchecked Project NOMAD regions.
+            Choose All Regions or the specific regions you want on the Pi. Updating installed maps will download the selected regions and remove unchecked regional map packages.
           </p>
           <p class="muted" id="maps-catalog-source">Catalog source: loading</p>
           <div class="field">
-            <label>Project NOMAD Region Downloads</label>
-            <div id="maps-catalog-list" class="log-panel muted">Online catalog is idle. Click Check Online Catalog when you want to query Project NOMAD.</div>
+            <label>Regional Map Downloads</label>
+            <div id="maps-catalog-list" class="log-panel muted">Online catalog is idle. Click Check Online Catalog when you want to query the latest regional map catalog.</div>
           </div>
           <div class="actions">
             <button class="button" id="select-all-maps-button" type="button">SELECT ALL</button>
@@ -1257,7 +1268,7 @@
         .filter(Boolean)
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(" ");
-      return place ? `Project NOMAD offline map for ${place}.` : "Project NOMAD offline map archive.";
+      return place ? `Offline regional map for ${place}.` : "Offline regional map archive.";
     }
 
     function mapCatalogCollections(catalog = currentCatalog) {
@@ -2133,7 +2144,7 @@
       const regions = installedMapRegions(maps, currentCatalog);
 
       if (!regions.length) {
-        container.textContent = "No Project NOMAD map regions found on local storage.";
+        container.textContent = "No regional map packages found on local storage.";
         return;
       }
 
@@ -2199,12 +2210,12 @@
       const effectiveCatalog = catalogWithCurrentLocalState(catalog);
       document.getElementById("maps-catalog-source").textContent =
         effectiveCatalog.source.collections_url
-          ? `Catalog source: Project NOMAD collections`
+          ? `Catalog source: regional map catalog`
           : `Catalog source: ${effectiveCatalog.source.owner}/${effectiveCatalog.source.repo}:${effectiveCatalog.source.subdir}`;
       const container = document.getElementById("maps-catalog-list");
 
       if (!effectiveCatalog.collections || !effectiveCatalog.collections.length) {
-        container.innerHTML = "No map regions were returned by the Project NOMAD catalog.";
+        container.innerHTML = "No map regions were returned by the online map catalog.";
         return;
       }
 
@@ -2213,7 +2224,7 @@
         {
           slug: "all",
           name: "All Regions",
-          description: "Download the full Project NOMAD regional map collection.",
+          description: "Download the full regional offline map collection.",
           size_bytes: Number((effectiveCatalog.items || []).reduce((sum, item) => sum + Number(item.size_bytes || 0), 0)),
           size_label: formatBytes(Number((effectiveCatalog.items || []).reduce((sum, item) => sum + Number(item.size_bytes || 0), 0))),
           resource_count: (effectiveCatalog.items || []).length,
@@ -2559,7 +2570,7 @@
           12000
         );
         if (!response.ok) {
-          throw new Error(payload.error || "Unable to load Project NOMAD catalog");
+          throw new Error(payload.error || "Unable to load the map catalog");
         }
         currentCatalog = payload;
         renderCatalog(payload);

@@ -698,6 +698,12 @@
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
     }
 
+    .dashboard-tile {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+
     .review-card h3,
     .dashboard-tile h2 {
       margin-bottom: 10px;
@@ -707,6 +713,11 @@
     .review-card p,
     .dashboard-tile p {
       margin: 0;
+    }
+
+    .dashboard-tile .actions {
+      margin-top: auto;
+      padding-top: 14px;
     }
 
     .status-panel {
@@ -1198,7 +1209,7 @@
           </div>
           <span class="eyebrow">Quick Access</span>
           <h2>Kiwix Full Library</h2>
-          <p>Browse the offline reference collection for medicine, survival, education, and general knowledge.</p>
+          <p>Browse the full offline library.</p>
           <div class="actions">
             <a class="button primary" id="kiwix-link" href="/kiwix">Open Kiwix</a>
           </div>
@@ -1208,7 +1219,7 @@
           <div class="dashboard-icon">⌖</div>
           <span class="eyebrow">Navigation</span>
           <h2>Offline Maps</h2>
-          <p>Open maps and field navigation tools prepared for disconnected use.</p>
+          <p>Open offline maps and navigation tools.</p>
           <div class="actions">
             <a class="button" href="/maps">Open Maps</a>
           </div>
@@ -1218,7 +1229,7 @@
           <div class="dashboard-icon">⚙</div>
           <span class="eyebrow">System Tools</span>
           <h2>Settings</h2>
-          <p>Manage services, review health, and reopen the setup interface when settings need to change.</p>
+          <p>Manage services, content, maps, and device settings.</p>
           <div class="actions">
             <a class="button" href="/admin">Open Settings</a>
           </div>
@@ -1228,14 +1239,20 @@
           <div class="dashboard-icon">✚</div>
           <span class="eyebrow">Critical</span>
           <h2>Medical & First Aid</h2>
-          <p>Fast access to treatment guides, field medicine references, and health information.</p>
+          <p>Open medical and first-aid references.</p>
+          <div class="actions">
+            <a class="button" id="medical-link" href="/kiwix">Open Medical</a>
+          </div>
         </section>
 
         <section class="dashboard-tile">
           <div class="dashboard-icon">⛺</div>
           <span class="eyebrow">Sustainment</span>
           <h2>Preparedness & Repair</h2>
-          <p>Water, food, shelter, sanitation, mechanical repair, and practical sustainment knowledge.</p>
+          <p>Open repair, cooking, and preparedness references.</p>
+          <div class="actions">
+            <a class="button" id="sustainment-link" href="/kiwix">Open Sustainment</a>
+          </div>
         </section>
 
         <section class="dashboard-tile">
@@ -1243,6 +1260,9 @@
           <span class="eyebrow">Rebuild</span>
           <h2>Education & Skills</h2>
           <p id="dashboard-profile-text">Wikipedia and optional education tools are configured for this device.</p>
+          <div class="actions">
+            <a class="button" id="rebuild-link" href="/kiwix">Open Learning</a>
+          </div>
         </section>
       </main>
     </section>
@@ -1288,6 +1308,9 @@
     const storageFreeLabel = document.getElementById("storage-free-label");
     const storageWarning = document.getElementById("storage-warning");
     const dashboardProfileText = document.getElementById("dashboard-profile-text");
+    const medicalLink = document.getElementById("medical-link");
+    const sustainmentLink = document.getElementById("sustainment-link");
+    const rebuildLink = document.getElementById("rebuild-link");
     const applyStatusText = document.getElementById("apply-status-text");
     const applyLogText = document.getElementById("apply-log-text");
 
@@ -1320,6 +1343,51 @@
       if (gb >= 10) return `${gb.toFixed(1)} GB`;
       if (gb >= 1) return `${gb.toFixed(1)} GB`;
       return `${(bytes / (1024 ** 2)).toFixed(0)} MB`;
+    }
+
+    function kiwixContentHref(name) {
+      const value = String(name || "").replace(/\.zim$/i, "");
+      return value ? `/content/${value}` : "/kiwix";
+    }
+
+    function configureDashboardQuickLinks(installedItems = []) {
+      const installedNames = new Set((installedItems || []).map((item) => item.name));
+      const firstInstalled = (choices) => choices.find((name) => installedNames.has(name)) || null;
+
+      const medicalTarget = firstInstalled([
+        "zimgit-medicine_en_2024-08.zim",
+        "nhs.uk_en_medicines_2025-12.zim",
+        "fas-military-medicine_en_2025-06.zim",
+        "wwwnc.cdc.gov_en_all_2024-11.zim"
+      ]);
+      const sustainmentTarget = firstInstalled([
+        "ifixit_en_all_2025-12.zim",
+        "mechanics.stackexchange.com_en_all_2025-12.zim",
+        "woodworking.stackexchange.com_en_all_2025-12.zim",
+        "based.cooking_en_all_2025-11.zim",
+        "foss.cooking_en_all_2025-11.zim",
+        "canadian_prepper_winterprepping_en_2025-11.zim",
+        "canadian_prepper_bugoutroll_en_2025-08.zim"
+      ]);
+      const rebuildTarget = firstInstalled([
+        "freecodecamp_en_all_2025-11.zim",
+        "devdocs_en_python_2026-02.zim",
+        "devdocs_en_python_2026-01.zim",
+        "devdocs_en_javascript_2026-01.zim",
+        "devdocs_en_html_2026-01.zim",
+        "devdocs_en_css_2026-01.zim",
+        "wikibooks_en_all_nopic_2025-10.zim",
+        "wikipedia_en_top_nopic_2026-03.zim",
+        "wikipedia_en_top_mini_2025-12.zim"
+      ]);
+
+      medicalLink.href = kiwixContentHref(medicalTarget);
+      sustainmentLink.href = kiwixContentHref(sustainmentTarget);
+      rebuildLink.href = kiwixContentHref(rebuildTarget);
+
+      medicalLink.title = medicalTarget ? `Open ${medicalTarget}` : "Open Kiwix library";
+      sustainmentLink.title = sustainmentTarget ? `Open ${sustainmentTarget}` : "Open Kiwix library";
+      rebuildLink.title = rebuildTarget ? `Open ${rebuildTarget}` : "Open Kiwix library";
     }
 
     function showMessage(text, isError = false) {
@@ -1467,7 +1535,7 @@
       const allChoice = {
         slug: "all",
         name: "All Regions",
-        description: "Download the full Project NOMAD regional map collection.",
+        description: "Download the full regional offline map collection.",
         size_label: formatSize(Number(storageState?.missing_all_maps_mb || 0)),
         resource_count: mapCollections.reduce((count, collection) => count + Number(collection.resource_count || 0), 0)
       };
@@ -1846,7 +1914,15 @@
 
     async function initialize() {
       try {
-        const state = await loadState();
+        const [state, contentResponse] = await Promise.all([
+          loadState(),
+          fetch(`${apiBase}/content`, { cache: "no-store" }).then(async (response) => {
+            if (!response.ok) {
+              return { installed_items: [] };
+            }
+            return response.json();
+          }).catch(() => ({ installed_items: [] }))
+        ]);
         const applyStateResponse = await fetch(`${apiBase}/apply`, { cache: "no-store" });
         const applyState = applyStateResponse.ok
           ? await applyStateResponse.json()
@@ -1874,6 +1950,7 @@
         renderMapOptions();
         renderSetupSummary();
         renderDashboardProfile(state.profile);
+        configureDashboardQuickLinks(contentResponse.installed_items || []);
         renderApplyState(applyState);
         renderMode(state);
         renderStorageEstimate();
@@ -1883,6 +1960,7 @@
         renderWikipediaOptions();
         renderMapOptions();
         renderSetupSummary();
+        configureDashboardQuickLinks([]);
         renderMode({ setup_complete: false });
         renderStorageEstimate();
         updateWizardStep();
