@@ -83,6 +83,11 @@
         radial-gradient(circle at 28% 54%, rgba(255, 255, 255, 0.45) 0 1px, transparent 1.5px);
     }
 
+    body:not(.app-ready) #setup-view,
+    body:not(.app-ready) #dashboard-view {
+      display: none !important;
+    }
+
     .shell {
       max-width: none;
       width: 100%;
@@ -2245,6 +2250,7 @@
       applyConfigButton.disabled = running;
       applyStatusText.classList.toggle("running", running);
       updateApplyNotice(state);
+      renderMode({ setup_complete: latestSetupComplete });
 
       if (running) {
         currentStep = totalSteps - 1;
@@ -2357,7 +2363,9 @@
 
     function renderMode(state) {
       latestSetupComplete = Boolean(state.setup_complete);
-      const setupMode = forceSetup || !state.setup_complete || applyRunning || applyNeedsAttention;
+      const allowDashboard = latestSetupComplete || canLeaveToHomeDuringApply;
+      const shouldForceSetup = forceSetup && !latestSetupComplete;
+      const setupMode = shouldForceSetup || !allowDashboard || applyNeedsAttention;
       setupView.classList.toggle("hidden", !setupMode);
       dashboardView.classList.toggle("hidden", setupMode);
       introText.classList.add("hidden");
@@ -2619,6 +2627,8 @@
         updateWizardStep();
         updateDriveNotice();
         showMessage("Portal API is not reachable yet. Run sudo ./scripts/install_prepmaster.sh on the Pi to install the local SOPR portal service.", true);
+      } finally {
+        document.body.classList.add("app-ready");
       }
     }
 

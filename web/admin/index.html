@@ -749,6 +749,96 @@
       flex-direction: column;
     }
 
+    .files-dual-pane {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .files-pane {
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(7, 14, 26, 0.22);
+      padding: 12px;
+    }
+
+    .files-pane.active {
+      outline: 2px solid rgba(123, 183, 255, 0.92);
+      outline-offset: 0;
+    }
+
+    .files-pane-head {
+      margin-bottom: 8px;
+    }
+
+    .files-pane-head h3 {
+      margin: 0 0 6px;
+      font-size: 0.95rem;
+    }
+
+    .files-shortcuts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .files-shortcut-button {
+      min-width: 0;
+      padding: 8px 10px;
+      font-size: 0.78rem;
+    }
+
+    .files-list {
+      min-height: 420px;
+      max-height: 620px;
+      overflow: auto;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(4, 10, 18, 0.5);
+    }
+
+    .files-entry {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) 80px 120px;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      border: 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .files-entry:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .files-entry.selected {
+      background: rgba(123, 183, 255, 0.2);
+    }
+
+    .files-entry-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .files-entry-kind,
+    .files-entry-size,
+    .files-entry-modified {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .files-empty {
+      padding: 14px;
+      color: var(--muted);
+    }
+
     .pager {
       display: flex;
       align-items: center;
@@ -971,6 +1061,10 @@
         grid-template-columns: 1fr;
       }
 
+      .files-dual-pane {
+        grid-template-columns: 1fr;
+      }
+
       .button {
         width: 100%;
       }
@@ -993,6 +1087,7 @@
       <button class="button tab-button active" data-icon="⚙" type="button" data-panel="system">System</button>
       <button class="button tab-button" data-icon="📶" type="button" data-panel="wifi">WiFi</button>
       <button class="button tab-button" data-icon="🖴" type="button" data-panel="storage">Storage</button>
+      <button class="button tab-button" data-icon="🗂" type="button" data-panel="files">Files</button>
       <button class="button tab-button" data-icon="⌘" type="button" data-panel="content">Content</button>
       <button class="button tab-button" data-icon="⌖" type="button" data-panel="maps">Maps</button>
     </div>
@@ -1370,6 +1465,44 @@
       </div>
     </section>
 
+    <section class="panel-group" data-panel-group="files">
+      <div class="grid">
+        <section class="card">
+          <h2>File Management</h2>
+          <p class="muted">
+            Browse SOPR storage locations in a dual-pane file manager. File operations are limited to approved SOPR roots and delete actions always require confirmation.
+          </p>
+          <div class="actions">
+            <button class="button" data-icon="↻" id="refresh-files-button" type="button">Refresh Files</button>
+            <button class="button" data-icon="📁" id="new-folder-button" type="button">New Folder</button>
+            <button class="button" data-icon="✎" id="rename-file-button" type="button">Rename</button>
+            <button class="button" data-icon="⎘" id="copy-file-button" type="button">Copy To Other Pane</button>
+            <button class="button" data-icon="⇄" id="move-file-button" type="button">Move To Other Pane</button>
+            <button class="button" data-icon="✖" id="delete-file-button" type="button">Delete</button>
+          </div>
+          <p class="status" id="files-action-status">File manager ready.</p>
+          <div class="files-dual-pane">
+            <section class="files-pane" id="files-pane-left">
+              <div class="files-pane-head">
+                <h3>Left Pane</h3>
+                <p class="substatus" id="files-left-path">Loading...</p>
+              </div>
+              <div class="files-shortcuts" id="files-left-shortcuts"></div>
+              <div class="files-list" id="files-left-list">Loading files...</div>
+            </section>
+            <section class="files-pane" id="files-pane-right">
+              <div class="files-pane-head">
+                <h3>Right Pane</h3>
+                <p class="substatus" id="files-right-path">Loading...</p>
+              </div>
+              <div class="files-shortcuts" id="files-right-shortcuts"></div>
+              <div class="files-list" id="files-right-list">Loading files...</div>
+            </section>
+          </div>
+        </section>
+      </div>
+    </section>
+
     <div class="actions">
       <button class="button" data-icon="⚙" id="run-setup-again-button" type="button">Run Setup Again</button>
     </div>
@@ -1390,6 +1523,11 @@
     let currentAccessPoint = null;
     let mapsSyncPollHandle = null;
     let currentPanel = "system";
+    let filesPaneState = {
+      left: { path: "", parentPath: "", selectedPath: "", entries: [], roots: [] },
+      right: { path: "", parentPath: "", selectedPath: "", entries: [], roots: [] }
+    };
+    let activeFilesPane = "left";
     let apFormDirty = false;
     let apClientsPanelVisible = false;
 
@@ -1403,6 +1541,8 @@
       });
       if (panelName === "wifi" || panelName === "system" || panelName === "storage") {
         loadSystemPanelData();
+      } else if (panelName === "files") {
+        loadFilesPanelData();
       } else if (panelName === "content") {
         loadContentPanelData();
       } else if (panelName === "maps") {
@@ -1491,6 +1631,226 @@
       if (gb >= 10) return `${gb.toFixed(0)} GB`;
       if (gb >= 1) return `${gb.toFixed(1)} GB`;
       return `${(value / (1024 ** 2)).toFixed(0)} MB`;
+    }
+
+    function activePaneState() {
+      return filesPaneState[activeFilesPane];
+    }
+
+    function inactivePaneKey() {
+      return activeFilesPane === "left" ? "right" : "left";
+    }
+
+    function renderFilesPane(side, payload) {
+      filesPaneState[side] = {
+        path: payload.path || "",
+        parentPath: payload.parent_path || "",
+        selectedPath: filesPaneState[side].selectedPath || "",
+        entries: Array.isArray(payload.entries) ? payload.entries : [],
+        roots: Array.isArray(payload.roots) ? payload.roots : []
+      };
+      const pane = filesPaneState[side];
+      const paneRoot = document.getElementById(`files-pane-${side}`);
+      const pathEl = document.getElementById(`files-${side}-path`);
+      const shortcutsEl = document.getElementById(`files-${side}-shortcuts`);
+      const listEl = document.getElementById(`files-${side}-list`);
+
+      paneRoot.classList.toggle("active", activeFilesPane === side);
+      pathEl.textContent = pane.path || "Unavailable";
+      shortcutsEl.innerHTML = "";
+
+      const roots = Array.isArray(pane.roots) ? pane.roots : [];
+      roots.forEach((root) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "button files-shortcut-button";
+        button.textContent = root.label || root.path || "Root";
+        button.addEventListener("click", () => loadFilesPane(side, root.path || ""));
+        shortcutsEl.appendChild(button);
+      });
+
+      listEl.textContent = "";
+      const entries = [];
+      if (pane.parentPath) {
+        entries.push({
+          name: "..",
+          path: pane.parentPath,
+          is_dir: true,
+          size_label: "",
+          modified_at: "Parent folder"
+        });
+      }
+      entries.push(...pane.entries);
+
+      if (!entries.length) {
+        const empty = document.createElement("div");
+        empty.className = "files-empty";
+        empty.textContent = "This folder is empty.";
+        listEl.appendChild(empty);
+        return;
+      }
+
+      entries.forEach((entry) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "files-entry";
+        row.classList.toggle("selected", pane.selectedPath === entry.path);
+        row.innerHTML = `
+          <span class="files-entry-name">${escapeHtml(entry.is_dir ? `📁 ${entry.name}` : `📄 ${entry.name}`)}</span>
+          <span class="files-entry-size">${escapeHtml(entry.is_dir ? "DIR" : (entry.size_label || "--"))}</span>
+          <span class="files-entry-modified">${escapeHtml(entry.modified_at || "")}</span>
+        `;
+        row.addEventListener("click", () => {
+          activeFilesPane = side;
+          pane.selectedPath = entry.path;
+          renderFilesPane("left", filesPaneState.left);
+          renderFilesPane("right", filesPaneState.right);
+        });
+        row.addEventListener("dblclick", () => {
+          activeFilesPane = side;
+          pane.selectedPath = entry.path;
+          if (entry.is_dir) {
+            loadFilesPane(side, entry.path);
+          }
+        });
+        listEl.appendChild(row);
+      });
+    }
+
+    async function loadFilesPane(side, path = "") {
+      const listEl = document.getElementById(`files-${side}-list`);
+      listEl.textContent = "Loading files...";
+      try {
+        const encoded = path ? `?path=${encodeURIComponent(path)}` : "";
+        const { response, payload } = await fetchJsonWithTimeout(`/api/files${encoded}`, {}, 5000);
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to load files.");
+        }
+        renderFilesPane(side, payload);
+      } catch (error) {
+        listEl.textContent = error.message;
+      }
+    }
+
+    async function loadFilesPanelData() {
+      await Promise.all([
+        loadFilesPane("left", filesPaneState.left.path || ""),
+        loadFilesPane("right", filesPaneState.right.path || "")
+      ]);
+    }
+
+    function selectedFileEntry(side = activeFilesPane) {
+      const pane = filesPaneState[side];
+      return (pane.entries || []).find((entry) => entry.path === pane.selectedPath) || null;
+    }
+
+    async function submitFileAction(endpoint, payload, successMessage) {
+      const statusEl = document.getElementById("files-action-status");
+      statusEl.textContent = "File action running...";
+      try {
+        const { response, payload: result } = await fetchJsonWithTimeout(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }, 15000);
+        if (!response.ok) {
+          throw new Error(result.error || "File action failed.");
+        }
+        if (result.source) {
+          renderFilesPane(activeFilesPane, result.source);
+        }
+        if (result.target) {
+          renderFilesPane(inactivePaneKey(), result.target);
+        }
+        if (result.pane) {
+          renderFilesPane(activeFilesPane, result.pane);
+        }
+        statusEl.textContent = result.message || successMessage;
+      } catch (error) {
+        statusEl.textContent = error.message;
+      }
+    }
+
+    async function refreshFilesPanel() {
+      document.getElementById("files-action-status").textContent = "Refreshing file manager...";
+      await loadFilesPanelData();
+      document.getElementById("files-action-status").textContent = "File manager ready.";
+    }
+
+    async function createFolderInActivePane() {
+      const pane = activePaneState();
+      const name = window.prompt("Folder name:");
+      if (!name) {
+        document.getElementById("files-action-status").textContent = "Folder creation canceled.";
+        return;
+      }
+      await submitFileAction("/api/files/mkdir", {
+        parent_path: pane.path,
+        name
+      }, `Created folder ${name}.`);
+    }
+
+    async function renameSelectedFile() {
+      const entry = selectedFileEntry();
+      if (!entry) {
+        document.getElementById("files-action-status").textContent = "Select a file or folder first.";
+        return;
+      }
+      const name = window.prompt("New name:", entry.name);
+      if (!name || name === entry.name) {
+        document.getElementById("files-action-status").textContent = "Rename canceled.";
+        return;
+      }
+      await submitFileAction("/api/files/rename", {
+        source_path: entry.path,
+        new_name: name
+      }, `Renamed ${entry.name}.`);
+    }
+
+    async function copySelectedFile() {
+      const entry = selectedFileEntry();
+      if (!entry) {
+        document.getElementById("files-action-status").textContent = "Select a file or folder first.";
+        return;
+      }
+      await submitFileAction("/api/files/copy", {
+        source_path: entry.path,
+        target_dir: filesPaneState[inactivePaneKey()].path
+      }, `Copied ${entry.name}.`);
+    }
+
+    async function moveSelectedFile() {
+      const entry = selectedFileEntry();
+      if (!entry) {
+        document.getElementById("files-action-status").textContent = "Select a file or folder first.";
+        return;
+      }
+      const confirmed = window.confirm(`Move ${entry.name} to the other pane?`);
+      if (!confirmed) {
+        document.getElementById("files-action-status").textContent = "Move canceled.";
+        return;
+      }
+      await submitFileAction("/api/files/move", {
+        source_path: entry.path,
+        target_dir: filesPaneState[inactivePaneKey()].path
+      }, `Moved ${entry.name}.`);
+    }
+
+    async function deleteSelectedFile() {
+      const entry = selectedFileEntry();
+      if (!entry) {
+        document.getElementById("files-action-status").textContent = "Select a file or folder first.";
+        return;
+      }
+      const kind = entry.is_dir ? "folder" : "file";
+      const confirmed = window.confirm(`Delete this ${kind}?\n\n${entry.name}\n\nThis cannot be undone.`);
+      if (!confirmed) {
+        document.getElementById("files-action-status").textContent = "Delete canceled.";
+        return;
+      }
+      await submitFileAction("/api/files/delete", {
+        source_path: entry.path
+      }, `Deleted ${entry.name}.`);
     }
 
     function pendingDownloadBytes() {
@@ -3710,6 +4070,22 @@
     document.getElementById("rebuild-library-button").addEventListener("click", () => triggerApplyAction("rebuild-library"));
     document.getElementById("refresh-maps-button").addEventListener("click", refreshMapsList);
     document.getElementById("refresh-storage-button").addEventListener("click", refreshStoragePanel);
+    document.getElementById("refresh-files-button").addEventListener("click", refreshFilesPanel);
+    document.getElementById("new-folder-button").addEventListener("click", createFolderInActivePane);
+    document.getElementById("rename-file-button").addEventListener("click", renameSelectedFile);
+    document.getElementById("copy-file-button").addEventListener("click", copySelectedFile);
+    document.getElementById("move-file-button").addEventListener("click", moveSelectedFile);
+    document.getElementById("delete-file-button").addEventListener("click", deleteSelectedFile);
+    document.getElementById("files-pane-left").addEventListener("click", () => {
+      activeFilesPane = "left";
+      renderFilesPane("left", filesPaneState.left);
+      renderFilesPane("right", filesPaneState.right);
+    });
+    document.getElementById("files-pane-right").addEventListener("click", () => {
+      activeFilesPane = "right";
+      renderFilesPane("left", filesPaneState.left);
+      renderFilesPane("right", filesPaneState.right);
+    });
     document.getElementById("storage-volumes-list").addEventListener("click", (event) => {
       const button = event.target.closest(".storage-action-button");
       if (!button) {
@@ -3792,7 +4168,7 @@
 
     function initialPanelFromLocation() {
       const hash = (window.location.hash || "").replace(/^#/, "").trim().toLowerCase();
-      if (["wifi", "system", "content", "maps", "storage"].includes(hash)) {
+      if (["wifi", "system", "content", "maps", "storage", "files"].includes(hash)) {
         return hash;
       }
       return "system";

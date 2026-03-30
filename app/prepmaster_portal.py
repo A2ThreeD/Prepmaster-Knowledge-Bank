@@ -3430,6 +3430,209 @@ class PortalState:
             "message": f'{service["label"]} restarted.',
         }
 
+    def file_manager_roots(self) -> list[dict[str, str]]:
+        roots: list[dict[str, str]] = [
+            {
+                "id": "internal-library",
+                "label": "Internal Library",
+                "path": str(self.kiwix_library_dir()),
+            },
+            {
+                "id": "internal-maps",
+                "label": "Internal Maps",
+                "path": str(self.maps_root()),
+            },
+            {
+                "id": "portal-data",
+                "label": "SOPR Data",
+                "path": str(self.data_dir),
+            },
+        ]
+        seen = {item["path"] for item in roots}
+        for volume in self.storage_volumes():
+            if not volume.get("mounted"):
+                continue
+            mountpoint = str(volume.get("mountpoint") or "").strip()
+            if not mountpoint:
+                continue
+            display_name = str(volume.get("label") or volume.get("display_name") or volume.get("name") or "Drive").strip()
+            if mountpoint not in seen:
+                roots.append(
+                    {
+                        "id": f"volume-{volume.get('name', display_name)}",
+                        "label": f"Drive: {display_name}",
+                        "path": mountpoint,
+                    }
+                )
+                seen.add(mountpoint)
+            layout = volume.get("sopr_layout") or {}
+            for directory_name, label in (
+                ("library", f"{display_name} Library"),
+                ("maps", f"{display_name} Maps"),
+                ("media", f"{display_name} Media"),
+            ):
+                if not layout.get(directory_name):
+                    continue
+                path = str(Path(mountpoint) / directory_name)
+                if path in seen:
+                    continue
+                roots.append(
+                    {
+                        "id": f"{volume.get('name', display_name)}-{directory_name}",
+                        "label": label,
+                        "path": path,
+                    }
+                )
+                seen.add(path)
+        return roots
+
+    def _allowed_file_roots(self) -> list[Path]:
+        roots: list[Path] = []
+        seen: set[str] = set()
+        for item in self.file_manager_roots():
+            path = Path(str(item.get("path", ""))).resolve(strict=False)
+            key = str(path)
+            if key in seen:
+                continue
+            seen.add(key)
+            roots.append(path)
+        return roots
+
+    def _resolve_managed_file_path(self, path_value: str, *, allow_missing: bool = False) -> Path:
+        candidate = Path(str(path_value or "").strip())
+        if not candidate.is_absolute():
+            raise ValueError("Choose a valid path.")
+        resolved = candidate.resolve(strict=False)
+        for root in self._allowed_file_roots():
+            root_str = str(root)
+            resolved_str = str(resolved)
+            if resolved_str == root_str or resolved_str.startswith(root_str.rstrip("/") + "/"):
+                if not allow_missing and not resolved.exists():
+                    raise ValueError("The selected path is unavailable.")
+                return resolved
+        raise ValueError("That location is outside the allowed file-manager roots.")
+
+    def _file_manager_parent(self, path: Path) -> str | None:
+        parent = path.parent.resolve(strict=False)
+        try:
+            return str(self._resolve_managed_file_path(str(parent)))
+        except ValueError:
+            return None
+
+    def _file_manager_entry(self, path: Path) -> dict[str, object]:
+        stat = path.stat()
+        is_dir = path.is_dir()
+        return {
+            "name": path.name,
+            "path": str(path.resolve(strict=False)),
+            "is_dir": is_dir,
+            "size_bytes": 0 if is_dir else stat.st_size,
+            "size_label": "--" if is_dir else format_size_bytes(stat.st_size),
+            "modified_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(stat.st_mtime)),
+        }
+
+    def file_manager_list(self, path_value: str | None = None) -> dict:
+        roots = self.file_manager_roots()
+        default_path = roots[0]["path"] if roots else str(self.repo_root)
+        path = self._resolve_managed_file_path(path_value or default_path)
+        if not path.exists():
+            raise ValueError("The selected path is unavailable.")
+        if not path.is_dir():
+            raise ValueError("Choose a folder to browse.")
+
+        entries: list[dict[str, object]] = []
+        for child in sorted(path.iterdir(), key=lambda item: (not item.is_dir(), item.name.lower())):
+            try:
+                entries.append(self._file_manager_entry(child))
+            except OSError:
+                continue
+
+        return {
+            "path": str(path),
+            "parent_path": self._file_manager_parent(path),
+            "entries": entries,
+            "roots": roots,
+        }
+
+    def file_manager_copy(self, source_path: str, target_dir: str) -> dict:
+        source = self._resolve_managed_file_path(source_path)
+        destination_dir = self._resolve_managed_file_path(target_dir)
+        if not destination_dir.is_dir():
+            raise ValueError("Choose a destination folder.")
+        destination = destination_dir / source.name
+        if destination.exists():
+            raise ValueError("A file or folder with that name already exists in the destination.")
+        if source.is_dir():
+            shutil.copytree(source, destination)
+        else:
+            shutil.copy2(source, destination)
+        return {
+            "message": f"Copied {source.name} to {destination_dir}.",
+            "source": self.file_manager_list(str(source.parent)),
+            "target": self.file_manager_list(str(destination_dir)),
+        }
+
+    def file_manager_move(self, source_path: str, target_dir: str) -> dict:
+        source = self._resolve_managed_file_path(source_path)
+        destination_dir = self._resolve_managed_file_path(target_dir)
+        if not destination_dir.is_dir():
+            raise ValueError("Choose a destination folder.")
+        destination = destination_dir / source.name
+        if destination.exists():
+            raise ValueError("A file or folder with that name already exists in the destination.")
+        shutil.move(str(source), str(destination))
+        return {
+            "message": f"Moved {source.name} to {destination_dir}.",
+            "source": self.file_manager_list(str(source.parent)),
+            "target": self.file_manager_list(str(destination_dir)),
+        }
+
+    def file_manager_rename(self, source_path: str, new_name: str) -> dict:
+        source = self._resolve_managed_file_path(source_path)
+        name = str(new_name or "").strip()
+        if not name or "/" in name or name in {".", ".."}:
+            raise ValueError("Choose a valid new name.")
+        destination = source.parent / name
+        self._resolve_managed_file_path(str(destination), allow_missing=True)
+        if destination.exists():
+            raise ValueError("A file or folder with that name already exists.")
+        source.rename(destination)
+        return {
+            "message": f"Renamed to {name}.",
+            "pane": self.file_manager_list(str(destination.parent)),
+        }
+
+    def file_manager_delete(self, source_path: str) -> dict:
+        source = self._resolve_managed_file_path(source_path)
+        if str(source) in {str(root) for root in self._allowed_file_roots()}:
+            raise ValueError("Cannot delete a protected root folder.")
+        parent = source.parent
+        if source.is_dir():
+            shutil.rmtree(source)
+        else:
+            source.unlink()
+        return {
+            "message": f"Deleted {source.name}.",
+            "pane": self.file_manager_list(str(parent)),
+        }
+
+    def file_manager_mkdir(self, parent_path: str, name: str) -> dict:
+        parent = self._resolve_managed_file_path(parent_path)
+        if not parent.is_dir():
+            raise ValueError("Choose a folder first.")
+        folder_name = str(name or "").strip()
+        if not folder_name or "/" in folder_name or folder_name in {".", ".."}:
+            raise ValueError("Choose a valid folder name.")
+        new_dir = parent / folder_name
+        self._resolve_managed_file_path(str(new_dir), allow_missing=True)
+        if new_dir.exists():
+            raise ValueError("A file or folder with that name already exists.")
+        new_dir.mkdir(parents=False, exist_ok=False)
+        return {
+            "message": f"Created folder {folder_name}.",
+            "pane": self.file_manager_list(str(parent)),
+        }
+
         return {
             "status": "accepted",
             "action": action,
@@ -3493,6 +3696,12 @@ class PortalHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/apply":
             self.send_json(self.portal_state.load_apply_state())
+            return
+        if path == "/api/files":
+            try:
+                self.send_json(self.portal_state.file_manager_list(query.get("path", [""])[0]))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
             return
         self.send_json({"error": "Not found"}, status=404)
 
@@ -3618,6 +3827,65 @@ class PortalHandler(BaseHTTPRequestHandler):
                 return
             except RuntimeError as exc:
                 self.send_json({"error": str(exc)}, status=500)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/files/copy":
+            try:
+                state = self.portal_state.file_manager_copy(
+                    str(payload.get("source_path", "")).strip(),
+                    str(payload.get("target_dir", "")).strip(),
+                )
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/files/move":
+            try:
+                state = self.portal_state.file_manager_move(
+                    str(payload.get("source_path", "")).strip(),
+                    str(payload.get("target_dir", "")).strip(),
+                )
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/files/rename":
+            try:
+                state = self.portal_state.file_manager_rename(
+                    str(payload.get("source_path", "")).strip(),
+                    str(payload.get("new_name", "")).strip(),
+                )
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/files/delete":
+            try:
+                state = self.portal_state.file_manager_delete(
+                    str(payload.get("source_path", "")).strip(),
+                )
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/files/mkdir":
+            try:
+                state = self.portal_state.file_manager_mkdir(
+                    str(payload.get("parent_path", "")).strip(),
+                    str(payload.get("name", "")).strip(),
+                )
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
                 return
             self.send_json(state)
             return
