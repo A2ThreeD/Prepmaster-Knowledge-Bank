@@ -52,7 +52,7 @@
 # ZIM File Information
  - ZIM files for the Kiwix server are stored in /library/zims/content
  - A script in the home directory on this image contains a script named download_kiwix_zims.sh that has a curated list of the ZIM files needed
- - The curated list is compiled from `catalog/kiwix-categories.json`.
+ - The curated list is compiled from `catalog/kiwix-categories.yaml`.
  - Use the curated catalog JSON to build out the download_kiwix_zims.sh script. That script should be a shell script that uses wget to download a zim file if it's newer or not present to the /library/zims/content folder.  Example line:
     sudo wget -N -c "https://download.kiwix.org/zim/other/zimgit-medicine_en_2024-08.zim"
 

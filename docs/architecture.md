@@ -20,9 +20,9 @@
 
 - Kiwix content served from `/library/zims/content`
 - `kiwix-serve` as the content server
-- Curated ZIM list generated from `catalog/kiwix-categories.json`
+- Curated ZIM list generated from `catalog/kiwix-categories.yaml`
 - Install profiles that scale from essential to comprehensive
-- A user-selectable Wikipedia package sourced from `catalog/wikipedia.json`
+- A user-selectable Wikipedia package sourced from `catalog/wikipedia.yaml`
 
 ### 3. Offline Maps
 

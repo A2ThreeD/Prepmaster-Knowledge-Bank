@@ -50,10 +50,10 @@ install -d -m 0755 "$KIWIX_LIBRARY_DIR"
 
 echo "Generating default Kiwix manifest..."
 python3 "$REPO_ROOT/scripts/build_kiwix_zim_manifest.py" \
-  --source "$REPO_ROOT/catalog/kiwix-categories.json" \
+  --source "$REPO_ROOT/catalog/kiwix-categories.yaml" \
   --output "$REPO_ROOT/config/kiwix-zim-urls.txt" \
   --profile "${PREPMASTER_ZIM_PROFILE:-essential}" \
-  --wikipedia-options "$REPO_ROOT/catalog/wikipedia.json" \
+  --wikipedia-options "$REPO_ROOT/catalog/wikipedia.yaml" \
   --wikipedia-choice "${PREPMASTER_WIKIPEDIA_OPTION:-top-mini}"
 
 echo "Installing portal API service..."

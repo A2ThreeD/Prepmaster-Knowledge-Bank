@@ -68,8 +68,8 @@ The setup flow is intentionally plain-language and optimized for non-technical u
 
 SOPR currently supports:
 
-- curated ZIM selection from `catalog/kiwix-categories.json`
-- selectable Wikipedia packages from `catalog/wikipedia.json`
+- curated ZIM selection from `catalog/kiwix-categories.yaml`
+- selectable Wikipedia packages from `catalog/wikipedia.yaml`
 - generated manifests via `scripts/build_kiwix_zim_manifest.py`
 - optional `quick-test` mode for smaller validation downloads
 - installed-content management in `/admin`
@@ -134,8 +134,8 @@ This currently tracks install-profile style choices such as optional education a
 
 ### Catalog Sources
 
-- `catalog/kiwix-categories.json`
-- `catalog/wikipedia.json`
+- `catalog/kiwix-categories.yaml`
+- `catalog/wikipedia.yaml`
 - `catalog/nomad-maps.json`
 
 These now act as SOPR’s local source-of-truth catalogs for:

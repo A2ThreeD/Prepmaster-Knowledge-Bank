@@ -9,7 +9,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - Directory layout for content and site assets
 - Custom web, admin, and offline PMTiles maps scaffold
 - Kiwix ZIM downloads into `/library/zims/content`
-- ZIM selection generated from `catalog/kiwix-categories.json`
+- ZIM selection generated from `catalog/kiwix-categories.yaml`
 
 ## Current Repository Layout
 
@@ -32,7 +32,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `config/prepmaster.env.example` - template for editable install settings
 - `config/install-profile.env.example` - template for first-start install profile defaults
 - `config/kiwix-zim-urls.quick-test.txt` - tiny starter manifest for fast Kiwix validation
-- `catalog/wikipedia.json` - selectable Wikipedia ZIM options for the configuration flow
+- `catalog/wikipedia.yaml` - selectable Wikipedia ZIM options for the configuration flow
 - `docs/architecture.md` - stack and design notes
 - `docs/release-checklist.md` - step-by-step validation list for fresh Pi installs and release testing
 - `docs/software-plan.md` - software checklist for the Pi
@@ -77,9 +77,9 @@ sudo ./scripts/download_kiwix_zims.sh
 ## Notes
 
 - The installer now assumes a custom stack with no IIAB dependency.
-- `catalog/kiwix-categories.json` is the source of truth for curated ZIM selection.
+- `catalog/kiwix-categories.yaml` is the source of truth for curated ZIM selection.
 - The generated manifest in `config/kiwix-zim-urls.txt` is built from that catalog JSON using `PREPMASTER_ZIM_PROFILE`.
-- The selected Wikipedia variant is controlled by `PREPMASTER_WIKIPEDIA_OPTION` and sourced from `catalog/wikipedia.json`.
+- The selected Wikipedia variant is controlled by `PREPMASTER_WIKIPEDIA_OPTION` and sourced from `catalog/wikipedia.yaml`.
 - Supported profiles are `essential`, `standard`, and `comprehensive`.
 - Set `PREPMASTER_ZIM_MODE=quick-test` if you want a small validation download before pulling the full content set.
 - The main page is now intended to be a first-start configuration screen with base install selected by default.

@@ -4,13 +4,14 @@ import argparse
 import json
 import re
 import sys
+import yaml
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib import request
 
 
 DEFAULT_SOURCE_URL = "https://download.kiwix.org/zim/wikipedia/"
-DEFAULT_OUTPUT = "catalog/wikipedia.json"
+DEFAULT_OUTPUT = "catalog/wikipedia.yaml"
 SPEC_VERSION = "2026-03-27"
 ENGLISH_PREFIX = "wikipedia_en_"
 VARIANT_SUFFIXES = {"maxi", "mini", "nopic"}
@@ -75,7 +76,7 @@ class DirectoryIndexParser(HTMLParser):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build wikipedia.json from the live English Kiwix Wikipedia index."
+        description="Build the SOPR Wikipedia options catalog from the live English Kiwix Wikipedia index."
     )
     parser.add_argument(
         "--source-url",
@@ -89,7 +90,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         default=DEFAULT_OUTPUT,
-        help="Path to write the generated wikipedia options JSON.",
+        help="Path to write the generated Wikipedia options YAML or JSON.",
     )
     parser.add_argument(
         "--all-options",
@@ -257,7 +258,10 @@ def main() -> None:
         include_all=args.all_options,
     )
     output_path = Path(args.output)
-    output_path.write_text(json.dumps(payload, indent=2) + "\n")
+    if output_path.suffix == ".json":
+        output_path.write_text(json.dumps(payload, indent=2) + "\n")
+    else:
+        output_path.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=False, width=1000))
     print(f"Wrote {payload['option_count']} English Wikipedia options to {output_path}")
 
 

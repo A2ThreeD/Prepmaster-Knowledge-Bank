@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import threading
 import time
+import yaml
 from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -61,11 +62,20 @@ def update_env_file(path: Path, updates: dict[str, str]) -> None:
 
 
 def read_json(path: Path, default: dict) -> dict:
-    if not path.exists():
+    candidate = path
+    if not candidate.exists():
+        if candidate.suffix == ".json":
+            alternate = candidate.with_suffix(".yaml")
+            candidate = alternate if alternate.exists() else candidate
+        elif candidate.suffix in {".yaml", ".yml"}:
+            alternate = candidate.with_suffix(".json")
+            candidate = alternate if alternate.exists() else candidate
+    if not candidate.exists():
         return default
     try:
-        return json.loads(path.read_text())
-    except json.JSONDecodeError:
+        loaded = yaml.safe_load(candidate.read_text())
+        return loaded if isinstance(loaded, dict) else default
+    except yaml.YAMLError:
         return default
 
 
@@ -245,7 +255,7 @@ class PortalState:
 
     def wikipedia_catalog(self) -> dict:
         catalog = read_json(
-            self.repo_root / "catalog" / "wikipedia.json",
+            self.repo_root / "catalog" / "wikipedia.yaml",
             {"spec_version": None, "options": []},
         )
         options = catalog.get("options")
@@ -276,7 +286,7 @@ class PortalState:
 
     def kiwix_catalog(self) -> dict:
         return read_json(
-            self.repo_root / "catalog" / "kiwix-categories.json",
+            self.repo_root / "catalog" / "kiwix-categories.yaml",
             {"categories": []},
         )
 
@@ -898,13 +908,13 @@ class PortalState:
             "python3",
             str(self.repo_root / "scripts" / "build_kiwix_zim_manifest.py"),
             "--source",
-            str(self.repo_root / "catalog" / "kiwix-categories.json"),
+            str(self.repo_root / "catalog" / "kiwix-categories.yaml"),
             "--output",
             str(output_path),
             "--profile",
             profile,
             "--wikipedia-options",
-            str(self.repo_root / "catalog" / "wikipedia.json"),
+            str(self.repo_root / "catalog" / "wikipedia.yaml"),
             "--wikipedia-choice",
             self.maps_env().get("PREPMASTER_WIKIPEDIA_OPTION", "top-mini"),
         ]

@@ -1,0 +1,40 @@
+spec_version: '2026-03-27'
+source_url: https://download.kiwix.org/zim/wikipedia/
+selection_mode: curated
+option_count: 5
+options:
+- id: all-maxi
+  name: Complete Wikipedia (Maxi)
+  description: Full English Wikipedia with images and media where available.
+  size_mb: 117760
+  size_label: 115G
+  url: https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_maxi_2026-02.zim
+  version: 2026-02
+- id: all-mini
+  name: Complete Wikipedia (Mini)
+  description: Full English Wikipedia in a smaller condensed format.
+  size_mb: 12288
+  size_label: 12G
+  url: https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_mini_2026-03.zim
+  version: 2026-03
+- id: simple-all-mini
+  name: Simple English Wikipedia (Mini)
+  description: Simple English Wikipedia in a smaller condensed format.
+  size_mb: 441
+  size_label: 441M
+  url: https://download.kiwix.org/zim/wikipedia/wikipedia_en_simple_all_mini_2026-02.zim
+  version: 2026-02
+- id: top-mini
+  name: Quick Reference
+  description: Top English Wikipedia article selection in a smaller condensed format.
+  size_mb: 315
+  size_label: 315M
+  url: https://download.kiwix.org/zim/wikipedia/wikipedia_en_top_mini_2026-03.zim
+  version: 2026-03
+- id: top-nopic
+  name: Top Articles (No Pictures)
+  description: Top English Wikipedia article selection without images to save storage.
+  size_mb: 2150
+  size_label: 2.1G
+  url: https://download.kiwix.org/zim/wikipedia/wikipedia_en_top_nopic_2026-03.zim
+  version: 2026-03

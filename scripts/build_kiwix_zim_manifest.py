@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 import sys
 from pathlib import Path
+import yaml
 
 
 LEVEL_ORDER = {
@@ -15,12 +15,12 @@ LEVEL_ORDER = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build a Kiwix ZIM download manifest from kiwix-categories.json."
+        description="Build a Kiwix ZIM download manifest from the SOPR catalog source."
     )
     parser.add_argument(
         "--source",
-        default="catalog/kiwix-categories.json",
-        help="Path to the SOPR categories JSON file.",
+        default="catalog/kiwix-categories.yaml",
+        help="Path to the SOPR categories YAML or JSON file.",
     )
     parser.add_argument(
         "--output",
@@ -36,12 +36,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--categories",
         nargs="*",
-        help="Optional category slugs to include. Default is all categories in the JSON file.",
+        help="Optional category slugs to include. Default is all categories in the source file.",
     )
     parser.add_argument(
         "--wikipedia-options",
-        default="catalog/wikipedia.json",
-        help="Path to the Wikipedia options JSON file.",
+        default="catalog/wikipedia.yaml",
+        help="Path to the Wikipedia options YAML or JSON file.",
     )
     parser.add_argument(
         "--wikipedia-choice",
@@ -52,13 +52,22 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_json(path: Path) -> dict:
+    candidate = path
+    if not candidate.exists():
+        if candidate.suffix == ".json":
+            alternate = candidate.with_suffix(".yaml")
+            candidate = alternate if alternate.exists() else candidate
+        elif candidate.suffix in {".yaml", ".yml"}:
+            alternate = candidate.with_suffix(".json")
+            candidate = alternate if alternate.exists() else candidate
     try:
-        return json.loads(path.read_text())
+        loaded = yaml.safe_load(candidate.read_text())
+        return loaded if isinstance(loaded, dict) else {}
     except FileNotFoundError:
         print(f"Missing source file: {path}", file=sys.stderr)
         sys.exit(1)
-    except json.JSONDecodeError as exc:
-        print(f"Invalid JSON in {path}: {exc}", file=sys.stderr)
+    except yaml.YAMLError as exc:
+        print(f"Invalid catalog data in {candidate}: {exc}", file=sys.stderr)
         sys.exit(1)
 
 

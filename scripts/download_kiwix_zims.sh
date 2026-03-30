@@ -48,12 +48,12 @@ elif [[ "$ZIM_MODE" == "custom" ]]; then
   echo "Using saved custom Kiwix manifest..."
   URL_FILE="$CUSTOM_URL_FILE"
 else
-  echo "Building Kiwix ZIM manifest from kiwix-categories.json..."
+  echo "Building Kiwix ZIM manifest from kiwix-categories.yaml..."
   python3 "$REPO_ROOT/scripts/build_kiwix_zim_manifest.py" \
-    --source "$REPO_ROOT/catalog/kiwix-categories.json" \
+    --source "$REPO_ROOT/catalog/kiwix-categories.yaml" \
     --output "$URL_FILE" \
     --profile "$PROFILE" \
-    --wikipedia-options "$REPO_ROOT/catalog/wikipedia.json" \
+    --wikipedia-options "$REPO_ROOT/catalog/wikipedia.yaml" \
     --wikipedia-choice "$WIKIPEDIA_OPTION"
 fi
 
