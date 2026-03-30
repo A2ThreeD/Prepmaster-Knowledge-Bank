@@ -93,6 +93,11 @@
     .muted {
       color: var(--muted);
     }
+
+    .hidden {
+      display: none !important;
+    }
+
     .catalog-icon {
       display: inline-flex;
       align-items: center;
@@ -478,6 +483,10 @@
       background: linear-gradient(180deg, rgba(154, 214, 179, 0.94), rgba(74, 143, 101, 0.98));
     }
 
+    .content-storage-segment.content-external {
+      background: linear-gradient(180deg, rgba(232, 194, 120, 0.94), rgba(164, 112, 42, 0.98));
+    }
+
     .content-storage-segment.free {
       background: linear-gradient(180deg, rgba(24, 38, 59, 0.95), rgba(10, 17, 29, 0.98));
     }
@@ -515,6 +524,10 @@
 
     .content-storage-swatch.content {
       background: linear-gradient(180deg, rgba(154, 214, 179, 0.94), rgba(74, 143, 101, 0.98));
+    }
+
+    .content-storage-swatch.content-external {
+      background: linear-gradient(180deg, rgba(232, 194, 120, 0.94), rgba(164, 112, 42, 0.98));
     }
 
     .content-storage-swatch.free {
@@ -677,6 +690,21 @@
       line-height: 1.2;
     }
 
+    .zim-entry-badge {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 0.45rem;
+      padding: 0.08rem 0.38rem;
+      border: 1px solid rgba(255, 183, 77, 0.55);
+      background: rgba(255, 183, 77, 0.12);
+      color: #ffd79a;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+
     .zim-entry-desc {
       display: inline;
       margin-left: 0.35rem;
@@ -734,9 +762,50 @@
       align-items: stretch;
     }
 
+    .panel-group[data-panel-group="content"] .grid.single-pane {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
     .panel-group[data-panel-group="content"] .card {
       display: flex;
       flex-direction: column;
+    }
+
+    .content-set-box {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(7, 14, 26, 0.28);
+    }
+
+    .content-set-box strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.86rem;
+    }
+
+    .content-set-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .content-set-tile {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 180px;
+      padding: 10px 14px;
+      margin: 8px 0 10px;
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      background: linear-gradient(180deg, rgba(95, 124, 166, 0.98), rgba(40, 61, 91, 0.98));
+      color: var(--text);
+      font-family: var(--ui-display);
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .panel-group[data-panel-group="maps"] .grid {
@@ -797,10 +866,57 @@
       background: rgba(4, 10, 18, 0.5);
     }
 
+    .files-header,
     .files-entry {
       display: grid;
-      grid-template-columns: minmax(0, 1.5fr) 80px 120px;
+      grid-template-columns: minmax(180px, var(--files-name-col-width, 320px)) 80px 120px;
       gap: 10px;
+      align-items: center;
+    }
+
+    .files-header {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(11, 21, 36, 0.95);
+    }
+
+    .files-header-button {
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0;
+    }
+
+    .files-name-header {
+      position: relative;
+      padding-right: 14px;
+    }
+
+    .files-column-resizer {
+      position: absolute;
+      top: -8px;
+      right: -7px;
+      width: 14px;
+      height: calc(100% + 16px);
+      cursor: col-resize;
+    }
+
+    .files-sort-indicator {
+      margin-left: 6px;
+      color: var(--muted);
+      font-size: 0.72rem;
+    }
+
+    .files-entry {
       width: 100%;
       padding: 10px 12px;
       border: 0;
@@ -1087,9 +1203,9 @@
       <button class="button tab-button active" data-icon="⚙" type="button" data-panel="system">System</button>
       <button class="button tab-button" data-icon="📶" type="button" data-panel="wifi">WiFi</button>
       <button class="button tab-button" data-icon="🖴" type="button" data-panel="storage">Storage</button>
-      <button class="button tab-button" data-icon="🗂" type="button" data-panel="files">Files</button>
       <button class="button tab-button" data-icon="⌘" type="button" data-panel="content">Content</button>
       <button class="button tab-button" data-icon="⌖" type="button" data-panel="maps">Maps</button>
+      <button class="button tab-button" data-icon="🗂" type="button" data-panel="files">Files</button>
     </div>
 
     <section class="panel-group active" data-panel-group="system">
@@ -1210,17 +1326,26 @@
     </section>
 
     <section class="panel-group" data-panel-group="content">
-      <div class="grid">
+      <div class="grid single-pane">
         <section class="card">
           <h2>Installed Content</h2>
           <p class="muted">
             Review what is already on the device, remove files you no longer want, and rebuild the Kiwix library from what is on disk.
           </p>
+          <div class="content-set-box">
+            <div class="content-set-top">
+              <strong>Installed Content Set</strong>
+              <button class="button" data-icon="＋" id="toggle-add-content-button" type="button">Add More Content</button>
+            </div>
+            <div class="content-set-tile" id="content-set-tile">Loading...</div>
+            <p class="substatus" id="content-set-status">Loading installed content set.</p>
+          </div>
           <div class="content-storage">
             <p class="content-storage-summary" id="content-storage-summary">Checking disk usage.</p>
             <div class="content-storage-bar" aria-hidden="true">
               <div class="content-storage-segment other" id="content-storage-other"></div>
-              <div class="content-storage-segment content" id="content-storage-library"></div>
+              <div class="content-storage-segment content" id="content-storage-library-internal"></div>
+              <div class="content-storage-segment content-external" id="content-storage-library-external"></div>
               <div class="content-storage-segment free" id="content-storage-free"></div>
             </div>
             <div class="content-storage-legend">
@@ -1229,8 +1354,12 @@
                 <span id="content-storage-other-label">-</span>
               </div>
               <div class="content-storage-chip">
-                <strong><span class="content-storage-swatch content" aria-hidden="true"></span>ZIM Library</strong>
-                <span id="content-storage-library-label">-</span>
+                <strong><span class="content-storage-swatch content" aria-hidden="true"></span>Internal Content</strong>
+                <span id="content-storage-library-internal-label">-</span>
+              </div>
+              <div class="content-storage-chip">
+                <strong><span class="content-storage-swatch content-external" aria-hidden="true"></span>External Content</strong>
+                <span id="content-storage-library-external-label">-</span>
               </div>
               <div class="content-storage-chip">
                 <strong><span class="content-storage-swatch free" aria-hidden="true"></span>Free</strong>
@@ -1252,8 +1381,8 @@
             <button class="button" data-icon="✖" id="remove-local-zims-button" type="button">Remove Selected ZIMs</button>
             <button class="button" data-icon="⌘" id="rebuild-library-button" type="button">Rebuild Kiwix Library</button>
           </div>
-          <p class="status" id="content-action-status">Content actions: ready</p>
-          <div class="progress-shell">
+          <p class="status hidden" id="content-action-status">Content actions: ready</p>
+          <div class="progress-shell hidden" id="content-progress-shell">
             <div class="progress-top">
               <span class="progress-label" id="progress-label">Waiting for action</span>
               <span class="progress-value" id="progress-value">0%</span>
@@ -1272,7 +1401,7 @@
             <pre id="apply-log">No active download log.</pre>
           </div>
         </section>
-        <section class="card">
+        <section class="card hidden" id="add-more-content-card">
           <h2>Add More Content</h2>
           <p class="muted">
             Browse the online Kiwix catalog here and add more ZIM files to this device whenever you want.
@@ -1523,9 +1652,10 @@
     let currentAccessPoint = null;
     let mapsSyncPollHandle = null;
     let currentPanel = "system";
+    let addMoreContentVisible = false;
     let filesPaneState = {
-      left: { path: "", parentPath: "", selectedPath: "", entries: [], roots: [] },
-      right: { path: "", parentPath: "", selectedPath: "", entries: [], roots: [] }
+      left: { path: "", parentPath: "", selectedPath: "", entries: [], roots: [], sortBy: "name", sortDir: "asc", nameColumnWidth: 320 },
+      right: { path: "", parentPath: "", selectedPath: "", entries: [], roots: [], sortBy: "name", sortDir: "asc", nameColumnWidth: 320 }
     };
     let activeFilesPane = "left";
     let apFormDirty = false;
@@ -1554,8 +1684,10 @@
     function renderApplyState(apply) {
       const label = apply.action ? ` (${apply.action})` : "";
       const step = apply.step ? ` | ${apply.step}` : "";
-      document.getElementById("content-action-status").textContent =
-        `Content actions: ${apply.status}${label}${step}`;
+      setContentActionStatus(
+        `Content actions: ${apply.status}${label}${step}`,
+        apply.status && apply.status !== "idle"
+      );
       document.getElementById("progress-label").textContent =
         apply.step || "Waiting for action";
       document.getElementById("progress-value").textContent =
@@ -1584,6 +1716,7 @@
         apply.log_tail && apply.log_tail.length
           ? apply.log_tail.join("\n")
           : "No active download log.";
+      setContentProgressVisibility(apply.status === "running" || apply.status === "failed");
 
       const running = apply.status === "running";
       document.getElementById("refresh-installed-zims-button").disabled = running;
@@ -1633,6 +1766,66 @@
       return `${(value / (1024 ** 2)).toFixed(0)} MB`;
     }
 
+    function updateContentPaneVisibility() {
+      const panel = document.querySelector('.panel-group[data-panel-group="content"] .grid');
+      const card = document.getElementById("add-more-content-card");
+      const button = document.getElementById("toggle-add-content-button");
+      card.classList.toggle("hidden", !addMoreContentVisible);
+      panel.classList.toggle("single-pane", !addMoreContentVisible);
+      button.textContent = addMoreContentVisible ? "Hide Add More Content" : "Add More Content";
+    }
+
+    function setContentActionStatus(text = "", visible = false) {
+      const el = document.getElementById("content-action-status");
+      el.textContent = text;
+      el.classList.toggle("hidden", !visible);
+    }
+
+    function setContentProgressVisibility(visible = false) {
+      document.getElementById("content-progress-shell").classList.toggle("hidden", !visible);
+    }
+
+    function describeInstalledContentSet(content) {
+      if (!content) {
+        return "Installed content set unavailable.";
+      }
+      if (content.mode === "quick-test") {
+        return "Quick Test: tiny validation library for install testing.";
+      }
+      if (content.mode === "custom") {
+        const base = content.custom_base_preset === "full"
+          ? "Comprehensive base"
+          : content.custom_base_preset === "compact"
+            ? "Essential base"
+            : "No base tier";
+        const extras = Number(content.custom_selected_count || 0);
+        return `Custom: ${base}${extras > 0 ? ` plus ${extras} saved extra ZIM ${extras === 1 ? "selection" : "selections"}` : ""}.`;
+      }
+      const profileName = ({
+        essential: "Essential",
+        standard: "Standard",
+        comprehensive: "Comprehensive"
+      })[String(content.profile || "").toLowerCase()] || "Installed";
+      return `${profileName} tier is installed${(content.custom_selected_count || 0) > 0 ? ` with ${content.custom_selected_count} saved extra ZIM ${content.custom_selected_count === 1 ? "selection" : "selections"}` : ""}.`;
+    }
+
+    function contentSetTileLabel(content) {
+      if (!content) {
+        return "Unavailable";
+      }
+      if (content.mode === "quick-test") {
+        return "Quick Test";
+      }
+      if (content.mode === "custom") {
+        return "Custom";
+      }
+      return ({
+        essential: "Essential",
+        standard: "Standard",
+        comprehensive: "Comprehensive"
+      })[String(content.profile || "").toLowerCase()] || "Installed";
+    }
+
     function activePaneState() {
       return filesPaneState[activeFilesPane];
     }
@@ -1641,13 +1834,75 @@
       return activeFilesPane === "left" ? "right" : "left";
     }
 
+    function sortedFilesEntries(side, entries) {
+      const pane = filesPaneState[side];
+      const sortBy = pane.sortBy || "name";
+      const sortDir = pane.sortDir === "desc" ? -1 : 1;
+      return [...entries].sort((left, right) => {
+        if (left.is_dir !== right.is_dir) {
+          return left.is_dir ? -1 : 1;
+        }
+
+        let comparison = 0;
+        if (sortBy === "size") {
+          comparison = Number(left.size_bytes || 0) - Number(right.size_bytes || 0);
+        } else if (sortBy === "modified") {
+          comparison = String(left.modified_at || "").localeCompare(String(right.modified_at || ""));
+        } else {
+          comparison = String(left.name || "").localeCompare(String(right.name || ""), undefined, { numeric: true, sensitivity: "base" });
+        }
+
+        if (comparison === 0) {
+          comparison = String(left.name || "").localeCompare(String(right.name || ""), undefined, { numeric: true, sensitivity: "base" });
+        }
+        return comparison * sortDir;
+      });
+    }
+
+    function updateFilesPaneSort(side, sortBy) {
+      const pane = filesPaneState[side];
+      if (pane.sortBy === sortBy) {
+        pane.sortDir = pane.sortDir === "asc" ? "desc" : "asc";
+      } else {
+        pane.sortBy = sortBy;
+        pane.sortDir = sortBy === "name" ? "asc" : "desc";
+      }
+      renderFilesPane("left", filesPaneState.left);
+      renderFilesPane("right", filesPaneState.right);
+    }
+
+    function beginFilesColumnResize(side, event) {
+      event.preventDefault();
+      const paneRoot = document.getElementById(`files-pane-${side}`);
+      const startX = event.clientX;
+      const startWidth = Number(filesPaneState[side].nameColumnWidth || 320);
+      const maxWidth = Math.max((paneRoot.getBoundingClientRect().width || 520) - 230, 220);
+
+      const onMove = (moveEvent) => {
+        const nextWidth = Math.max(180, Math.min(maxWidth, startWidth + (moveEvent.clientX - startX)));
+        filesPaneState[side].nameColumnWidth = nextWidth;
+        paneRoot.style.setProperty("--files-name-col-width", `${nextWidth}px`);
+      };
+
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    }
+
     function renderFilesPane(side, payload) {
       filesPaneState[side] = {
         path: payload.path || "",
         parentPath: payload.parent_path || "",
         selectedPath: filesPaneState[side].selectedPath || "",
         entries: Array.isArray(payload.entries) ? payload.entries : [],
-        roots: Array.isArray(payload.roots) ? payload.roots : []
+        roots: Array.isArray(payload.roots) ? payload.roots : [],
+        sortBy: filesPaneState[side].sortBy || "name",
+        sortDir: filesPaneState[side].sortDir || "asc",
+        nameColumnWidth: Number(filesPaneState[side].nameColumnWidth || 320)
       };
       const pane = filesPaneState[side];
       const paneRoot = document.getElementById(`files-pane-${side}`);
@@ -1656,6 +1911,7 @@
       const listEl = document.getElementById(`files-${side}-list`);
 
       paneRoot.classList.toggle("active", activeFilesPane === side);
+      paneRoot.style.setProperty("--files-name-col-width", `${pane.nameColumnWidth}px`);
       pathEl.textContent = pane.path || "Unavailable";
       shortcutsEl.innerHTML = "";
 
@@ -1690,7 +1946,31 @@
         return;
       }
 
-      entries.forEach((entry) => {
+      const sortIndicator = pane.sortDir === "asc" ? "▲" : "▼";
+      const header = document.createElement("div");
+      header.className = "files-header";
+      header.innerHTML = `
+        <button class="files-header-button files-name-header" data-sort="name" type="button">
+          Name${pane.sortBy === "name" ? `<span class="files-sort-indicator">${sortIndicator}</span>` : ""}
+          <span class="files-column-resizer" data-resize="name" aria-hidden="true"></span>
+        </button>
+        <button class="files-header-button" data-sort="size" type="button">
+          Size${pane.sortBy === "size" ? `<span class="files-sort-indicator">${sortIndicator}</span>` : ""}
+        </button>
+        <button class="files-header-button" data-sort="modified" type="button">
+          Modified${pane.sortBy === "modified" ? `<span class="files-sort-indicator">${sortIndicator}</span>` : ""}
+        </button>
+      `;
+      header.querySelectorAll("[data-sort]").forEach((button) => {
+        button.addEventListener("click", () => updateFilesPaneSort(side, button.dataset.sort));
+      });
+      const resizer = header.querySelector("[data-resize='name']");
+      if (resizer) {
+        resizer.addEventListener("mousedown", (resizeEvent) => beginFilesColumnResize(side, resizeEvent));
+      }
+      listEl.appendChild(header);
+
+      sortedFilesEntries(side, entries).forEach((entry) => {
         const row = document.createElement("button");
         row.type = "button";
         row.className = "files-entry";
@@ -2059,10 +2339,12 @@
     function renderContentStorage(state, content) {
       const summary = document.getElementById("content-storage-summary");
       const other = document.getElementById("content-storage-other");
-      const library = document.getElementById("content-storage-library");
+      const libraryInternal = document.getElementById("content-storage-library-internal");
+      const libraryExternal = document.getElementById("content-storage-library-external");
       const free = document.getElementById("content-storage-free");
       const otherLabel = document.getElementById("content-storage-other-label");
-      const libraryLabel = document.getElementById("content-storage-library-label");
+      const libraryInternalLabel = document.getElementById("content-storage-library-internal-label");
+      const libraryExternalLabel = document.getElementById("content-storage-library-external-label");
       const freeLabel = document.getElementById("content-storage-free-label");
       const warning = document.getElementById("content-storage-warning");
       const downloadButton = document.getElementById("download-selected-zims-button");
@@ -2071,10 +2353,12 @@
       if (!disk) {
         summary.textContent = "Disk usage is unavailable right now.";
         other.style.width = "0%";
-        library.style.width = "0%";
+        libraryInternal.style.width = "0%";
+        libraryExternal.style.width = "0%";
         free.style.width = "100%";
         otherLabel.textContent = "-";
-        libraryLabel.textContent = "-";
+        libraryInternalLabel.textContent = "-";
+        libraryExternalLabel.textContent = "-";
         freeLabel.textContent = "-";
         warning.className = "content-storage-warning";
         warning.textContent = "";
@@ -2084,34 +2368,47 @@
       const totalBytes = Number(disk.total_bytes || 0);
       const usedBytes = Number(disk.used_bytes || 0);
       const freeBytes = Number(disk.free_bytes || 0);
-      const libraryBytes = Number(content && content.installed_size_bytes || 0);
+      const internalLibraryBytes = Number(content && content.installed_internal_size_bytes || 0);
+      const externalLibraryBytes = Number(content && content.installed_external_size_bytes || 0);
+      const libraryBytes = internalLibraryBytes + externalLibraryBytes;
       const queuedBytes = pendingDownloadBytes();
+      const installTarget = Array.isArray(content && content.install_destinations)
+        ? content.install_destinations.find((item) => item.path === content.install_dir)
+        : null;
+      const queuedInternalBytes = installTarget && installTarget.location === "external" ? 0 : queuedBytes;
+      const queuedExternalBytes = installTarget && installTarget.location === "external" ? queuedBytes : 0;
       const otherUsedBytes = Math.max(0, usedBytes - libraryBytes);
-      const projectedLibraryBytes = libraryBytes + queuedBytes;
+      const projectedInternalLibraryBytes = internalLibraryBytes + queuedInternalBytes;
+      const projectedExternalLibraryBytes = externalLibraryBytes + queuedExternalBytes;
       const projectedFreeBytes = Math.max(0, freeBytes - queuedBytes);
       const projectedFreePercent = totalBytes > 0 ? (projectedFreeBytes / totalBytes) * 100 : 0;
       const exceedsDisk = queuedBytes > freeBytes;
       const nearFull = !exceedsDisk && queuedBytes > 0 && projectedFreePercent <= 10;
 
       const otherPercent = totalBytes > 0 ? Math.max(0, Math.min(100, (otherUsedBytes / totalBytes) * 100)) : 0;
-      const libraryPercent = totalBytes > 0 ? Math.max(0, Math.min(100 - otherPercent, (projectedLibraryBytes / totalBytes) * 100)) : 0;
-      const freePercent = Math.max(0, 100 - otherPercent - libraryPercent);
+      const internalPercent = totalBytes > 0 ? Math.max(0, Math.min(100 - otherPercent, (projectedInternalLibraryBytes / totalBytes) * 100)) : 0;
+      const externalPercent = totalBytes > 0 ? Math.max(0, Math.min(100 - otherPercent - internalPercent, (projectedExternalLibraryBytes / totalBytes) * 100)) : 0;
+      const freePercent = Math.max(0, 100 - otherPercent - internalPercent - externalPercent);
 
       other.style.width = `${otherPercent}%`;
-      library.style.width = `${libraryPercent}%`;
+      libraryInternal.style.width = `${internalPercent}%`;
+      libraryExternal.style.width = `${externalPercent}%`;
       free.style.width = `${freePercent}%`;
 
       otherLabel.textContent = formatBytes(otherUsedBytes);
-      libraryLabel.textContent = queuedBytes > 0
-        ? `${formatBytes(projectedLibraryBytes)} (+${formatBytes(queuedBytes)})`
-        : formatBytes(libraryBytes);
+      libraryInternalLabel.textContent = queuedInternalBytes > 0
+        ? `${formatBytes(projectedInternalLibraryBytes)} (+${formatBytes(queuedInternalBytes)})`
+        : formatBytes(internalLibraryBytes);
+      libraryExternalLabel.textContent = queuedExternalBytes > 0
+        ? `${formatBytes(projectedExternalLibraryBytes)} (+${formatBytes(queuedExternalBytes)})`
+        : formatBytes(externalLibraryBytes);
       freeLabel.textContent = queuedBytes > 0
         ? `${formatBytes(projectedFreeBytes)} (-${formatBytes(queuedBytes)})`
         : formatBytes(freeBytes);
       if (queuedBytes > 0) {
         summary.textContent = `${content ? (content.installed_count || 0) : 0} ZIMs are installed. The current selection would add ${formatBytes(queuedBytes)} and leave about ${formatBytes(projectedFreeBytes)} free.`;
       } else {
-        summary.textContent = `${content ? (content.installed_count || 0) : 0} ZIMs are installed and using ${formatBytes(libraryBytes)}.`;
+        summary.textContent = `${content ? (content.installed_count || 0) : 0} ZIMs are installed and using ${formatBytes(libraryBytes)} across internal and external storage.`;
       }
 
       warning.className = "content-storage-warning";
@@ -3017,7 +3314,10 @@
         }
       } catch (error) {
         document.getElementById("content-local-list").textContent = "Unable to load local ZIM files.";
-        document.getElementById("content-action-status").textContent = "Content actions: unavailable";
+        setContentActionStatus("Content actions: unavailable", true);
+        document.getElementById("content-set-tile").textContent = "Unavailable";
+        document.getElementById("content-set-status").textContent = "Installed content set unavailable.";
+        setContentProgressVisibility(false);
         renderContentStorage(null, null);
       }
     }
@@ -3027,7 +3327,8 @@
         const { payload } = await fetchJsonWithTimeout("/api/apply");
         renderApplyState(payload);
       } catch (error) {
-        document.getElementById("content-action-status").textContent = "Content actions: unavailable";
+        setContentActionStatus("Content actions: unavailable", true);
+        setContentProgressVisibility(false);
       }
     }
 
@@ -3036,11 +3337,6 @@
       populateInstallTargetSelect("content-install-target", content.install_destinations || [], content.install_dir || "");
 
       setStatusChips("content-status", [
-        {
-          label: "Library",
-          value: content.mode === "quick-test" ? "Quick Test" : "Installed",
-          tone: content.mode === "quick-test" ? "status-chip--warn" : "status-chip--ok"
-        },
         {
           label: "Installed",
           value: `${content.installed_count || 0} ZIMs`,
@@ -3065,6 +3361,8 @@
             ? `This device has ${content.custom_selected_count || 0} saved extra ZIM ${content.custom_selected_count === 1 ? "selection" : "selections"} in addition to the installed library.`
             : "This device is using the installed SOPR content library."
       );
+      document.getElementById("content-set-tile").textContent = contentSetTileLabel(content);
+      document.getElementById("content-set-status").textContent = describeInstalledContentSet(content);
 
       updateCustomLibraryVisibility(true);
       renderLocalInstalledZims(content);
@@ -3095,15 +3393,19 @@
         const version = zimVersionLabel(item.name);
         if (version) details.push(version);
         if (item.selected) details.push("saved for library");
+        details.push(item.location === "external" ? "external" : "internal");
         if (item.size_label) details.push(item.size_label);
         const descriptionBits = [installedZimDescription(item), ...details].filter(Boolean);
         const descriptionText = descriptionBits.length
           ? `<span class="zim-entry-desc">- ${escapeHtml(descriptionBits.join(" - "))}</span>`
           : "";
+        const extraBadge = item.is_extra
+          ? `<span class="zim-entry-badge">Extra</span>`
+          : "";
         return `<label class="zim-entry">
           <input type="checkbox" class="local-zim-checkbox" value="${escapeHtml(item.name)}">
           <span class="zim-entry-body">
-            <span class="zim-entry-title">${escapeHtml(friendlyZimTitle(item.name))}</span>${descriptionText}
+            <span class="zim-entry-title">${escapeHtml(friendlyZimTitle(item.name))}</span>${extraBadge}${descriptionText}
           </span>
         </label>`;
       }).join("");
@@ -3587,8 +3889,7 @@
     }
 
     async function triggerApplyAction(action) {
-      document.getElementById("content-action-status").textContent =
-        `Content actions: starting ${action}`;
+      setContentActionStatus(`Content actions: starting ${action}`, true);
       try {
         const response = await fetch("/api/apply", {
           method: "POST",
@@ -3603,7 +3904,7 @@
 
         renderApplyState(payload);
       } catch (error) {
-        document.getElementById("content-action-status").textContent = `Content actions: ${error.message}`;
+        setContentActionStatus(`Content actions: ${error.message}`, true);
       }
     }
 
@@ -4040,6 +4341,10 @@
     document.getElementById("refresh-zim-catalog-button").addEventListener("click", refreshZimCatalog);
     document.getElementById("download-selected-zims-button").addEventListener("click", downloadSelectedZims);
     document.getElementById("content-install-target").addEventListener("change", saveContentInstallTarget);
+    document.getElementById("toggle-add-content-button").addEventListener("click", () => {
+      addMoreContentVisible = !addMoreContentVisible;
+      updateContentPaneVisibility();
+    });
     document.getElementById("zim-prev-page-button").addEventListener("click", goToPreviousZimPage);
     document.getElementById("zim-next-page-button").addEventListener("click", goToNextZimPage);
     document.getElementById("zim-category-filter").addEventListener("change", () => {
@@ -4175,6 +4480,9 @@
     }
 
     setActivePanel(initialPanelFromLocation());
+    updateContentPaneVisibility();
+    setContentActionStatus("Content actions: ready", false);
+    setContentProgressVisibility(false);
   </script>
 </body>
 </html>

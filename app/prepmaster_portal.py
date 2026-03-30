@@ -1142,20 +1142,48 @@ class PortalState:
         root = self.kiwix_library_dir()
         if not root.exists():
             return []
+        volumes = self.storage_volumes()
         inventory: list[dict[str, object]] = []
         for path in sorted(root.iterdir()):
             if not path.is_file() or path.suffix.lower() != ".zim":
                 continue
             stat = path.stat()
+            resolved = path.resolve(strict=False)
+            volume = self.volume_for_path(resolved, volumes)
+            location = str(volume.get("location", "internal")) if volume else "internal"
             inventory.append(
                 {
                     "name": path.name,
+                    "path": str(path),
+                    "resolved_path": str(resolved),
+                    "location": location,
                     "size_bytes": stat.st_size,
                     "size_label": format_size_bytes(stat.st_size),
                     "modified_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(stat.st_mtime)),
                 }
             )
         return inventory
+
+    def current_base_content_filenames(self) -> set[str]:
+        env = self.maps_env()
+        mode = env.get("PREPMASTER_ZIM_MODE", "full")
+        wikipedia_option = env.get("PREPMASTER_WIKIPEDIA_OPTION", "top-mini")
+        resources: list[dict[str, object]] = []
+        if mode == "quick-test":
+            for url in self.read_manifest_urls(self.repo_root / "config" / "kiwix-zim-urls.quick-test.txt"):
+                resources.append({"filename": Path(urlparse(url).path).name})
+        elif mode == "custom":
+            base_profile = self.custom_base_profile()
+            if base_profile:
+                resources = self.curated_resources(base_profile, wikipedia_option)
+        else:
+            profile = env.get("PREPMASTER_ZIM_PROFILE", "essential").strip().lower() or "essential"
+            resources = self.curated_resources(profile, wikipedia_option)
+        return {
+            str(item.get("filename", "")).strip()
+            for item in resources
+            if str(item.get("filename", "")).strip()
+        }
 
     def fetch_directory_listing(self, url: str) -> list[dict[str, object]]:
         req = request.Request(
@@ -1321,6 +1349,12 @@ class PortalState:
         custom_selection = self.read_custom_zim_selection()
         installed = self.list_installed_zims()
         installed_size_bytes = sum(int(item["size_bytes"]) for item in installed)
+        installed_internal_size_bytes = sum(
+            int(item["size_bytes"]) for item in installed if item.get("location") != "external"
+        )
+        installed_external_size_bytes = sum(
+            int(item["size_bytes"]) for item in installed if item.get("location") == "external"
+        )
         selected_paths = {
             item.get("path")
             for item in custom_selection.get("selected_items", [])
@@ -1331,12 +1365,15 @@ class PortalState:
             for item in custom_selection.get("selected_items", [])
             if item.get("path")
         }
+        base_filenames = self.current_base_content_filenames()
         inventory = []
         for item in installed:
             inventory.append(
                 {
                     **item,
                     "selected": item["name"] in selected_names,
+                    "in_base_set": item["name"] in base_filenames,
+                    "is_extra": item["name"] not in base_filenames,
                 }
             )
         mode = env.get("PREPMASTER_ZIM_MODE", "full")
@@ -1362,6 +1399,10 @@ class PortalState:
             "installed_count": len(inventory),
             "installed_size_bytes": installed_size_bytes,
             "installed_size_label": format_size_bytes(installed_size_bytes),
+            "installed_internal_size_bytes": installed_internal_size_bytes,
+            "installed_internal_size_label": format_size_bytes(installed_internal_size_bytes),
+            "installed_external_size_bytes": installed_external_size_bytes,
+            "installed_external_size_label": format_size_bytes(installed_external_size_bytes),
             "installed_items": inventory,
             "install_dir": str(self.preferred_zim_install_dir()),
             "install_destinations": self.install_destinations("zims"),

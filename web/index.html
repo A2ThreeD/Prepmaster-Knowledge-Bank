@@ -83,8 +83,15 @@
         radial-gradient(circle at 28% 54%, rgba(255, 255, 255, 0.45) 0 1px, transparent 1.5px);
     }
 
-    body:not(.app-ready) #setup-view,
-    body:not(.app-ready) #dashboard-view {
+    body:not(.app-ready) #setup-view {
+      display: none !important;
+    }
+
+    html.force-setup body:not(.app-ready) #setup-view {
+      display: block !important;
+    }
+
+    html.force-setup body:not(.app-ready) #dashboard-view {
       display: none !important;
     }
 
@@ -1455,7 +1462,7 @@
       </main>
     </section>
 
-    <section id="dashboard-view" class="hidden">
+    <section id="dashboard-view">
       <main class="dashboard-grid">
         <section class="dashboard-tile">
           <div class="dashboard-icon" aria-hidden="true">
@@ -1529,6 +1536,10 @@
   </div>
 
   <script>
+    if (new URLSearchParams(window.location.search).get("mode") === "setup") {
+      document.documentElement.classList.add("force-setup");
+    }
+
     const apiBase = "/api";
     const params = new URLSearchParams(window.location.search);
     const forceSetup = params.get("mode") === "setup";
@@ -1589,6 +1600,7 @@
     let canLeaveToHomeDuringApply = false;
     let storageLimitExceeded = false;
     let latestSetupComplete = false;
+    let enteredSetupFlow = forceSetup;
     let setupState = {
       installKolibri: false,
       zimProfile: "essential",
@@ -2364,8 +2376,9 @@
     function renderMode(state) {
       latestSetupComplete = Boolean(state.setup_complete);
       const allowDashboard = latestSetupComplete || canLeaveToHomeDuringApply;
-      const shouldForceSetup = forceSetup && !latestSetupComplete;
-      const setupMode = shouldForceSetup || !allowDashboard || applyNeedsAttention;
+      const shouldForceSetup = forceSetup;
+      const keepSetupOpenDuringApply = enteredSetupFlow && applyRunning;
+      const setupMode = shouldForceSetup || keepSetupOpenDuringApply || !allowDashboard || applyNeedsAttention;
       setupView.classList.toggle("hidden", !setupMode);
       dashboardView.classList.toggle("hidden", setupMode);
       introText.classList.add("hidden");
@@ -2544,19 +2557,18 @@
 
     async function initialize() {
       try {
-        const [state, contentResponse] = await Promise.all([
+        const [state, contentResponse, applyState] = await Promise.all([
           loadState(),
           fetch(`${apiBase}/content`, { cache: "no-store" }).then(async (response) => {
             if (!response.ok) {
               return { installed_items: [] };
             }
             return response.json();
-          }).catch(() => ({ installed_items: [] }))
+          }).catch(() => ({ installed_items: [] })),
+          fetch(`${apiBase}/apply`, { cache: "no-store" }).then(async (response) => (
+            response.ok ? response.json() : { status: "idle", log_tail: [] }
+          )).catch(() => ({ status: "idle", log_tail: [] }))
         ]);
-        const applyStateResponse = await fetch(`${apiBase}/apply`, { cache: "no-store" });
-        const applyState = applyStateResponse.ok
-          ? await applyStateResponse.json()
-          : { status: "idle", log_tail: [] };
 
         wikipediaOptions = Array.isArray(state.setup_options?.wikipedia?.options)
           ? state.setup_options.wikipedia.options
@@ -2580,6 +2592,7 @@
         setupState.wikipediaInstallDir = state.storage?.wikipedia_install_dir || wikipediaInstallDestinations[0]?.path || "";
         setupState.mapCollections = normalizeMapSelection(state.profile.map_collections || []);
         storageState = state.storage || null;
+        enteredSetupFlow = forceSetup || !Boolean(state.setup_complete);
         updateDriveNotice();
 
         if (!state.profile.wikipedia_option && getWikipediaOptionById("top-mini")) {
@@ -2622,6 +2635,7 @@
         renderSetupSummary();
         configureDashboardQuickLinks([]);
         configureKolibriTile(null);
+        enteredSetupFlow = true;
         renderMode({ setup_complete: false });
         renderStorageEstimate();
         updateWizardStep();
