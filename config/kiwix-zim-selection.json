@@ -8,10 +8,10 @@
       "download_url": "https://download.kiwix.org/zim/devdocs/devdocs_en_python_2026-02.zim",
       "size_bytes": 4299161,
       "size_label": "4.1M",
-      "installed": false,
-      "installed_size_bytes": 0,
-      "installed_size_label": "",
-      "selected": false
+      "installed": true,
+      "installed_size_bytes": 4276306,
+      "installed_size_label": "4.1 MB",
+      "selected": true
     },
     {
       "path": "ifixit/ifixit_en_all_2025-12.zim",
@@ -24,7 +24,19 @@
       "installed_size_bytes": 3570695757,
       "installed_size_label": "3.3 GB",
       "selected": true
+    },
+    {
+      "path": "videos/coreyms_en_javascript-tutorials_2025-10.zim",
+      "name": "coreyms_en_javascript-tutorials_2025-10.zim",
+      "category": "videos",
+      "download_url": "https://download.kiwix.org/zim/videos/coreyms_en_javascript-tutorials_2025-10.zim",
+      "size_bytes": 44040192,
+      "size_label": "42M",
+      "installed": false,
+      "installed_size_bytes": 0,
+      "installed_size_label": "",
+      "selected": false
     }
   ],
-  "saved_at": "2026-03-28T06:41:20Z"
+  "saved_at": "2026-03-30T06:59:03Z"
 }

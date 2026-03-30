@@ -29,6 +29,8 @@ fi
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
+DOWNLOAD_LIBRARY_DIR="${PREPMASTER_ZIM_INSTALL_DIR:-$KIWIX_LIBRARY_DIR}"
+
 if [[ "$ZIM_MODE" == "quick-test" ]]; then
   if [[ ! -f "$QUICK_TEST_FILE" ]]; then
     echo "Missing quick-test manifest: $QUICK_TEST_FILE"
@@ -56,7 +58,8 @@ else
 fi
 
 install -d -m 0755 "$KIWIX_LIBRARY_DIR"
-cd "$KIWIX_LIBRARY_DIR"
+install -d -m 0755 "$DOWNLOAD_LIBRARY_DIR"
+cd "$DOWNLOAD_LIBRARY_DIR"
 
 mapfile -t URLS < <(grep -v '^[[:space:]]*$' "$URL_FILE" | grep -v '^[[:space:]]*#')
 TOTAL_FILES="${#URLS[@]}"
@@ -76,8 +79,18 @@ done
 
 echo "PROGRESS_DOWNLOAD_COMPLETE|$TOTAL_FILES"
 
+if [[ "$DOWNLOAD_LIBRARY_DIR" != "$KIWIX_LIBRARY_DIR" ]]; then
+  while IFS= read -r zim_path; do
+    file_name="$(basename "$zim_path")"
+    link_path="$KIWIX_LIBRARY_DIR/$file_name"
+    if [[ ! -e "$link_path" && ! -L "$link_path" ]]; then
+      ln -s "$zim_path" "$link_path"
+    fi
+  done < <(find "$DOWNLOAD_LIBRARY_DIR" -maxdepth 1 -type f -name '*.zim' | sort)
+fi
+
 if command -v kiwix-manage >/dev/null 2>&1; then
   "$REPO_ROOT/scripts/rebuild_kiwix_library.sh"
 fi
 
-echo "ZIM sync complete in $KIWIX_LIBRARY_DIR"
+echo "ZIM sync complete in $DOWNLOAD_LIBRARY_DIR"

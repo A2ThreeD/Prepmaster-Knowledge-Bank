@@ -230,6 +230,8 @@ class PortalState:
         self.map_sync_log_file = self.data_dir / "map-sync.log"
         self.maps_catalog_cache_file = self.data_dir / "maps-catalog-cache.json"
         self.content_catalog_cache_file = self.data_dir / "content-catalog-cache.json"
+        self.external_maps_links_file = self.data_dir / "external-maps-links.json"
+        self.external_zims_links_file = self.data_dir / "external-zims-links.json"
         self.apply_lock = threading.Lock()
         self.apply_thread: threading.Thread | None = None
         self.map_sync_lock = threading.Lock()
@@ -239,6 +241,7 @@ class PortalState:
         self.write_maps_runtime_config()
         self.recover_interrupted_map_sync()
         self.recover_interrupted_apply()
+        self.sync_external_content_links()
 
     def wikipedia_catalog(self) -> dict:
         catalog = read_json(
@@ -512,12 +515,25 @@ class PortalState:
         env = self.maps_env()
         return Path(env.get("KIWIX_LIBRARY_DIR", "/library/zims/content"))
 
+    def preferred_zim_install_dir(self) -> Path:
+        env = self.maps_env()
+        configured = env.get("PREPMASTER_ZIM_INSTALL_DIR", "").strip()
+        return Path(configured) if configured else self.kiwix_library_dir()
+
+    def preferred_map_install_dir(self) -> Path:
+        env = self.maps_env()
+        configured = env.get("PREPMASTER_MAP_INSTALL_DIR", "").strip()
+        return Path(configured) if configured else self.maps_root()
+
     def custom_zim_manifest_path(self) -> Path:
         env = self.maps_env()
         configured = env.get("PREPMASTER_ZIM_CUSTOM_URL_FILE")
         if configured:
             return Path(configured)
         return self.repo_root / "config" / "kiwix-zim-urls.custom.txt"
+
+    def extra_zim_manifest_path(self) -> Path:
+        return self.data_dir / "kiwix-zim-urls.extra.txt"
 
     def custom_zim_selection_path(self) -> Path:
         env = self.maps_env()
@@ -538,6 +554,179 @@ class PortalState:
     def maps_root(self) -> Path:
         env = self.maps_env()
         return Path(env.get("PREPMASTER_MAP_PMTILES_ROOT", "/maps"))
+
+    def install_destinations(self, kind: str) -> list[dict[str, object]]:
+        if kind == "zims":
+            internal_label = "Internal Library"
+            internal_path = self.kiwix_library_dir()
+            layout_key = "library"
+            suffix_label = "Library"
+            selected_path = self.preferred_zim_install_dir()
+        elif kind == "maps":
+            internal_label = "Internal Maps"
+            internal_path = self.maps_root()
+            layout_key = "maps"
+            suffix_label = "Maps"
+            selected_path = self.preferred_map_install_dir()
+        else:
+            raise ValueError(f"Unsupported install destination kind: {kind}")
+
+        options: list[dict[str, object]] = [
+            {
+                "id": str(internal_path),
+                "label": internal_label,
+                "path": str(internal_path),
+                "location": "internal",
+                "mounted": True,
+                "selected": str(selected_path) == str(internal_path),
+            }
+        ]
+
+        seen_paths = {str(internal_path)}
+        for volume in self.storage_volumes():
+            if volume.get("location") != "external":
+                continue
+            if not volume.get("mounted"):
+                continue
+            layout = volume.get("sopr_layout") or {}
+            if not layout.get(layout_key):
+                continue
+            mountpoint = str(volume.get("mountpoint") or "").strip()
+            if not mountpoint:
+                continue
+            if not mountpoint.startswith("/media/"):
+                continue
+            path = Path(mountpoint) / layout_key
+            if str(path) in seen_paths:
+                continue
+            seen_paths.add(str(path))
+            volume_name = str(volume.get("label") or volume.get("display_name") or volume.get("name") or "Drive").strip()
+            size_label = format_size_bytes(int(volume.get("size_bytes") or 0)) if int(volume.get("size_bytes") or 0) else ""
+            mount_label = str(volume.get("mountpoint") or "").strip()
+            descriptor_parts = [part for part in (mount_label, size_label) if part]
+            descriptor = f" ({' • '.join(descriptor_parts)})" if descriptor_parts else ""
+            options.append(
+                {
+                    "id": str(path),
+                    "label": f"External {volume_name} {suffix_label}{descriptor}",
+                    "path": str(path),
+                    "location": "external",
+                    "mounted": path.exists(),
+                    "selected": str(selected_path) == str(path),
+                }
+            )
+        return options
+
+    def validate_install_destination(self, kind: str, path_value: str | None) -> str:
+        options = self.install_destinations(kind)
+        allowed = {str(option["path"]) for option in options}
+        if not path_value:
+            return str(self.kiwix_library_dir() if kind == "zims" else self.maps_root())
+        if path_value not in allowed:
+            raise ValueError("Selected install destination is not available.")
+        return path_value
+
+    def managed_links_manifest_path(self, kind: str) -> Path:
+        if kind == "maps":
+            return self.external_maps_links_file
+        if kind == "zims":
+            return self.external_zims_links_file
+        raise ValueError(f"Unsupported managed link kind: {kind}")
+
+    def read_managed_links_manifest(self, kind: str) -> dict[str, str]:
+        data = read_json(self.managed_links_manifest_path(kind), {"links": {}})
+        links = data.get("links", {})
+        if not isinstance(links, dict):
+            return {}
+        return {
+            str(name): str(target)
+            for name, target in links.items()
+            if isinstance(name, str) and isinstance(target, str)
+        }
+
+    def write_managed_links_manifest(self, kind: str, links: dict[str, str]) -> None:
+        path = self.managed_links_manifest_path(kind)
+        path.write_text(json.dumps({"links": links}, indent=2) + "\n")
+
+    def external_storage_roots(self, directory_name: str) -> list[Path]:
+        roots: list[Path] = []
+        for volume in self.storage_volumes():
+            if not volume.get("mounted"):
+                continue
+            layout = volume.get("sopr_layout") or {}
+            if not layout.get(directory_name):
+                continue
+            mountpoint = str(volume.get("mountpoint") or "").strip()
+            if not mountpoint:
+                continue
+            roots.append(Path(mountpoint) / directory_name)
+        return roots
+
+    def sync_external_links(self, kind: str, canonical_root: Path, external_roots: list[Path], suffix: str) -> None:
+        canonical_root.mkdir(parents=True, exist_ok=True)
+        manifest = self.read_managed_links_manifest(kind)
+        current_targets: dict[str, str] = {}
+
+        for name, target in manifest.items():
+            link_path = canonical_root / name
+            try:
+                if link_path.is_symlink():
+                    resolved = str(link_path.resolve(strict=False))
+                    if resolved == target or not Path(target).exists():
+                        link_path.unlink()
+                elif not link_path.exists():
+                    pass
+            except OSError:
+                continue
+
+        for external_root in external_roots:
+            if not external_root.exists():
+                continue
+            for path in sorted(external_root.iterdir()):
+                if not path.is_file() or path.suffix.lower() != suffix:
+                    continue
+                link_path = canonical_root / path.name
+                current_targets[path.name] = str(path.resolve())
+                if link_path.exists() or link_path.is_symlink():
+                    if link_path.is_symlink():
+                        try:
+                            if str(link_path.resolve(strict=False)) == str(path.resolve()):
+                                continue
+                        except OSError:
+                            pass
+                    continue
+                try:
+                    link_path.symlink_to(path.resolve())
+                except FileExistsError:
+                    continue
+
+        self.write_managed_links_manifest(kind, current_targets)
+
+    def sync_external_content_links(self) -> None:
+        self.sync_external_links("maps", self.maps_root(), self.external_storage_roots("maps"), ".pmtiles")
+        self.sync_external_links("zims", self.kiwix_library_dir(), self.external_storage_roots("library"), ".zim")
+
+    def remove_managed_linked_content(self, kind: str, canonical_root: Path, names: set[str]) -> None:
+        manifest = self.read_managed_links_manifest(kind)
+        changed = False
+        for name in names:
+            link_path = canonical_root / name
+            target_path = Path(manifest.get(name, ""))
+            if target_path and target_path.exists():
+                try:
+                    target_path.unlink()
+                except FileNotFoundError:
+                    pass
+            try:
+                if link_path.is_symlink():
+                    link_path.unlink()
+            except FileNotFoundError:
+                pass
+            if name in manifest:
+                manifest.pop(name, None)
+                changed = True
+        if changed:
+            self.write_managed_links_manifest(kind, manifest)
 
     def maps_web_root(self) -> Path:
         env = self.maps_env()
@@ -581,6 +770,7 @@ class PortalState:
         )
 
     def list_pmtiles_packages(self, valid_only: bool = False) -> list[str]:
+        self.sync_external_content_links()
         root = self.maps_root()
         if not root.exists():
             return []
@@ -594,6 +784,7 @@ class PortalState:
         return packages
 
     def pmtiles_inventory(self) -> list[dict[str, object]]:
+        self.sync_external_content_links()
         root = self.maps_root()
         if not root.exists():
             return []
@@ -662,6 +853,8 @@ class PortalState:
             "invalid_files": invalid_packages,
             "flavor": env.get("PREPMASTER_MAP_STYLE_FLAVOR", "dark"),
             "language": env.get("PREPMASTER_MAP_LANGUAGE", "en"),
+            "install_dir": str(self.preferred_map_install_dir()),
+            "install_destinations": self.install_destinations("maps"),
         }
 
     def read_custom_zim_selection(self) -> dict:
@@ -763,7 +956,36 @@ class PortalState:
         manifest.write_text("\n".join(lines).rstrip() + "\n")
         return manifest
 
+    def write_extra_zim_manifest(
+        self,
+        items: list[dict[str, object]],
+        catalog_root: str,
+    ) -> Path:
+        manifest = self.extra_zim_manifest_path()
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        lines = [
+            f"# Extra SOPR ZIM selection from {catalog_root}",
+            f"# Saved at: {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}",
+            f"# Resource count: {len(items)}",
+            "",
+        ]
+        for item in items:
+            lines.append(f"# {item.get('category', 'Extra Content')} | {item.get('name', 'ZIM')}")
+            lines.append(str(item["download_url"]))
+            lines.append("")
+        manifest.write_text("\n".join(lines).rstrip() + "\n")
+        return manifest
+
+    def catalog_items_for_paths(self, selected_paths: list[str]) -> tuple[list[dict[str, object]], str]:
+        catalog = self.fetch_kiwix_catalog_cached(force_refresh=False)
+        catalog_by_path = {item["path"]: item for item in catalog["items"]}
+        missing = [path for path in selected_paths if path not in catalog_by_path]
+        if missing:
+            raise ValueError(f"Selected ZIM is not in catalog: {missing[0]}")
+        return [catalog_by_path[path] for path in selected_paths], catalog["source"]["root_url"]
+
     def list_installed_zims(self) -> list[dict[str, object]]:
+        self.sync_external_content_links()
         root = self.kiwix_library_dir()
         if not root.exists():
             return []
@@ -988,6 +1210,8 @@ class PortalState:
             "installed_size_bytes": installed_size_bytes,
             "installed_size_label": format_size_bytes(installed_size_bytes),
             "installed_items": inventory,
+            "install_dir": str(self.preferred_zim_install_dir()),
+            "install_destinations": self.install_destinations("zims"),
         }
 
     def save_content_settings(self, payload: dict) -> dict:
@@ -1007,6 +1231,9 @@ class PortalState:
             raise ValueError("Invalid custom_base_preset")
 
         updates: dict[str, str] = {}
+        install_dir = payload.get("install_dir")
+        if install_dir is not None:
+            updates["PREPMASTER_ZIM_INSTALL_DIR"] = self.validate_install_destination("zims", str(install_dir).strip())
         if library_preset == "quick-test":
             updates["PREPMASTER_ZIM_MODE"] = "quick-test"
         elif library_preset == "custom":
@@ -1031,14 +1258,9 @@ class PortalState:
             cleaned_paths = sorted(set(cleaned_paths))
             if library_preset == "custom":
                 base_profile = preset_to_profile(custom_base_preset)
-                catalog = self.fetch_kiwix_catalog_cached(force_refresh=False)
-                catalog_by_path = {item["path"]: item for item in catalog["items"]}
-                missing = [path for path in cleaned_paths if path not in catalog_by_path]
-                if missing:
-                    raise ValueError(f"Selected ZIM is not in catalog: {missing[0]}")
-                selected_items = [catalog_by_path[path] for path in cleaned_paths]
-                self.write_custom_zim_selection(selected_items, catalog["source"]["root_url"])
-                self.write_custom_zim_manifest(selected_items, catalog["source"]["root_url"], base_profile)
+                selected_items, catalog_root = self.catalog_items_for_paths(cleaned_paths)
+                self.write_custom_zim_selection(selected_items, catalog_root)
+                self.write_custom_zim_manifest(selected_items, catalog_root, base_profile)
             elif cleaned_paths:
                 # Preserve the saved custom selection even when mode is switched away from custom.
                 if self.custom_zim_selection_path().exists():
@@ -1063,10 +1285,30 @@ class PortalState:
         update_env_file(self.prepmaster_env, updates)
         return self.content_status()
 
+    def download_selected_extra_zims(self, payload: dict) -> dict:
+        selected_paths = payload.get("selected_paths")
+        if not isinstance(selected_paths, list) or not selected_paths:
+            raise ValueError("Select one or more ZIM files first.")
+
+        cleaned_paths = []
+        for value in selected_paths:
+            if not isinstance(value, str) or "/" not in value or not value.endswith(".zim"):
+                raise ValueError("Invalid extra ZIM selection")
+            cleaned_paths.append(value)
+        cleaned_paths = sorted(set(cleaned_paths))
+
+        selected_items, catalog_root = self.catalog_items_for_paths(cleaned_paths)
+        self.write_custom_zim_selection(selected_items, catalog_root)
+        self.write_extra_zim_manifest(selected_items, catalog_root)
+        content = self.content_status()
+        apply = self.start_apply("download-extra-content")
+        return {"content": content, "apply": apply}
+
     def remove_zim_files(self, filenames: list[str]) -> dict:
         if not isinstance(filenames, list) or not filenames:
             raise ValueError("No ZIM files selected")
 
+        self.sync_external_content_links()
         root = self.kiwix_library_dir()
         inventory = {item["name"]: item for item in self.list_installed_zims()}
         valid_names = {
@@ -1081,8 +1323,12 @@ class PortalState:
             raise ValueError("Selected ZIM files were not found")
 
         for name in valid_names:
+            path = root / name
+            if path.is_symlink():
+                self.remove_managed_linked_content("zims", root, {name})
+                continue
             try:
-                (root / name).unlink()
+                path.unlink()
             except FileNotFoundError:
                 continue
 
@@ -1340,6 +1586,10 @@ class PortalState:
                 raise ValueError("Invalid map flavor")
             updates["PREPMASTER_MAP_STYLE_FLAVOR"] = flavor
 
+        install_dir = payload.get("install_dir")
+        if install_dir is not None:
+            updates["PREPMASTER_MAP_INSTALL_DIR"] = self.validate_install_destination("maps", str(install_dir).strip())
+
         if updates:
             update_env_file(self.prepmaster_env, updates)
             self.write_maps_runtime_config()
@@ -1350,6 +1600,7 @@ class PortalState:
         if not isinstance(filenames, list) or not filenames:
             raise ValueError("No PMTiles packages selected")
 
+        self.sync_external_content_links()
         root = self.maps_root()
         inventory = {item["name"]: item for item in self.pmtiles_inventory()}
         valid_names = {
@@ -1364,8 +1615,12 @@ class PortalState:
             raise ValueError("Selected PMTiles packages were not found")
 
         for name in valid_names:
+            path = root / name
+            if path.is_symlink():
+                self.remove_managed_linked_content("maps", root, {name})
+                continue
             try:
-                (root / name).unlink()
+                path.unlink()
             except FileNotFoundError:
                 continue
 
@@ -1468,8 +1723,10 @@ class PortalState:
 
     def run_map_sync(self, selected_files: list[str]) -> None:
         exit_error = None
-        root = self.maps_root()
+        root = self.preferred_map_install_dir()
+        canonical_root = self.maps_root()
         root.mkdir(parents=True, exist_ok=True)
+        canonical_root.mkdir(parents=True, exist_ok=True)
 
         try:
             catalog = self.fetch_nomad_maps_catalog()
@@ -1532,6 +1789,11 @@ class PortalState:
 
                         shutil.copy2(source_path, destination)
 
+                    if root != canonical_root:
+                        link_path = canonical_root / name
+                        if not link_path.exists() and not link_path.is_symlink():
+                            link_path.symlink_to(destination.resolve())
+
                     downloaded_details = inspect_pmtiles_file(destination)
                     if not downloaded_details["valid"]:
                         try:
@@ -1551,7 +1813,11 @@ class PortalState:
                         }
                     )
 
-                installed_now = set(self.list_pmtiles_packages())
+                installed_now = {
+                    path.name
+                    for path in root.iterdir()
+                    if path.is_file() and path.suffix.lower() == ".pmtiles"
+                }
                 for name in sorted(installed_now):
                     if name in managed_remote_names and name not in set(selected_files):
                         target = root / name
@@ -1561,7 +1827,15 @@ class PortalState:
                             target.unlink()
                         except FileNotFoundError:
                             pass
+                        link_path = canonical_root / name
+                        if link_path.is_symlink():
+                            try:
+                                if str(link_path.resolve(strict=False)) == str(target.resolve(strict=False)):
+                                    link_path.unlink()
+                            except OSError:
+                                pass
 
+            self.sync_external_content_links()
             installed_after = self.list_pmtiles_packages(valid_only=True)
             active = self.active_pmtiles_file()
             if active not in installed_after:
@@ -1683,17 +1957,395 @@ class PortalState:
         }
 
     def system_health(self) -> dict:
-        total, used, free = shutil.disk_usage("/")
+        storage = self.storage_health()
         return {
-            "disk": {
-                "total_gb": round(total / (1024 ** 3), 1),
-                "used_gb": round(used / (1024 ** 3), 1),
-                "free_gb": round(free / (1024 ** 3), 1),
-            },
+            "disk": storage["disk"],
+            "storage": storage,
             "temperature_c": self.read_temperature(),
             "cpu": self.read_cpu_load(),
             "uptime": self.read_uptime(),
         }
+
+    def storage_health(self) -> dict:
+        total, used, free = shutil.disk_usage("/")
+        volumes = self.storage_volumes()
+        targets = self.storage_targets(volumes)
+        seen_targets: set[str] = set()
+        sopr_bytes = 0
+        for target in targets:
+            resolved = str(target.get("resolved_path", ""))
+            if resolved in seen_targets:
+                continue
+            seen_targets.add(resolved)
+            sopr_bytes += int(target.get("current_bytes", 0) or 0)
+        return {
+            "disk": {
+                "total_bytes": total,
+                "used_bytes": used,
+                "free_bytes": free,
+                "total_gb": round(total / (1024 ** 3), 1),
+                "used_gb": round(used / (1024 ** 3), 1),
+                "free_gb": round(free / (1024 ** 3), 1),
+            },
+            "sopr_bytes": sopr_bytes,
+            "volumes": volumes,
+            "targets": targets,
+        }
+
+    def storage_volumes(self) -> list[dict]:
+        try:
+            result = subprocess.run(
+                [
+                    "lsblk",
+                    "-J",
+                    "-b",
+                    "-o",
+                    "NAME,PATH,SIZE,TYPE,MOUNTPOINTS,RM,HOTPLUG,MODEL,LABEL,FSTYPE,UUID,TRAN",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            return []
+
+        if result.returncode != 0:
+            return []
+
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return []
+
+        volumes: list[dict] = []
+
+        def visit(device: dict, inherited: dict[str, object] | None = None) -> None:
+            inherited = inherited or {}
+            children = device.get("children") or []
+            mountpoints = [value for value in (device.get("mountpoints") or []) if value]
+            device_type = str(device.get("type") or "").strip().lower()
+            removable = (
+                str(device.get("rm") or "0") == "1"
+                or str(device.get("hotplug") or "0") == "1"
+                or bool(inherited.get("removable"))
+            )
+            transport = str(device.get("tran") or inherited.get("transport") or "").strip().lower()
+            external = removable or transport == "usb"
+            keep = bool(mountpoints) or external or (device_type == "disk" and not children)
+            if device_type in {"disk", "part"} and keep:
+                mountpoint = mountpoints[0] if mountpoints else ""
+                total_bytes = int(device.get("size") or 0)
+                used_bytes = 0
+                free_bytes = 0
+                if mountpoint:
+                    try:
+                        disk_total, disk_used, disk_free = shutil.disk_usage(mountpoint)
+                        total_bytes = disk_total
+                        used_bytes = disk_used
+                        free_bytes = disk_free
+                    except OSError:
+                        pass
+                location = "external" if external else "internal"
+                label = str(device.get("label") or "").strip()
+                model = str(device.get("model") or inherited.get("model") or "").strip()
+                display_name = label or model or str(device.get("name") or "").strip()
+                filesystem = str(device.get("fstype") or "").strip()
+                suggested_mountpoint = self.default_mountpoint_for_volume(
+                    {
+                        "name": str(device.get("name") or "").strip(),
+                        "label": label,
+                        "uuid": str(device.get("uuid") or "").strip(),
+                    }
+                )
+                sopr_layout = self.storage_layout_for_mount(mountpoint) if mountpoint else {}
+                volumes.append(
+                    {
+                        "name": str(device.get("name") or "").strip(),
+                        "path": str(device.get("path") or "").strip(),
+                        "display_name": display_name,
+                        "label": label,
+                        "model": model,
+                        "filesystem": filesystem,
+                        "uuid": str(device.get("uuid") or "").strip(),
+                        "location": location,
+                        "mountpoint": mountpoint,
+                        "mountpoints": mountpoints,
+                        "mounted": bool(mountpoint),
+                        "suggested_mountpoint": suggested_mountpoint,
+                        "size_bytes": total_bytes,
+                        "used_bytes": used_bytes,
+                        "free_bytes": free_bytes,
+                        "used_percent": round((used_bytes / total_bytes) * 100) if mountpoint and total_bytes else 0,
+                        "is_partition": device_type == "part",
+                        "can_mount": bool(filesystem and not mountpoint and device_type == "part"),
+                        "can_unmount": bool(external and mountpoint and device_type == "part" and mountpoint.startswith("/media/")),
+                        "can_prepare": bool(external and device_type == "part"),
+                        "sopr_layout": sopr_layout,
+                    }
+                )
+            inherited_child = {
+                "transport": transport,
+                "model": str(device.get("model") or inherited.get("model") or "").strip(),
+                "removable": removable,
+            }
+            for child in children:
+                visit(child, inherited_child)
+
+        for device in payload.get("blockdevices", []):
+            visit(device)
+
+        volumes.sort(
+            key=lambda item: (
+                0 if item.get("location") == "internal" else 1,
+                0 if item.get("mounted") else 1,
+                str(item.get("mountpoint") or item.get("path") or item.get("name")),
+            )
+        )
+        return volumes
+
+    def storage_layout_for_mount(self, mountpoint: str) -> dict[str, bool]:
+        root = Path(mountpoint)
+        return {
+            "maps": (root / "maps").is_dir(),
+            "library": (root / "library").is_dir(),
+            "media": (root / "media").is_dir(),
+        }
+
+    def slugify_storage_name(self, value: str) -> str:
+        cleaned = re.sub(r"[^a-z0-9]+", "-", value.strip().lower())
+        return cleaned.strip("-") or "drive"
+
+    def default_mountpoint_for_volume(self, volume: dict) -> str:
+        source = (
+            str(volume.get("label") or "").strip()
+            or str(volume.get("uuid") or "").strip()
+            or str(volume.get("name") or "").strip()
+        )
+        slug = self.slugify_storage_name(source)
+        return f"/media/sopr/{slug}"
+
+    def storage_volume_by_device(self, device_path: str) -> dict | None:
+        for volume in self.storage_volumes():
+            if str(volume.get("path")) == device_path:
+                return volume
+        return None
+
+    def run_storage_command(self, command: list[str], error_hint: str) -> None:
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError(error_hint) from exc
+        if result.returncode != 0:
+            message = (result.stderr or result.stdout or "").strip() or error_hint
+            raise RuntimeError(message)
+
+    def mount_storage_volume(self, payload: dict) -> dict:
+        device_path = str(payload.get("device_path", "")).strip()
+        if not device_path:
+            raise ValueError("Choose a drive to mount.")
+        volume = self.storage_volume_by_device(device_path)
+        if not volume:
+            raise ValueError("That drive was not found.")
+        if not volume.get("is_partition"):
+            raise ValueError("Choose a partition instead of the whole disk.")
+        if volume.get("mounted"):
+            return self.storage_health()
+        if not volume.get("filesystem"):
+            raise ValueError("This drive is not formatted yet. Use Prepare Drive first.")
+        mountpoint = str(volume.get("suggested_mountpoint") or "").strip()
+        if not mountpoint:
+            raise RuntimeError("Unable to determine a mount point for this drive.")
+        Path(mountpoint).mkdir(parents=True, exist_ok=True)
+        self.run_storage_command(["mount", device_path, mountpoint], "Unable to mount the selected drive.")
+        self.sync_external_content_links()
+        return self.storage_health()
+
+    def unmount_storage_volume(self, payload: dict) -> dict:
+        device_path = str(payload.get("device_path", "")).strip()
+        if not device_path:
+            raise ValueError("Choose a drive to unmount.")
+        volume = self.storage_volume_by_device(device_path)
+        if not volume:
+            raise ValueError("That drive was not found.")
+        if volume.get("location") != "external":
+            raise ValueError("Only external drives can be unmounted from SOPR.")
+        if not volume.get("mounted"):
+            return self.storage_health()
+
+        mountpoint = str(volume.get("mountpoint") or "").strip()
+        if not mountpoint or not mountpoint.startswith("/media/"):
+            raise ValueError("This drive is not mounted at a removable-storage path.")
+
+        preferred_zim_dir = self.preferred_zim_install_dir()
+        preferred_map_dir = self.preferred_map_install_dir()
+        updates: dict[str, str] = {}
+        if str(preferred_zim_dir).startswith(f"{mountpoint}/"):
+            updates["PREPMASTER_ZIM_INSTALL_DIR"] = str(self.kiwix_library_dir())
+        if str(preferred_map_dir).startswith(f"{mountpoint}/"):
+            updates["PREPMASTER_MAP_INSTALL_DIR"] = str(self.maps_root())
+        if updates:
+            update_env_file(self.prepmaster_env, updates)
+
+        self.run_storage_command(["umount", device_path], "Unable to unmount the selected drive.")
+        self.sync_external_content_links()
+        self.write_maps_runtime_config()
+
+        env = dict(os.environ)
+        env.update(read_env_file(self.prepmaster_env))
+        env["PREPMASTER_ENV_FILE"] = str(self.prepmaster_env)
+        subprocess.run(
+            [str(self.repo_root / "scripts" / "rebuild_kiwix_library.sh")],
+            cwd=self.repo_root,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        subprocess.run(
+            ["systemctl", "restart", "prepmaster-kiwix.service"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        return self.storage_health()
+
+    def prepare_storage_volume(self, payload: dict) -> dict:
+        device_path = str(payload.get("device_path", "")).strip()
+        if not device_path:
+            raise ValueError("Choose a drive to prepare.")
+        volume = self.storage_volume_by_device(device_path)
+        if not volume:
+            raise ValueError("That drive was not found.")
+        if not volume.get("can_prepare"):
+            raise ValueError("Only external partitions can be prepared from SOPR.")
+        expected = f"FORMAT {device_path}"
+        if str(payload.get("confirm_text", "")).strip() != expected:
+            raise ValueError(f'Type "{expected}" to confirm preparing this drive.')
+        if volume.get("mounted"):
+            self.run_storage_command(["umount", device_path], "Unable to unmount the selected drive.")
+        self.run_storage_command(
+            ["mkfs.ext4", "-F", "-L", "SOPRDATA", device_path],
+            "Unable to format the selected drive.",
+        )
+        refreshed_volume = self.storage_volume_by_device(device_path) or volume
+        mountpoint = str(refreshed_volume.get("suggested_mountpoint") or volume.get("suggested_mountpoint") or "").strip()
+        if not mountpoint:
+            raise RuntimeError("Unable to determine a mount point for this drive.")
+        Path(mountpoint).mkdir(parents=True, exist_ok=True)
+        self.run_storage_command(["mount", device_path, mountpoint], "Unable to mount the prepared drive.")
+        root = Path(mountpoint)
+        for directory_name in ("maps", "library", "media"):
+            (root / directory_name).mkdir(parents=True, exist_ok=True)
+        (root / "SOPR-DRIVE.txt").write_text(
+            "This drive was prepared by SOPR.\n\n"
+            "maps/    offline map archives\n"
+            "library/ offline knowledge library content\n"
+            "media/   extra media files\n"
+        )
+        self.sync_external_content_links()
+        return self.storage_health()
+
+    def storage_targets(self, volumes: list[dict]) -> list[dict]:
+        targets = [
+            ("maps", "Maps", self.maps_root()),
+            ("library", "Library", self.kiwix_library_dir()),
+        ]
+        resolved_targets = [
+            self.describe_storage_target(target_id, label, path, volumes)
+            for target_id, label, path in targets
+        ]
+        for volume in volumes:
+            mountpoint = str(volume.get("mountpoint") or "").strip()
+            if not mountpoint:
+                continue
+            layout = volume.get("sopr_layout") or {}
+            for directory_name, label in (
+                ("maps", "Maps Folder"),
+                ("library", "Library Folder"),
+                ("media", "Media Folder"),
+            ):
+                if not layout.get(directory_name):
+                    continue
+                resolved_targets.append(
+                    self.describe_storage_target(
+                        f"available-{directory_name}-{volume.get('name')}",
+                        label,
+                        Path(mountpoint) / directory_name,
+                        volumes,
+                        role="available",
+                        source_volume=volume,
+                    )
+                )
+        return resolved_targets
+
+    def describe_storage_target(
+        self,
+        target_id: str,
+        label: str,
+        path: Path,
+        volumes: list[dict],
+        role: str = "active",
+        source_volume: dict | None = None,
+    ) -> dict:
+        resolved_path = path.resolve(strict=False)
+        current_bytes = self.directory_size_bytes(path)
+        volume = source_volume or self.volume_for_path(resolved_path, volumes)
+        symlink_target = ""
+        if path.is_symlink():
+            try:
+                symlink_target = os.readlink(path)
+            except OSError:
+                symlink_target = ""
+        return {
+            "id": target_id,
+            "label": label,
+            "configured_path": str(path),
+            "resolved_path": str(resolved_path),
+            "exists": path.exists(),
+            "is_symlink": path.is_symlink(),
+            "symlink_target": symlink_target,
+            "current_bytes": current_bytes,
+            "role": role,
+            "volume": volume,
+        }
+
+    def directory_size_bytes(self, path: Path) -> int:
+        if not path.exists():
+            return 0
+        if path.is_file():
+            try:
+                return path.stat().st_size
+            except OSError:
+                return 0
+        total = 0
+        for root, _, files in os.walk(path):
+            root_path = Path(root)
+            for filename in files:
+                try:
+                    total += (root_path / filename).stat().st_size
+                except OSError:
+                    continue
+        return total
+
+    def volume_for_path(self, path: Path, volumes: list[dict]) -> dict | None:
+        resolved = os.path.realpath(str(path))
+        best_match: dict | None = None
+        best_length = -1
+        for volume in volumes:
+            mountpoint = str(volume.get("mountpoint") or "").strip()
+            if not mountpoint:
+                continue
+            mount_real = os.path.realpath(mountpoint)
+            if resolved == mount_real or resolved.startswith(mount_real.rstrip("/") + "/"):
+                if len(mount_real) > best_length:
+                    best_match = volume
+                    best_length = len(mount_real)
+        return best_match
 
     def read_service_enabled_statuses(self, services: dict[str, str]) -> dict[str, str]:
         try:
@@ -2016,7 +2668,7 @@ class PortalState:
         return self.load_apply_state()
 
     def start_apply(self, action: str = "full") -> dict:
-        if action not in {"full", "refresh-content", "rebuild-library"}:
+        if action not in {"full", "refresh-content", "rebuild-library", "download-extra-content"}:
             raise ValueError("Invalid apply action")
 
         with self.apply_lock:
@@ -2032,7 +2684,7 @@ class PortalState:
             return
 
         action = state.get("action", "full")
-        if action not in {"full", "refresh-content", "rebuild-library"}:
+        if action not in {"full", "refresh-content", "rebuild-library", "download-extra-content"}:
             return
 
         self.launch_apply(
@@ -2043,6 +2695,18 @@ class PortalState:
         )
 
     def commands_for_action(self, action: str) -> list[tuple[str, list[str]]]:
+        if action == "download-extra-content":
+            return [
+                (
+                    "Downloading selected extra Kiwix content",
+                    [str(self.repo_root / "scripts" / "download_kiwix_zims.sh")],
+                ),
+                (
+                    "Restarting Kiwix service",
+                    ["systemctl", "restart", "prepmaster-kiwix.service"],
+                ),
+            ]
+
         if action == "refresh-content":
             return [
                 (
@@ -2110,6 +2774,9 @@ class PortalState:
                 "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             }
         )
+        if action == "download-extra-content":
+            env["PREPMASTER_ZIM_MODE"] = "custom"
+            env["PREPMASTER_ZIM_CUSTOM_URL_FILE"] = str(self.extra_zim_manifest_path())
 
         exit_code = 0
         error_message = None
@@ -2253,7 +2920,7 @@ class PortalState:
 
         if (
             status == "running"
-            and step == "Downloading selected Kiwix content"
+            and step in {"Downloading selected Kiwix content", "Downloading selected extra Kiwix content"}
             and total_steps > 0
             and download_total
         ):
@@ -2463,6 +3130,18 @@ class PortalHandler(BaseHTTPRequestHandler):
             self.send_json(state)
             return
 
+        if self.path == "/api/content/download-selected":
+            try:
+                state = self.portal_state.download_selected_extra_zims(payload)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=409)
+                return
+            self.send_json(state, status=202)
+            return
+
         if self.path == "/api/content/remove":
             try:
                 state = self.portal_state.remove_zim_files(payload.get("filenames", []))
@@ -2526,6 +3205,42 @@ class PortalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/system/access-point":
             try:
                 state = self.portal_state.apply_access_point_action(payload)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=500)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/system/storage/mount":
+            try:
+                state = self.portal_state.mount_storage_volume(payload)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=500)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/system/storage/unmount":
+            try:
+                state = self.portal_state.unmount_storage_volume(payload)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=500)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/system/storage/prepare":
+            try:
+                state = self.portal_state.prepare_storage_volume(payload)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, status=400)
                 return

@@ -26,7 +26,7 @@ fi
 install -d -m 0755 "$(dirname "$KIWIX_LIBRARY_XML")"
 rm -f "$KIWIX_LIBRARY_XML"
 
-mapfile -t zims < <(find "$KIWIX_LIBRARY_DIR" -maxdepth 1 -type f -name '*.zim' | sort)
+mapfile -t zims < <(find -L "$KIWIX_LIBRARY_DIR" -maxdepth 1 -type f -name '*.zim' | sort)
 
 if [[ ${#zims[@]} -eq 0 ]]; then
   echo "No ZIM files found in $KIWIX_LIBRARY_DIR"

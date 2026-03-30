@@ -926,6 +926,14 @@
     }
 
     @media (max-width: 980px) {
+      .masthead::before {
+        background-size: 58% auto;
+      }
+
+      .hero-copy {
+        min-height: clamp(150px, 24vw, 220px);
+      }
+
       .stepper,
       .options-grid,
       .options-grid.three-up,
@@ -950,6 +958,14 @@
     }
 
     @media (max-width: 680px) {
+      .masthead::before {
+        background-size: 72% auto;
+      }
+
+      .hero-copy {
+        min-height: clamp(145px, 34vw, 210px);
+      }
+
       body {
         padding: 16px 10px 20px;
       }

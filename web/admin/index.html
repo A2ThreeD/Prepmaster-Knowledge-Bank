@@ -250,20 +250,29 @@
 
     .section-tabs {
       display: flex;
-      gap: 10px;
+      gap: 0;
       flex-wrap: wrap;
       margin-top: 20px;
+      border-bottom: 1px solid rgba(158, 190, 227, 0.28);
     }
 
     .tab-button {
       min-width: 0;
-      background: linear-gradient(180deg, rgba(82, 101, 130, 0.96), rgba(28, 41, 61, 0.98));
+      margin: 0 8px -1px 0;
+      padding: 11px 16px;
+      border-bottom-color: rgba(9, 16, 27, 0.98);
+      background: linear-gradient(180deg, rgba(31, 46, 68, 0.96), rgba(14, 21, 34, 0.98));
+      box-shadow: none;
     }
 
     .tab-button.active {
-      background: var(--accent);
-      color: #04101e;
-      border-color: rgba(123, 183, 255, 0.6);
+      background: linear-gradient(180deg, rgba(18, 28, 43, 0.98), rgba(8, 14, 24, 1));
+      color: #f3f8ff;
+      border-color: rgba(196, 220, 250, 0.7);
+      border-bottom-color: rgba(8, 14, 24, 1);
+      box-shadow:
+        inset 1px 1px 0 rgba(255, 255, 255, 0.16),
+        inset -1px 0 0 rgba(0, 0, 0, 0.48);
       font-weight: 700;
     }
 
@@ -617,7 +626,7 @@
     .health-grid {
       display: grid;
       gap: 12px;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       margin-top: 18px;
     }
 
@@ -676,6 +685,86 @@
 
     .meter-fill.temp-hot {
       background: linear-gradient(90deg, #ff946f, #ff5d5d);
+    }
+
+    .storage-row {
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .storage-row:first-child {
+      padding-top: 0;
+    }
+
+    .storage-row:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .storage-row-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--text);
+      font-size: 0.84rem;
+      line-height: 1.2;
+    }
+
+    .storage-row-main strong {
+      font-family: var(--ui-display);
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .storage-row-main span:last-child {
+      color: var(--muted);
+      font-size: 0.74rem;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .storage-row-meta,
+    .storage-row-note {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      line-height: 1.3;
+    }
+
+    .storage-row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .storage-row-actions .button {
+      width: auto;
+      min-width: 0;
+      padding: 8px 10px;
+      font-size: 0.72rem;
+    }
+
+    .status-cursor::after {
+      content: "_";
+      display: inline-block;
+      margin-left: 0.2rem;
+      animation: blink-cursor 1s steps(1) infinite;
+    }
+
+    @keyframes blink-cursor {
+      50% {
+        opacity: 0;
+      }
+    }
+
+    #storage-targets-list,
+    #storage-volumes-list {
+      max-height: 18rem;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     code {
@@ -760,13 +849,14 @@
     </p>
 
     <div class="section-tabs">
-      <button class="button tab-button active" data-icon="📶" type="button" data-panel="wifi">WiFi</button>
+      <button class="button tab-button" data-icon="📶" type="button" data-panel="wifi">WiFi</button>
       <button class="button tab-button" data-icon="⌘" type="button" data-panel="content">Content</button>
       <button class="button tab-button" data-icon="⌖" type="button" data-panel="maps">Maps</button>
-      <button class="button tab-button" data-icon="⚙" type="button" data-panel="system">System</button>
+      <button class="button tab-button" data-icon="🖴" type="button" data-panel="storage">Storage</button>
+      <button class="button tab-button active" data-icon="⚙" type="button" data-panel="system">System</button>
     </div>
 
-    <section class="panel-group active" data-panel-group="wifi">
+    <section class="panel-group" data-panel-group="wifi">
       <div class="grid">
         <section class="card">
           <h2>Wireless Access Point</h2>
@@ -844,40 +934,6 @@
       </div>
     </section>
 
-    <section class="panel-group" data-panel-group="system">
-      <div class="grid">
-        <section class="card">
-          <h2>System</h2>
-          <p class="muted">
-            Live Raspberry Pi health and power controls live here so the main page can stay focused on navigation.
-          </p>
-          <div class="health-grid">
-            <div class="health-card">
-              <strong>Disk</strong>
-              <div class="value" id="system-disk-status">Loading</div>
-              <div class="meter"><div class="meter-track"><div class="meter-fill" id="system-disk-fill"></div></div></div>
-            </div>
-            <div class="health-card">
-              <strong>Temp</strong>
-              <div class="value" id="system-temp-status">Loading</div>
-              <div class="meter"><div class="meter-track"><div class="meter-fill temp-cool" id="system-temp-fill"></div></div></div>
-            </div>
-            <div class="health-card">
-              <strong>CPU</strong>
-              <div class="value" id="system-cpu-status">Loading</div>
-              <div class="subvalue" id="system-uptime-status">Uptime: loading</div>
-              <div class="meter"><div class="meter-track"><div class="meter-fill" id="system-cpu-fill"></div></div></div>
-            </div>
-          </div>
-          <div class="actions">
-            <button class="button secondary" data-icon="↻" id="restart-system-button" type="button">Restart</button>
-            <button class="button secondary" data-icon="⏻" id="shutdown-system-button" type="button">Shutdown</button>
-          </div>
-          <p class="status" id="system-power-status">Power controls ready.</p>
-        </section>
-      </div>
-    </section>
-
     <section class="panel-group" data-panel-group="content">
       <div class="grid">
         <section class="card">
@@ -950,6 +1006,10 @@
           <div class="actions">
             <button class="button" data-icon="☁" id="refresh-zim-catalog-button" type="button">Check Online Catalog</button>
             <button class="button" data-icon="↓" id="refresh-content-button" type="button">Download Missing Content</button>
+          </div>
+          <div class="field">
+            <label for="content-install-target">Install New Content To</label>
+            <select id="content-install-target"></select>
           </div>
           <div class="field-grid">
             <div class="field">
@@ -1044,6 +1104,10 @@
           </p>
           <p class="muted" id="maps-catalog-source">Catalog source: loading</p>
           <div class="field">
+            <label for="maps-install-target">Install New Maps To</label>
+            <select id="maps-install-target"></select>
+          </div>
+          <div class="field">
             <label>Regional Map Downloads</label>
             <div id="maps-catalog-list" class="log-panel muted">Online catalog is idle. Click Check Online Catalog when you want to query the latest regional map catalog.</div>
           </div>
@@ -1075,6 +1139,85 @@
       </div>
     </section>
 
+    <section class="panel-group" data-panel-group="storage">
+      <div class="grid">
+        <section class="card">
+          <h2>Storage</h2>
+          <p class="muted">
+            See how much space is left on the device, which storage volumes are attached, and where SOPR currently keeps maps and library files.
+          </p>
+          <p class="muted">
+            When a prepared external drive is mounted, anything placed in its <code>maps</code> or <code>library</code> folders is added into SOPR automatically alongside the internal content.
+          </p>
+          <div class="content-storage">
+            <p class="content-storage-summary" id="storage-summary">Checking device storage.</p>
+            <div class="content-storage-bar" aria-hidden="true">
+              <div class="content-storage-segment other" id="storage-used"></div>
+              <div class="content-storage-segment content" id="storage-sopr"></div>
+              <div class="content-storage-segment free" id="storage-free"></div>
+            </div>
+            <div class="content-storage-legend">
+              <div class="content-storage-chip">
+                <strong>Other Used</strong>
+                <span id="storage-used-label">-</span>
+              </div>
+              <div class="content-storage-chip">
+                <strong>SOPR Data</strong>
+                <span id="storage-sopr-label">-</span>
+              </div>
+              <div class="content-storage-chip">
+                <strong>Free</strong>
+                <span id="storage-free-label">-</span>
+              </div>
+            </div>
+            <div class="content-storage-warning" id="storage-warning"></div>
+          </div>
+          <div class="actions">
+            <button class="button" data-icon="↻" id="refresh-storage-button" type="button">Refresh Storage</button>
+          </div>
+          <div class="status-cluster" id="storage-action-status" aria-live="polite"></div>
+          <div class="field">
+            <label>Current Storage Paths</label>
+            <div id="storage-targets-list" class="log-panel muted">Checking current storage paths...</div>
+          </div>
+          <div class="field">
+            <label>Detected Volumes</label>
+            <div id="storage-volumes-list" class="log-panel muted">Checking attached storage volumes...</div>
+          </div>
+          <p class="substatus" id="storage-status-note">Use this page when you want to move maps or library data onto an external drive later.</p>
+        </section>
+      </div>
+    </section>
+
+    <section class="panel-group active" data-panel-group="system">
+      <div class="grid">
+        <section class="card">
+          <h2>System</h2>
+          <p class="muted">
+            Live Raspberry Pi health and power controls live here so the main page can stay focused on navigation.
+          </p>
+          <div class="health-grid">
+            <div class="health-card">
+              <strong>Temp</strong>
+              <div class="value" id="system-temp-status">Loading</div>
+              <div class="meter"><div class="meter-track"><div class="meter-fill temp-cool" id="system-temp-fill"></div></div></div>
+            </div>
+            <div class="health-card">
+              <strong>CPU</strong>
+              <div class="value" id="system-cpu-status">Loading</div>
+              <div class="subvalue" id="system-uptime-status">Uptime: loading</div>
+              <div class="meter"><div class="meter-track"><div class="meter-fill" id="system-cpu-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="button secondary" data-icon="↻" id="restart-system-button" type="button">Restart</button>
+            <button class="button secondary" data-icon="⏻" id="shutdown-system-button" type="button">Shutdown</button>
+          </div>
+          <p class="status" id="system-power-status">Power controls ready.</p>
+        </section>
+      </div>
+    </section>
+
     <div class="actions">
       <button class="button" data-icon="⚙" id="run-setup-again-button" type="button">Run Setup Again</button>
     </div>
@@ -1094,7 +1237,7 @@
     let pendingMapSelection = new Set();
     let currentAccessPoint = null;
     let mapsSyncPollHandle = null;
-    let currentPanel = "wifi";
+    let currentPanel = "system";
     let apFormDirty = false;
     let apClientsPanelVisible = false;
 
@@ -1106,7 +1249,7 @@
       document.querySelectorAll(".tab-button").forEach((button) => {
         button.classList.toggle("active", button.dataset.panel === panelName);
       });
-      if (panelName === "wifi" || panelName === "system") {
+      if (panelName === "wifi" || panelName === "system" || panelName === "storage") {
         loadSystemPanelData();
       } else if (panelName === "content") {
         loadContentPanelData();
@@ -1589,13 +1732,6 @@
     }
 
     function renderSystemHealth(status) {
-      const diskUsedPercent = status.disk.total_gb > 0
-        ? Math.max(0, Math.min(100, Math.round((status.disk.used_gb / status.disk.total_gb) * 100)))
-        : 0;
-      document.getElementById("system-disk-status").textContent =
-        `${status.disk.used_gb} GB used / ${status.disk.free_gb} GB free`;
-      document.getElementById("system-disk-fill").style.width = `${diskUsedPercent}%`;
-
       if (status.temperature_c === null) {
         document.getElementById("system-temp-status").textContent = "Unavailable";
         document.getElementById("system-temp-fill").style.width = "0%";
@@ -1623,35 +1759,307 @@
       document.getElementById("system-uptime-status").textContent = `Uptime: ${status.uptime}`;
     }
 
+    function renderStorageHealth(status) {
+      const storage = status && status.storage;
+      const disk = storage && storage.disk;
+      const summary = document.getElementById("storage-summary");
+      const used = document.getElementById("storage-used");
+      const sopr = document.getElementById("storage-sopr");
+      const free = document.getElementById("storage-free");
+      const usedLabel = document.getElementById("storage-used-label");
+      const soprLabel = document.getElementById("storage-sopr-label");
+      const freeLabel = document.getElementById("storage-free-label");
+      const warning = document.getElementById("storage-warning");
+      const targetsList = document.getElementById("storage-targets-list");
+      const volumesList = document.getElementById("storage-volumes-list");
+      const note = document.getElementById("storage-status-note");
+
+      if (!disk) {
+        summary.textContent = "Storage details are unavailable right now.";
+        used.style.width = "0%";
+        sopr.style.width = "0%";
+        free.style.width = "100%";
+        usedLabel.textContent = "-";
+        soprLabel.textContent = "-";
+        freeLabel.textContent = "-";
+        warning.className = "content-storage-warning";
+        warning.textContent = "";
+        targetsList.textContent = "Storage target details are unavailable.";
+        volumesList.textContent = "Storage volume details are unavailable.";
+        note.textContent = "Storage details are unavailable right now.";
+        return;
+      }
+
+      const totalBytes = Number(disk.total_bytes || 0);
+      const usedBytes = Number(disk.used_bytes || 0);
+      const freeBytes = Number(disk.free_bytes || 0);
+      const soprBytes = Number(storage.sopr_bytes || 0);
+      const otherUsedBytes = Math.max(0, usedBytes - soprBytes);
+      const otherPercent = totalBytes > 0 ? Math.max(0, Math.min(100, (otherUsedBytes / totalBytes) * 100)) : 0;
+      const soprPercent = totalBytes > 0 ? Math.max(0, Math.min(100 - otherPercent, (soprBytes / totalBytes) * 100)) : 0;
+      const freePercent = Math.max(0, 100 - otherPercent - soprPercent);
+      const freeSpacePercent = totalBytes > 0 ? (freeBytes / totalBytes) * 100 : 0;
+
+      used.style.width = `${otherPercent}%`;
+      sopr.style.width = `${soprPercent}%`;
+      free.style.width = `${freePercent}%`;
+      usedLabel.textContent = formatBytes(otherUsedBytes);
+      soprLabel.textContent = formatBytes(soprBytes);
+      freeLabel.textContent = formatBytes(freeBytes);
+      summary.textContent = `This device is using ${formatBytes(usedBytes)} overall, with about ${formatBytes(soprBytes)} currently tied to SOPR maps and library data.`;
+
+      warning.className = "content-storage-warning";
+      warning.textContent = "";
+      if (freeBytes <= 0) {
+        warning.classList.add("danger");
+        warning.textContent = "This device is out of free space.";
+      } else if (freeSpacePercent <= 10) {
+        warning.classList.add("warn");
+        warning.textContent = "Warning: less than 10% of device storage is still free.";
+      }
+
+      const targets = Array.isArray(storage.targets) ? storage.targets : [];
+      if (!targets.length) {
+        targetsList.textContent = "No storage paths were detected.";
+      } else {
+        targetsList.innerHTML = targets.map((target) => {
+          const volume = target.volume || null;
+          const volumeLabel = volume
+            ? `${volume.location === "external" ? "External" : "Internal"}${volume.mountpoint ? ` • ${volume.mountpoint}` : ""}`
+            : "Volume not resolved";
+          const isAvailable = target.role === "available";
+          const noteText = isAvailable
+            ? `Available at ${target.resolved_path}`
+            : (target.is_symlink ? `Linked to ${target.resolved_path}` : `Using ${target.resolved_path}`);
+          return `<div class="storage-row">
+            <div class="storage-row-main">
+              <strong>${escapeHtml(target.label || "Storage")}</strong>
+              <span>${escapeHtml(formatBytes(target.current_bytes || 0))}</span>
+            </div>
+            <div class="storage-row-meta">${escapeHtml(target.configured_path || "")}</div>
+            <div class="storage-row-note">${escapeHtml(noteText)}${target.exists ? "" : " (missing)"}${volume ? ` • ${escapeHtml(volumeLabel)}` : ""}${isAvailable ? " • Ready as a destination" : " • Current SOPR path"}</div>
+          </div>`;
+        }).join("");
+      }
+
+      const volumes = Array.isArray(storage.volumes) ? storage.volumes : [];
+      if (!volumes.length) {
+        volumesList.textContent = "No mounted or attached storage volumes were detected.";
+      } else {
+        volumesList.innerHTML = volumes.map((volume) => {
+          const title = volume.display_name || volume.path || volume.name || "Volume";
+          const location = volume.location === "external" ? "External" : "Internal";
+          const mountText = volume.mountpoint ? `Mounted at ${volume.mountpoint}` : "Not mounted";
+          const filesystem = volume.filesystem ? ` • ${volume.filesystem}` : "";
+          const usage = volume.mountpoint && volume.size_bytes
+            ? `${formatBytes(volume.used_bytes || 0)} used / ${formatBytes(volume.free_bytes || 0)} free`
+            : formatBytes(volume.size_bytes || 0);
+          const layout = volume.sopr_layout || {};
+          const layoutPieces = [];
+          if (layout.maps) layoutPieces.push("maps");
+          if (layout.library) layoutPieces.push("library");
+          if (layout.media) layoutPieces.push("media");
+          const layoutText = layoutPieces.length ? ` • SOPR folders: ${layoutPieces.join(", ")}` : "";
+          let actions = "";
+          if (volume.can_mount && !volume.mounted) {
+            actions += `<button class="button secondary storage-action-button" data-icon="↻" data-storage-action="mount" data-device-path="${escapeHtml(volume.path || "")}" type="button">Mount Drive</button>`;
+          }
+          if (volume.can_unmount) {
+            actions += `<button class="button secondary storage-action-button" data-icon="⏏" data-storage-action="unmount" data-device-path="${escapeHtml(volume.path || "")}" type="button">Unmount Drive</button>`;
+          }
+          if (volume.can_prepare) {
+            actions += `<button class="button secondary storage-action-button" data-icon="⚠" data-storage-action="prepare" data-device-path="${escapeHtml(volume.path || "")}" type="button">Prepare Drive</button>`;
+          }
+          return `<div class="storage-row">
+            <div class="storage-row-main">
+              <strong>${escapeHtml(title)}</strong>
+              <span>${escapeHtml(formatBytes(volume.size_bytes || 0))}</span>
+            </div>
+            <div class="storage-row-meta">${escapeHtml(location)}${filesystem}${volume.path ? ` • ${escapeHtml(volume.path)}` : ""}</div>
+            <div class="storage-row-note">${escapeHtml(mountText)} • ${escapeHtml(usage)}${escapeHtml(layoutText)}</div>
+            ${actions ? `<div class="storage-row-actions">${actions}</div>` : ""}
+          </div>`;
+        }).join("");
+      }
+
+      note.textContent = "Use this page to confirm where SOPR data lives before moving maps or library content to another drive.";
+    }
+
+    function renderSystemUnavailable(delayed) {
+      document.getElementById("system-temp-status").textContent = delayed ? "Delayed" : "Unavailable";
+      document.getElementById("system-temp-fill").style.width = "0%";
+      document.getElementById("system-temp-fill").className = "meter-fill";
+      document.getElementById("system-cpu-status").textContent = delayed ? "Delayed" : "Unavailable";
+      document.getElementById("system-cpu-fill").style.width = "0%";
+      document.getElementById("system-uptime-status").textContent = delayed ? "Uptime: delayed" : "Uptime: unavailable";
+    }
+
     async function loadSystemPanelData() {
-      document.getElementById("system-disk-status").textContent = "Checking...";
       document.getElementById("system-temp-status").textContent = "Checking...";
       document.getElementById("system-cpu-status").textContent = "Checking...";
       document.getElementById("system-uptime-status").textContent = "Uptime: checking...";
+      document.getElementById("storage-summary").textContent = "Checking device storage.";
+      document.getElementById("storage-targets-list").textContent = "Checking current storage paths...";
+      document.getElementById("storage-volumes-list").textContent = "Checking attached storage volumes...";
       try {
-        const [healthResult, accessPointResult] = await Promise.all([
+        const [healthResult, accessPointResult] = await Promise.allSettled([
           fetchJsonWithTimeout("/api/system/health", {}, 2000),
           fetchJsonWithTimeout("/api/system/access-point", {}, 2500)
         ]);
-        currentStatus = healthResult.payload;
-        renderSystemHealth(currentStatus);
-        currentAccessPoint = accessPointResult.payload;
-        renderAccessPointState(currentAccessPoint);
+        if (healthResult.status === "fulfilled") {
+          currentStatus = healthResult.value.payload;
+          renderSystemHealth(currentStatus);
+          renderStorageHealth(currentStatus);
+        } else {
+          const delayed = healthResult.reason && healthResult.reason.name === "AbortError";
+          renderSystemUnavailable(delayed);
+          renderStorageHealth(null);
+        }
+        if (accessPointResult.status === "fulfilled") {
+          currentAccessPoint = accessPointResult.value.payload;
+          renderAccessPointState(currentAccessPoint);
+        } else {
+          const delayed = accessPointResult.reason && accessPointResult.reason.name === "AbortError";
+          setStatusChips("ap-status", [
+            { label: "Access Point", value: delayed ? "Delayed" : "Unavailable", tone: delayed ? "status-chip--warn" : "status-chip--error" }
+          ]);
+          document.getElementById("ap-action-status").textContent =
+            delayed ? "Access point status is taking too long to respond." : "Access point status is unavailable.";
+        }
       } catch (error) {
         const delayed = error && error.name === "AbortError";
-        document.getElementById("system-disk-status").textContent = delayed ? "Delayed" : "Unavailable";
-        document.getElementById("system-disk-fill").style.width = "0%";
-        document.getElementById("system-temp-status").textContent = delayed ? "Delayed" : "Unavailable";
-        document.getElementById("system-temp-fill").style.width = "0%";
-        document.getElementById("system-temp-fill").className = "meter-fill";
-        document.getElementById("system-cpu-status").textContent = delayed ? "Delayed" : "Unavailable";
-        document.getElementById("system-cpu-fill").style.width = "0%";
-        document.getElementById("system-uptime-status").textContent = delayed ? "Uptime: delayed" : "Uptime: unavailable";
+        renderSystemUnavailable(delayed);
+        renderStorageHealth(null);
         setStatusChips("ap-status", [
           { label: "Access Point", value: delayed ? "Delayed" : "Unavailable", tone: delayed ? "status-chip--warn" : "status-chip--error" }
         ]);
         document.getElementById("ap-action-status").textContent =
           delayed ? "Access point status is taking too long to respond." : "Access point status is unavailable.";
+      }
+    }
+
+    async function refreshStoragePanel() {
+      const button = document.getElementById("refresh-storage-button");
+      button.disabled = true;
+      button.textContent = "Refreshing...";
+      try {
+        await loadSystemPanelData();
+      } finally {
+        button.disabled = false;
+        button.textContent = "Refresh Storage";
+      }
+    }
+
+    function setStorageActionState(note = "", tone = "status-chip--muted", active = false) {
+      const cluster = document.getElementById("storage-action-status");
+      if (!note) {
+        cluster.innerHTML = "";
+        cluster.classList.remove("status-cursor");
+        return;
+      }
+      cluster.innerHTML = `<span class="status-chip ${tone}">
+        <span class="status-chip-key">Storage</span>
+        <span class="status-chip-value">${escapeHtml(note)}</span>
+      </span>`;
+      cluster.classList.toggle("status-cursor", active);
+    }
+
+    async function runStorageAction(action, devicePath) {
+      if (!devicePath) {
+        return;
+      }
+      const note = document.getElementById("storage-status-note");
+      const refreshButton = document.getElementById("refresh-storage-button");
+      if (action === "mount") {
+        note.textContent = `Mounting ${devicePath}...`;
+        setStorageActionState(`Mounting ${devicePath}`, "status-chip--warn", true);
+      } else if (action === "unmount") {
+        const confirmed = window.confirm(
+          `Unmount ${devicePath}?\n\nThis safely removes the drive from SOPR. Any content stored only on that drive will disappear until it is mounted again.`
+        );
+        if (!confirmed) {
+          note.textContent = "Drive unmount canceled.";
+          setStorageActionState("Drive unmount canceled.", "status-chip--muted", false);
+          return;
+        }
+        note.textContent = `Unmounting ${devicePath}...`;
+        setStorageActionState(`Unmounting ${devicePath}`, "status-chip--warn", true);
+      } else if (action === "prepare") {
+        const confirmed = window.confirm(
+          `Prepare ${devicePath} for SOPR?\n\nThis will erase everything on that drive, format it as ext4, mount it, and create maps, library, and media folders.`
+        );
+        if (!confirmed) {
+          note.textContent = "Drive preparation canceled.";
+          setStorageActionState("Drive preparation canceled.", "status-chip--muted", false);
+          return;
+        }
+        const expected = `FORMAT ${devicePath}`;
+        const typed = window.prompt(`Type ${expected} to confirm erasing and preparing this drive.`, "");
+        if (typed !== expected) {
+          note.textContent = "Drive preparation canceled.";
+          setStorageActionState("Drive preparation canceled.", "status-chip--muted", false);
+          return;
+        }
+        note.textContent = `Preparing ${devicePath}. Formatting and creating SOPR folders. This may take a minute...`;
+        setStorageActionState(`Preparing ${devicePath}`, "status-chip--warn", true);
+      }
+
+      document.querySelectorAll(".storage-action-button").forEach((button) => {
+        button.disabled = true;
+      });
+      refreshButton.disabled = true;
+      try {
+        const endpoint = action === "mount"
+          ? "/api/system/storage/mount"
+          : action === "unmount"
+            ? "/api/system/storage/unmount"
+            : "/api/system/storage/prepare";
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            action === "mount"
+              ? { device_path: devicePath }
+              : action === "unmount"
+                ? { device_path: devicePath }
+              : { device_path: devicePath, confirm_text: `FORMAT ${devicePath}` }
+          )
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Storage action failed.");
+        }
+        currentStatus = {
+          ...(currentStatus || {}),
+          disk: payload.disk,
+          storage: payload,
+          temperature_c: currentStatus?.temperature_c ?? null,
+          cpu: currentStatus?.cpu ?? null,
+          uptime: currentStatus?.uptime ?? null,
+        };
+        renderStorageHealth(currentStatus);
+        note.textContent = action === "mount"
+          ? `Mounted ${devicePath}.`
+          : action === "unmount"
+            ? `Unmounted ${devicePath}.`
+            : `Prepared ${devicePath} and created maps, library, and media folders.`;
+        setStorageActionState(
+          action === "mount"
+            ? `Mounted ${devicePath}`
+            : action === "unmount"
+              ? `Unmounted ${devicePath}`
+              : `Prepared ${devicePath}`,
+          "status-chip--ok",
+          false
+        );
+      } catch (error) {
+        note.textContent = error.message;
+        setStorageActionState(error.message, "status-chip--error", false);
+      } finally {
+        document.querySelectorAll(".storage-action-button").forEach((button) => {
+          button.disabled = false;
+        });
+        refreshButton.disabled = false;
       }
     }
 
@@ -1896,6 +2304,7 @@
 
     function renderContentState(content, note = "") {
       pendingCustomSelection = new Set(content.custom_selected_paths || []);
+      populateInstallTargetSelect("content-install-target", content.install_destinations || [], content.install_dir || "");
 
       setStatusChips("content-status", [
         {
@@ -1933,6 +2342,7 @@
     }
 
     function updateCustomLibraryVisibility(_enabled = true, running = false) {
+      document.getElementById("content-install-target").disabled = running;
       document.getElementById("zim-category-filter").disabled = running;
       document.getElementById("zim-catalog-filter").disabled = running;
       document.getElementById("refresh-zim-catalog-button").disabled = running;
@@ -2140,7 +2550,7 @@
     }
 
     function updatePolling() {
-      if (currentPanel === "system") {
+      if (currentPanel === "system" || currentPanel === "wifi") {
         if (systemPollHandle === null) {
           systemPollHandle = window.setInterval(loadSystemPanelData, 15000);
         }
@@ -2170,6 +2580,7 @@
     }
 
     function renderMapsState(maps, note = "") {
+      populateInstallTargetSelect("maps-install-target", maps.install_destinations || [], maps.install_dir || "");
       document.getElementById("maps-root").textContent = `PMTiles root: ${maps.root}`;
       document.getElementById("active-map-file").textContent =
         `Active map: ${friendlyMapTitle(maps.active_file)}`;
@@ -2199,6 +2610,30 @@
       const installedRegions = installedMapRegions(maps, currentCatalog);
       pendingMapSelection = new Set(installedRegions.map((collection) => collection.slug));
       renderLocalInstalledMaps(maps);
+    }
+
+    function populateInstallTargetSelect(elementId, options, selectedValue) {
+      const select = document.getElementById(elementId);
+      const rawEntries = Array.isArray(options) && options.length
+        ? options
+        : [{ path: selectedValue || "", label: "Internal Storage", location: "internal" }];
+      const seen = new Set();
+      const entries = rawEntries.filter((option) => {
+        const path = String(option.path || "").trim();
+        if (!path || seen.has(path)) {
+          return false;
+        }
+        seen.add(path);
+        return true;
+      });
+      select.innerHTML = entries.map((option) => {
+        const label = option.label || "Storage";
+        const selected = option.path === selectedValue ? " selected" : "";
+        return `<option value="${escapeHtml(option.path || "")}"${selected}>${escapeHtml(label)}</option>`;
+      }).join("");
+      if (selectedValue) {
+        select.value = selectedValue;
+      }
     }
 
     function renderLocalInstalledMaps(maps) {
@@ -2353,6 +2788,7 @@
       const running = state.status === "running";
       document.getElementById("sync-maps-button").disabled = running;
       document.getElementById("sync-maps-button").textContent = running ? "Updating..." : "Update Installed Maps";
+      document.getElementById("maps-install-target").disabled = running;
       document.getElementById("refresh-catalog-button").disabled = running;
       document.getElementById("select-all-maps-button").disabled = running;
       document.getElementById("remove-local-maps-button").disabled = running;
@@ -2385,21 +2821,14 @@
       }
 
       const button = document.getElementById("download-selected-zims-button");
-      const basePreset = currentContent && currentContent.library_preset === "custom"
-        ? (currentContent.custom_base_preset || "compact")
-        : (currentContent && ["compact", "full"].includes(currentContent.library_preset)
-            ? currentContent.library_preset
-            : "compact");
       button.disabled = true;
       button.textContent = "Starting...";
 
       try {
-        const settingsResponse = await fetch("/api/content/settings", {
+        const settingsResponse = await fetch("/api/content/download-selected", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            library_preset: "custom",
-            custom_base_preset: basePreset,
             selected_paths: selectedCatalogPaths()
           })
         });
@@ -2408,27 +2837,16 @@
           throw new Error(settingsPayload.error || "Unable to save selected ZIMs");
         }
 
-        currentContent = settingsPayload;
+        currentContent = settingsPayload.content;
         renderContentState(
-          settingsPayload,
+          settingsPayload.content,
           `Saved ${pendingCustomSelection.size} extra ZIM ${pendingCustomSelection.size === 1 ? "selection" : "selections"} to the device library. Starting download now.`
         );
-        renderContentStorage(currentState, settingsPayload);
+        renderContentStorage(currentState, settingsPayload.content);
         if (currentContentCatalog) {
           renderZimCatalog(currentContentCatalog);
         }
-
-        const applyResponse = await fetch("/api/apply", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "refresh-content" })
-        });
-        const applyPayload = await applyResponse.json();
-        if (!applyResponse.ok) {
-          throw new Error(applyPayload.error || "Unable to start ZIM download");
-        }
-
-        renderApplyState(applyPayload);
+        renderApplyState(settingsPayload.apply);
         document.getElementById("zim-catalog-note").textContent =
           "ZIM download started. Watch Content Actions for progress.";
       } catch (error) {
@@ -2649,9 +3067,11 @@
         const { payload } = await fetchJsonWithTimeout("/api/maps/sync");
         renderMapSyncState(payload);
         if (payload.status !== "running" && currentPanel === "maps") {
-          await refreshMapsList();
-          if (currentCatalog) {
-            renderCatalog(currentCatalog);
+          const note = document.getElementById("maps-status-note");
+          if (payload.status === "succeeded") {
+            note.textContent = "Map sync finished. Use Refresh Installed Maps if you want to reload the region lists now.";
+          } else if (payload.status === "failed" && payload.error) {
+            note.textContent = payload.error;
           }
         }
       } catch (error) {
@@ -2813,6 +3233,51 @@
       }
     }
 
+    async function saveContentInstallTarget() {
+      const select = document.getElementById("content-install-target");
+      const chosen = select.value;
+      try {
+        const response = await fetch("/api/content/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ install_dir: chosen })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to save content install destination.");
+        }
+        currentContent = payload;
+        renderContentState(payload, `New ZIM downloads will install to ${chosen}.`);
+        renderContentStorage(currentState, payload);
+        if (currentContentCatalog) {
+          renderZimCatalog(currentContentCatalog);
+        }
+      } catch (error) {
+        document.getElementById("content-library-note").textContent = error.message;
+      }
+    }
+
+    async function saveMapsInstallTarget() {
+      const select = document.getElementById("maps-install-target");
+      const chosen = select.value;
+      try {
+        const response = await fetch("/api/maps/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ install_dir: chosen })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to save map install destination.");
+        }
+        currentMaps = payload;
+        renderMapsState(payload, `New map downloads will install to ${chosen}.`);
+        renderMapsStorage(currentState, payload);
+      } catch (error) {
+        document.getElementById("maps-status-note").textContent = error.message;
+      }
+    }
+
     [
       "ap-ssid",
       "ap-passphrase",
@@ -2845,6 +3310,7 @@
     document.getElementById("clear-all-zims-button").addEventListener("click", clearAllCatalogZims);
     document.getElementById("refresh-zim-catalog-button").addEventListener("click", refreshZimCatalog);
     document.getElementById("download-selected-zims-button").addEventListener("click", downloadSelectedZims);
+    document.getElementById("content-install-target").addEventListener("change", saveContentInstallTarget);
     document.getElementById("zim-prev-page-button").addEventListener("click", goToPreviousZimPage);
     document.getElementById("zim-next-page-button").addEventListener("click", goToNextZimPage);
     document.getElementById("zim-category-filter").addEventListener("change", () => {
@@ -2874,7 +3340,16 @@
     document.getElementById("refresh-content-button").addEventListener("click", () => triggerApplyAction("refresh-content"));
     document.getElementById("rebuild-library-button").addEventListener("click", () => triggerApplyAction("rebuild-library"));
     document.getElementById("refresh-maps-button").addEventListener("click", refreshMapsList);
+    document.getElementById("refresh-storage-button").addEventListener("click", refreshStoragePanel);
+    document.getElementById("storage-volumes-list").addEventListener("click", (event) => {
+      const button = event.target.closest(".storage-action-button");
+      if (!button) {
+        return;
+      }
+      runStorageAction(button.dataset.storageAction, button.dataset.devicePath);
+    });
     document.getElementById("save-map-button").addEventListener("click", saveMapSelection);
+    document.getElementById("maps-install-target").addEventListener("change", saveMapsInstallTarget);
     document.getElementById("select-all-maps-button").addEventListener("click", selectAllMaps);
     document.getElementById("select-all-local-maps-button").addEventListener("click", selectAllLocalMaps);
     document.getElementById("clear-local-maps-button").addEventListener("click", clearLocalMapsSelection);
@@ -2941,7 +3416,7 @@
 
     function initialPanelFromLocation() {
       const hash = (window.location.hash || "").replace(/^#/, "").trim().toLowerCase();
-      if (["wifi", "system", "content", "maps"].includes(hash)) {
+      if (["wifi", "system", "content", "maps", "storage"].includes(hash)) {
         return hash;
       }
       return "system";
