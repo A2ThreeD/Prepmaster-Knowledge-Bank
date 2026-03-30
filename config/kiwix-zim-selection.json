@@ -32,10 +32,10 @@
       "download_url": "https://download.kiwix.org/zim/other/zimgit-knots_en_2024-08.zim",
       "size_bytes": 28311552,
       "size_label": "27M",
-      "installed": false,
-      "installed_size_bytes": 0,
-      "installed_size_label": "",
-      "selected": false
+      "installed": true,
+      "installed_size_bytes": 27945133,
+      "installed_size_label": "26.7 MB",
+      "selected": true
     },
     {
       "path": "videos/coreyms_en_javascript-tutorials_2025-10.zim",
@@ -50,17 +50,29 @@
       "selected": true
     },
     {
+      "path": "wikipedia/wikipedia_en_all_maxi_2025-08.zim",
+      "name": "wikipedia_en_all_maxi_2025-08.zim",
+      "category": "wikipedia",
+      "download_url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_maxi_2025-08.zim",
+      "size_bytes": 119185342464,
+      "size_label": "111G",
+      "installed": false,
+      "installed_size_bytes": 0,
+      "installed_size_label": "",
+      "selected": false
+    },
+    {
       "path": "zimit/www.ready.gov_en_2024-12.zim",
       "name": "www.ready.gov_en_2024-12.zim",
       "category": "zimit",
       "download_url": "https://download.kiwix.org/zim/zimit/www.ready.gov_en_2024-12.zim",
       "size_bytes": 2469606195,
       "size_label": "2.3G",
-      "installed": false,
-      "installed_size_bytes": 0,
-      "installed_size_label": "",
-      "selected": false
+      "installed": true,
+      "installed_size_bytes": 2429921822,
+      "installed_size_label": "2.3 GB",
+      "selected": true
     }
   ],
-  "saved_at": "2026-03-30T18:31:29Z"
+  "saved_at": "2026-03-30T23:32:00Z"
 }
