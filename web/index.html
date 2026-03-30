@@ -1364,6 +1364,9 @@
     let wikipediaOptions = [];
     let mapCollections = [];
     let storageState = null;
+    let activeMessageText = "";
+    let activeMessageIsError = false;
+    let driveNoticeText = "";
 
     function formatSize(sizeMb) {
       if (!sizeMb) return "Size not listed";
@@ -1417,16 +1420,56 @@
       kolibriLink.title = "Kolibri is not installed on this device";
     }
 
-    function showMessage(text, isError = false) {
+    function renderTopMessage() {
+      const text = activeMessageText || driveNoticeText;
+      const isError = activeMessageText ? activeMessageIsError : false;
+      if (!text) {
+        message.textContent = "";
+        message.style.display = "none";
+        message.classList.remove("error");
+        return;
+      }
       message.textContent = text;
       message.style.display = "block";
       message.classList.toggle("error", isError);
     }
 
+    function showMessage(text, isError = false) {
+      activeMessageText = text;
+      activeMessageIsError = isError;
+      renderTopMessage();
+    }
+
     function clearMessage() {
-      message.textContent = "";
-      message.style.display = "none";
-      message.classList.remove("error");
+      activeMessageText = "";
+      activeMessageIsError = false;
+      renderTopMessage();
+    }
+
+    function updateDriveNotice() {
+      const volumes = Array.isArray(storageState?.volumes) ? storageState.volumes : [];
+      const unmountedExternal = volumes.filter((volume) =>
+        volume
+        && volume.location === "external"
+        && volume.is_partition
+        && volume.filesystem
+        && !volume.mounted
+      );
+      if (!unmountedExternal.length) {
+        driveNoticeText = "";
+        renderTopMessage();
+        return;
+      }
+      const driveNames = unmountedExternal
+        .map((volume) => volume.display_name || volume.label || volume.model || volume.path || "USB drive")
+        .slice(0, 2);
+      const listedNames = driveNames.join(", ");
+      const extraCount = unmountedExternal.length - driveNames.length;
+      const suffix = extraCount > 0 ? ` and ${extraCount} more` : "";
+      driveNoticeText = unmountedExternal.length === 1
+        ? `External drive detected but not mounted: ${listedNames}. Open Settings > Storage to mount it.`
+        : `External drives detected but not mounted: ${listedNames}${suffix}. Open Settings > Storage to mount them.`;
+      renderTopMessage();
     }
 
     function getWikipediaOptionById(optionId) {
@@ -1944,6 +1987,7 @@
         setupState.wikipediaOption = state.profile.wikipedia_option || "top-mini";
         setupState.mapCollections = normalizeMapSelection(state.profile.map_collections || []);
         storageState = state.storage || null;
+        updateDriveNotice();
 
         if (!getWikipediaOptionById(setupState.wikipediaOption) && wikipediaOptions.length) {
           setupState.wikipediaOption = wikipediaOptions[0].id;
@@ -1969,6 +2013,7 @@
         renderMode({ setup_complete: false });
         renderStorageEstimate();
         updateWizardStep();
+        updateDriveNotice();
         showMessage("Portal API is not reachable yet. Run sudo ./scripts/install_prepmaster.sh on the Pi to install the local SOPR portal service.", true);
       }
     }

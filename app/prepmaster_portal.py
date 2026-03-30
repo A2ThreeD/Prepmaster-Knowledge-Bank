@@ -400,6 +400,7 @@ class PortalState:
 
     def setup_storage_summary(self) -> dict:
         total, used, free = shutil.disk_usage("/")
+        volumes = self.storage_volumes()
         env = read_env_file(self.prepmaster_env)
         profile = env.get("PREPMASTER_ZIM_PROFILE", "essential").strip().lower() or "essential"
         if profile not in {"essential", "standard", "comprehensive"}:
@@ -451,6 +452,7 @@ class PortalState:
             "missing_by_map_collection": missing_by_map_collection,
             "missing_all_maps_mb": round(missing_all_map_bytes / (1024 * 1024)),
             "warning_free_percent": 10,
+            "volumes": volumes,
         }
 
     def load_state(self) -> dict:
@@ -1963,7 +1965,9 @@ class PortalState:
             "storage": storage,
             "temperature_c": self.read_temperature(),
             "cpu": self.read_cpu_load(),
+            "memory": self.read_memory_stats(),
             "uptime": self.read_uptime(),
+            "services": self.system_service_health(),
         }
 
     def storage_health(self) -> dict:
@@ -2167,6 +2171,24 @@ class PortalState:
             return ["ntfslabel", device_path, label]
         raise ValueError(f"Renaming is not supported for {filesystem or 'this filesystem'} drives.")
 
+    def update_storage_install_paths_for_mount_change(self, old_mountpoint: str, new_mountpoint: str) -> None:
+        old_mountpoint = str(old_mountpoint or "").strip()
+        new_mountpoint = str(new_mountpoint or "").strip()
+        if not old_mountpoint or not new_mountpoint or old_mountpoint == new_mountpoint:
+            return
+
+        preferred_zim_dir = self.preferred_zim_install_dir()
+        preferred_map_dir = self.preferred_map_install_dir()
+        updates: dict[str, str] = {}
+        if str(preferred_zim_dir).startswith(f"{old_mountpoint}/"):
+            suffix = str(preferred_zim_dir)[len(old_mountpoint):]
+            updates["PREPMASTER_ZIM_INSTALL_DIR"] = f"{new_mountpoint}{suffix}"
+        if str(preferred_map_dir).startswith(f"{old_mountpoint}/"):
+            suffix = str(preferred_map_dir)[len(old_mountpoint):]
+            updates["PREPMASTER_MAP_INSTALL_DIR"] = f"{new_mountpoint}{suffix}"
+        if updates:
+            update_env_file(self.prepmaster_env, updates)
+
     def mount_storage_volume(self, payload: dict) -> dict:
         device_path = str(payload.get("device_path", "")).strip()
         if not device_path:
@@ -2289,7 +2311,18 @@ class PortalState:
             raise ValueError("This drive is not formatted yet. Prepare it first.")
         label = self.validate_storage_label(payload.get("label", ""))
         command = self.storage_label_command(volume, label)
+        old_mountpoint = str(volume.get("mountpoint") or "").strip()
         self.run_storage_command(command, "Unable to rename the selected drive.")
+        if old_mountpoint and old_mountpoint.startswith("/media/sopr/"):
+            refreshed_volume = self.storage_volume_by_device(device_path) or volume
+            new_mountpoint = str(refreshed_volume.get("suggested_mountpoint") or "").strip()
+            if new_mountpoint and new_mountpoint != old_mountpoint:
+                self.run_storage_command(["umount", device_path], "Unable to remount the renamed drive.")
+                Path(new_mountpoint).mkdir(parents=True, exist_ok=True)
+                self.run_storage_command(["mount", device_path, new_mountpoint], "Unable to remount the renamed drive.")
+                self.update_storage_install_paths_for_mount_change(old_mountpoint, new_mountpoint)
+                self.sync_external_content_links()
+                self.write_maps_runtime_config()
         return self.storage_health()
 
     def storage_targets(self, volumes: list[dict]) -> list[dict]:
@@ -3014,6 +3047,37 @@ class PortalState:
             "load_percent": load_percent,
         }
 
+    def read_memory_stats(self) -> dict[str, int | float] | None:
+        meminfo = Path("/proc/meminfo")
+        if not meminfo.exists():
+            return None
+
+        values: dict[str, int] = {}
+        try:
+            for line in meminfo.read_text().splitlines():
+                if ":" not in line:
+                    continue
+                key, raw_value = line.split(":", 1)
+                parts = raw_value.strip().split()
+                if not parts:
+                    continue
+                values[key] = int(parts[0]) * 1024
+        except (OSError, ValueError):
+            return None
+
+        total = int(values.get("MemTotal", 0))
+        available = int(values.get("MemAvailable", values.get("MemFree", 0)))
+        if total <= 0:
+            return None
+        used = max(0, total - available)
+        used_percent = max(0, min(100, round((used / total) * 100)))
+        return {
+            "total_bytes": total,
+            "used_bytes": used,
+            "available_bytes": available,
+            "used_percent": used_percent,
+        }
+
     def read_service_statuses(self, services: dict[str, str]) -> dict[str, str]:
         try:
             result = subprocess.run(
@@ -3031,6 +3095,87 @@ class PortalState:
         for index, name in enumerate(values):
             resolved[name] = lines[index] if index < len(lines) else "unknown"
         return resolved
+
+    def system_service_definitions(self) -> list[dict[str, str]]:
+        return [
+            {
+                "id": "portal",
+                "label": "Portal API",
+                "unit": "prepmaster-portal.service",
+                "description": "Admin API and setup workflows.",
+            },
+            {
+                "id": "kiwix",
+                "label": "Kiwix",
+                "unit": "prepmaster-kiwix.service",
+                "description": "Offline library server.",
+            },
+            {
+                "id": "nginx",
+                "label": "Nginx",
+                "unit": "nginx.service",
+                "description": "Main web front end for SOPR.",
+            },
+            {
+                "id": "kolibri",
+                "label": "Kolibri",
+                "unit": "kolibri.service",
+                "description": "Learning platform service.",
+            },
+            {
+                "id": "access-point",
+                "label": "Access Point",
+                "unit": "prepmaster-ap-network.service",
+                "description": "Local Wi-Fi hotspot network service.",
+            },
+        ]
+
+    def inspect_system_service(self, service: dict[str, str]) -> dict[str, str | bool]:
+        unit = service["unit"]
+        active_state = "unknown"
+        enabled_state = "unknown"
+        load_state = "unknown"
+        sub_state = "unknown"
+
+        try:
+            result = subprocess.run(
+                ["systemctl", "show", unit, "--property=LoadState,ActiveState,SubState,UnitFileState", "--value"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            return {
+                **service,
+                "exists": False,
+                "active_state": active_state,
+                "enabled_state": enabled_state,
+                "load_state": load_state,
+                "sub_state": sub_state,
+            }
+
+        lines = result.stdout.splitlines()
+        if len(lines) >= 4:
+            load_state = lines[0].strip() or "unknown"
+            active_state = lines[1].strip() or "unknown"
+            sub_state = lines[2].strip() or "unknown"
+            enabled_state = lines[3].strip() or "unknown"
+
+        exists = load_state not in {"not-found", "unknown", ""}
+        return {
+            **service,
+            "exists": exists,
+            "active_state": active_state if exists else "not-installed",
+            "enabled_state": enabled_state if exists else "not-installed",
+            "load_state": load_state,
+            "sub_state": sub_state,
+        }
+
+    def system_service_health(self) -> list[dict[str, str | bool]]:
+        return [
+            self.inspect_system_service(service)
+            for service in self.system_service_definitions()
+        ]
 
     def detect_primary_host(self) -> str:
         try:
@@ -3063,6 +3208,37 @@ class PortalState:
         if result.returncode != 0:
             message = (result.stderr or result.stdout or "").strip() or f"systemctl {action} failed"
             raise RuntimeError(message)
+
+    def restart_system_service(self, service_id: str) -> dict:
+        services = {service["id"]: service for service in self.system_service_definitions()}
+        service = services.get(service_id)
+        if not service:
+            raise ValueError("Unknown service.")
+
+        details = self.inspect_system_service(service)
+        if not details.get("exists"):
+            raise ValueError(f'{service["label"]} is not installed on this device.')
+
+        unit = service["unit"]
+        try:
+            result = subprocess.run(
+                ["systemctl", "restart", unit],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError("systemctl is not available on this system") from exc
+
+        if result.returncode != 0:
+            message = (result.stderr or result.stdout or "").strip() or f"Unable to restart {service['label']}."
+            raise RuntimeError(message)
+
+        return {
+            "service": self.inspect_system_service(service),
+            "services": self.system_service_health(),
+            "message": f'{service["label"]} restarted.',
+        }
 
         return {
             "status": "accepted",
@@ -3242,6 +3418,18 @@ class PortalHandler(BaseHTTPRequestHandler):
                 self.send_json({"error": str(exc)}, status=500)
                 return
             self.send_json(state, status=202)
+            return
+
+        if self.path == "/api/system/service/restart":
+            try:
+                state = self.portal_state.restart_system_service(str(payload.get("service", "")).strip())
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=500)
+                return
+            self.send_json(state)
             return
 
         if self.path == "/api/system/access-point":

@@ -359,6 +359,83 @@
       color: rgba(232, 240, 251, 0.88);
     }
 
+    .system-services {
+      margin-top: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .system-service-card {
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.32);
+    }
+
+    .system-service-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .system-service-top strong {
+      display: block;
+      font-family: var(--ui-display);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+    }
+
+    .system-service-top span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+
+    .system-service-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .system-service-actions .button {
+      width: auto;
+      min-width: 0;
+      padding: 8px 10px;
+      font-size: 0.72rem;
+    }
+
+    .system-service-note {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+
+    .power-controls-box {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      background: rgba(4, 10, 19, 0.32);
+    }
+
+    .power-controls-label {
+      display: block;
+      margin-bottom: 10px;
+      font-family: var(--ui-display);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+
+    #system-power-status:empty {
+      display: none;
+    }
+
     .progress-shell {
       margin-top: 14px;
       padding: 14px;
@@ -419,7 +496,31 @@
       font-size: 0.8rem;
     }
 
-    .content-storage-chip strong,
+    .content-storage-chip strong {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .content-storage-swatch {
+      width: 10px;
+      height: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.38);
+      flex: 0 0 auto;
+    }
+
+    .content-storage-swatch.other {
+      background: linear-gradient(180deg, rgba(121, 165, 222, 0.92), rgba(60, 95, 147, 0.98));
+    }
+
+    .content-storage-swatch.content {
+      background: linear-gradient(180deg, rgba(154, 214, 179, 0.94), rgba(74, 143, 101, 0.98));
+    }
+
+    .content-storage-swatch.free {
+      background: linear-gradient(180deg, rgba(24, 38, 59, 0.95), rgba(10, 17, 29, 0.98));
+    }
+
     .content-storage-chip span {
       display: block;
     }
@@ -889,12 +990,51 @@
     </p>
 
     <div class="section-tabs">
+      <button class="button tab-button active" data-icon="⚙" type="button" data-panel="system">System</button>
       <button class="button tab-button" data-icon="📶" type="button" data-panel="wifi">WiFi</button>
+      <button class="button tab-button" data-icon="🖴" type="button" data-panel="storage">Storage</button>
       <button class="button tab-button" data-icon="⌘" type="button" data-panel="content">Content</button>
       <button class="button tab-button" data-icon="⌖" type="button" data-panel="maps">Maps</button>
-      <button class="button tab-button" data-icon="🖴" type="button" data-panel="storage">Storage</button>
-      <button class="button tab-button active" data-icon="⚙" type="button" data-panel="system">System</button>
     </div>
+
+    <section class="panel-group active" data-panel-group="system">
+      <div class="grid">
+        <section class="card">
+          <h2>System</h2>
+          <p class="muted">
+            Live Raspberry Pi health and power controls live here so the main page can stay focused on navigation.
+          </p>
+          <div class="health-grid">
+            <div class="health-card">
+              <strong>Temp</strong>
+              <div class="value" id="system-temp-status">Loading</div>
+              <div class="meter"><div class="meter-track"><div class="meter-fill temp-cool" id="system-temp-fill"></div></div></div>
+            </div>
+            <div class="health-card">
+              <strong>CPU</strong>
+              <div class="value" id="system-cpu-status">Loading</div>
+              <div class="subvalue" id="system-uptime-status">Uptime: loading</div>
+              <div class="meter"><div class="meter-track"><div class="meter-fill" id="system-cpu-fill"></div></div></div>
+            </div>
+            <div class="health-card">
+              <strong>Memory</strong>
+              <div class="value" id="system-memory-status">Loading</div>
+              <div class="subvalue" id="system-memory-detail">Available: loading</div>
+              <div class="meter"><div class="meter-track"><div class="meter-fill" id="system-memory-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="system-services" id="system-services-list">Checking application services...</div>
+          <div class="power-controls-box">
+            <strong class="power-controls-label">Power Controls</strong>
+            <div class="actions">
+              <button class="button secondary" data-icon="↻" id="restart-system-button" type="button">Restart</button>
+              <button class="button secondary" data-icon="⏻" id="shutdown-system-button" type="button">Shutdown</button>
+            </div>
+            <p class="status" id="system-power-status"></p>
+          </div>
+        </section>
+      </div>
+    </section>
 
     <section class="panel-group" data-panel-group="wifi">
       <div class="grid">
@@ -990,15 +1130,15 @@
             </div>
             <div class="content-storage-legend">
               <div class="content-storage-chip">
-                <strong>Other Used</strong>
+                <strong><span class="content-storage-swatch other" aria-hidden="true"></span>Other Used</strong>
                 <span id="content-storage-other-label">-</span>
               </div>
               <div class="content-storage-chip">
-                <strong>ZIM Library</strong>
+                <strong><span class="content-storage-swatch content" aria-hidden="true"></span>ZIM Library</strong>
                 <span id="content-storage-library-label">-</span>
               </div>
               <div class="content-storage-chip">
-                <strong>Free</strong>
+                <strong><span class="content-storage-swatch free" aria-hidden="true"></span>Free</strong>
                 <span id="content-storage-free-label">-</span>
               </div>
             </div>
@@ -1098,15 +1238,15 @@
             </div>
             <div class="content-storage-legend">
               <div class="content-storage-chip">
-                <strong>Other Used</strong>
+                <strong><span class="content-storage-swatch other" aria-hidden="true"></span>Other Used</strong>
                 <span id="maps-storage-other-label">-</span>
               </div>
               <div class="content-storage-chip">
-                <strong>Map Storage</strong>
+                <strong><span class="content-storage-swatch content" aria-hidden="true"></span>Map Storage</strong>
                 <span id="maps-storage-library-label">-</span>
               </div>
               <div class="content-storage-chip">
-                <strong>Free</strong>
+                <strong><span class="content-storage-swatch free" aria-hidden="true"></span>Free</strong>
                 <span id="maps-storage-free-label">-</span>
               </div>
             </div>
@@ -1198,15 +1338,15 @@
             </div>
             <div class="content-storage-legend">
               <div class="content-storage-chip">
-                <strong>Other Used</strong>
+                <strong><span class="content-storage-swatch other" aria-hidden="true"></span>Other Used</strong>
                 <span id="storage-used-label">-</span>
               </div>
               <div class="content-storage-chip">
-                <strong>SOPR Data</strong>
+                <strong><span class="content-storage-swatch content" aria-hidden="true"></span>SOPR Data</strong>
                 <span id="storage-sopr-label">-</span>
               </div>
               <div class="content-storage-chip">
-                <strong>Free</strong>
+                <strong><span class="content-storage-swatch free" aria-hidden="true"></span>Free</strong>
                 <span id="storage-free-label">-</span>
               </div>
             </div>
@@ -1226,35 +1366,6 @@
             <div id="storage-volumes-list" class="log-panel muted">Checking attached storage volumes...</div>
           </div>
           <p class="substatus" id="storage-status-note">Use this page when you want to move maps or library data onto an external drive later.</p>
-        </section>
-      </div>
-    </section>
-
-    <section class="panel-group active" data-panel-group="system">
-      <div class="grid">
-        <section class="card">
-          <h2>System</h2>
-          <p class="muted">
-            Live Raspberry Pi health and power controls live here so the main page can stay focused on navigation.
-          </p>
-          <div class="health-grid">
-            <div class="health-card">
-              <strong>Temp</strong>
-              <div class="value" id="system-temp-status">Loading</div>
-              <div class="meter"><div class="meter-track"><div class="meter-fill temp-cool" id="system-temp-fill"></div></div></div>
-            </div>
-            <div class="health-card">
-              <strong>CPU</strong>
-              <div class="value" id="system-cpu-status">Loading</div>
-              <div class="subvalue" id="system-uptime-status">Uptime: loading</div>
-              <div class="meter"><div class="meter-track"><div class="meter-fill" id="system-cpu-fill"></div></div></div>
-            </div>
-          </div>
-          <div class="actions">
-            <button class="button secondary" data-icon="↻" id="restart-system-button" type="button">Restart</button>
-            <button class="button secondary" data-icon="⏻" id="shutdown-system-button" type="button">Shutdown</button>
-          </div>
-          <p class="status" id="system-power-status">Power controls ready.</p>
         </section>
       </div>
     </section>
@@ -1797,7 +1908,82 @@
         document.getElementById("system-cpu-fill").style.width = `${status.cpu.load_percent}%`;
       }
 
+      if (!status.memory) {
+        document.getElementById("system-memory-status").textContent = "Unavailable";
+        document.getElementById("system-memory-detail").textContent = "Available: unavailable";
+        document.getElementById("system-memory-fill").style.width = "0%";
+      } else {
+        document.getElementById("system-memory-status").textContent =
+          `${status.memory.used_percent}% used`;
+        document.getElementById("system-memory-detail").textContent =
+          `Available: ${formatBytes(status.memory.available_bytes || 0)} / ${formatBytes(status.memory.total_bytes || 0)}`;
+        document.getElementById("system-memory-fill").style.width =
+          `${status.memory.used_percent || 0}%`;
+      }
+
       document.getElementById("system-uptime-status").textContent = `Uptime: ${status.uptime}`;
+      renderSystemServices(status.services || []);
+    }
+
+    function serviceStateLabel(service) {
+      if (!service || service.exists === false || service.active_state === "not-installed") {
+        return "Not Installed";
+      }
+      if (service.active_state === "active") {
+        return service.sub_state && service.sub_state !== "running"
+          ? `Active (${service.sub_state})`
+          : "Active";
+      }
+      if (service.active_state === "activating") return "Starting";
+      if (service.active_state === "deactivating") return "Stopping";
+      if (service.active_state === "failed") return "Failed";
+      if (service.active_state === "inactive") return "Inactive";
+      return service.active_state || "Unknown";
+    }
+
+    function toneForDetailedServiceState(service) {
+      if (!service || service.exists === false || service.active_state === "not-installed") {
+        return "status-chip--muted";
+      }
+      return toneForServiceState(service.active_state || "unknown");
+    }
+
+    function renderSystemServices(services) {
+      const container = document.getElementById("system-services-list");
+      if (!Array.isArray(services) || !services.length) {
+        container.textContent = "Application service status is unavailable.";
+        return;
+      }
+
+      container.innerHTML = services.map((service) => {
+        const stateLabel = serviceStateLabel(service);
+        const restartDisabled = !service.exists || service.active_state === "activating" || service.active_state === "deactivating";
+        const enabledLabel = !service.exists || service.enabled_state === "not-installed"
+          ? "Not Installed"
+          : (service.enabled_state || "unknown");
+        return `<div class="system-service-card">
+          <div class="system-service-top">
+            <div>
+              <strong>${escapeHtml(service.label || service.id || "Service")}</strong>
+              <span>${escapeHtml(service.description || "")}</span>
+            </div>
+            <div class="system-service-actions">
+              <button class="button secondary system-service-restart-button" data-icon="↻" data-service-id="${escapeHtml(service.id || "")}" type="button" ${restartDisabled ? "disabled" : ""}>Restart</button>
+            </div>
+          </div>
+          <div class="status-cluster">
+            <span class="status-chip ${toneForDetailedServiceState(service)}">
+              <span class="status-chip-key">State</span>
+              <span class="status-chip-value">${escapeHtml(stateLabel)}</span>
+            </span>
+            <span class="status-chip ${!service.exists || service.enabled_state === "not-installed" ? "status-chip--muted" : toneForServiceState(enabledLabel.toLowerCase())}">
+              <span class="status-chip-key">Enabled</span>
+              <span class="status-chip-value">${escapeHtml(enabledLabel)}</span>
+            </span>
+          </div>
+          <p class="system-service-note">Unit: ${escapeHtml(service.unit || "")}</p>
+        </div>`;
+      }).join("");
     }
 
     function renderStorageHealth(status) {
@@ -1913,15 +2099,15 @@
             </div>
             <div class="content-storage-legend">
               <div class="content-storage-chip">
-                <strong>Other Used</strong>
+                <strong><span class="content-storage-swatch other" aria-hidden="true"></span>Other Used</strong>
                 <span>${escapeHtml(formatBytes(otherVolumeBytes))}</span>
               </div>
               <div class="content-storage-chip">
-                <strong>SOPR Data</strong>
+                <strong><span class="content-storage-swatch content" aria-hidden="true"></span>SOPR Data</strong>
                 <span>${escapeHtml(formatBytes(soprVolumeBytes))}</span>
               </div>
               <div class="content-storage-chip">
-                <strong>Free</strong>
+                <strong><span class="content-storage-swatch free" aria-hidden="true"></span>Free</strong>
                 <span>${escapeHtml(formatBytes(freeVolumeBytes))}</span>
               </div>
             </div>
@@ -2003,13 +2189,21 @@
       document.getElementById("system-temp-fill").className = "meter-fill";
       document.getElementById("system-cpu-status").textContent = delayed ? "Delayed" : "Unavailable";
       document.getElementById("system-cpu-fill").style.width = "0%";
+      document.getElementById("system-memory-status").textContent = delayed ? "Delayed" : "Unavailable";
+      document.getElementById("system-memory-detail").textContent = delayed ? "Available: delayed" : "Available: unavailable";
+      document.getElementById("system-memory-fill").style.width = "0%";
       document.getElementById("system-uptime-status").textContent = delayed ? "Uptime: delayed" : "Uptime: unavailable";
+      document.getElementById("system-services-list").textContent =
+        delayed ? "Application service status is taking too long to respond." : "Application service status is unavailable.";
     }
 
     async function loadSystemPanelData() {
       document.getElementById("system-temp-status").textContent = "Checking...";
       document.getElementById("system-cpu-status").textContent = "Checking...";
+      document.getElementById("system-memory-status").textContent = "Checking...";
+      document.getElementById("system-memory-detail").textContent = "Available: checking...";
       document.getElementById("system-uptime-status").textContent = "Uptime: checking...";
+      document.getElementById("system-services-list").textContent = "Checking application services...";
       document.getElementById("storage-summary").textContent = "Checking device storage.";
       document.getElementById("storage-targets-list").textContent = "Checking current storage paths...";
       document.getElementById("storage-volumes-list").textContent = "Checking attached storage volumes...";
@@ -2400,6 +2594,45 @@
         shutdownButton.disabled = false;
         restartButton.textContent = "Restart";
         shutdownButton.textContent = "Shutdown";
+      }
+    }
+
+    async function restartApplicationService(serviceId) {
+      if (!serviceId) {
+        return;
+      }
+      const statusEl = document.getElementById("system-power-status");
+      const buttons = Array.from(document.querySelectorAll(".system-service-restart-button"));
+      const selectedButton = buttons.find((button) => button.dataset.serviceId === serviceId);
+      buttons.forEach((button) => {
+        button.disabled = true;
+      });
+      if (selectedButton) {
+        selectedButton.textContent = "Restarting...";
+      }
+      statusEl.textContent = "Restarting application service...";
+
+      try {
+        const { response, payload } = await fetchJsonWithTimeout("/api/system/service/restart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ service: serviceId })
+        }, 6000);
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to restart the selected service.");
+        }
+        currentStatus = {
+          ...(currentStatus || {}),
+          services: payload.services || [],
+        };
+        renderSystemServices(payload.services || []);
+        statusEl.textContent = payload.message || "Service restarted.";
+      } catch (error) {
+        statusEl.textContent = `Service restart failed: ${error.message}`;
+        buttons.forEach((button) => {
+          button.disabled = false;
+          button.textContent = "Restart";
+        });
       }
     }
 
@@ -3483,6 +3716,13 @@
         return;
       }
       runStorageAction(button.dataset.storageAction, button.dataset.devicePath, button.dataset.currentLabel || "");
+    });
+    document.getElementById("system-services-list").addEventListener("click", (event) => {
+      const button = event.target.closest(".system-service-restart-button");
+      if (!button) {
+        return;
+      }
+      restartApplicationService(button.dataset.serviceId || "");
     });
     document.getElementById("save-map-button").addEventListener("click", saveMapSelection);
     document.getElementById("maps-install-target").addEventListener("change", saveMapsInstallTarget);
