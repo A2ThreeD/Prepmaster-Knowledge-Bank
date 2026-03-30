@@ -202,6 +202,7 @@ The following items are no longer “future plan” items:
 
 These are the main areas still worth iterating on next:
 
+- external storage usage capabilities and management
 - better map metadata and descriptions where upstream data is sparse
 - stronger documentation for local catalog refresh/update workflows
 - possible backup/export workflows for saved setup state and content choices
@@ -211,6 +212,8 @@ These are the main areas still worth iterating on next:
 
 ## Longer-Term Software Ideas
 
+- media hosting (plex/jellyfin)
+- NAS capabilities
 - optional battery/power awareness in the dashboard
 - richer offline search for maps
 - better local diagnostics and recovery tools in `/admin`

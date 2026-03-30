@@ -2144,6 +2144,29 @@ class PortalState:
             message = (result.stderr or result.stdout or "").strip() or error_hint
             raise RuntimeError(message)
 
+    def validate_storage_label(self, value: str) -> str:
+        label = str(value or "").strip()
+        if not label:
+            raise ValueError("Enter a drive name.")
+        if len(label) > 16:
+            raise ValueError("Drive names must be 16 characters or fewer.")
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", label):
+            raise ValueError("Drive names may only use letters, numbers, hyphens, and underscores.")
+        return label
+
+    def storage_label_command(self, volume: dict, label: str) -> list[str]:
+        filesystem = str(volume.get("filesystem") or "").strip().lower()
+        device_path = str(volume.get("path") or "").strip()
+        if filesystem in {"ext2", "ext3", "ext4"}:
+            return ["e2label", device_path, label]
+        if filesystem in {"vfat", "fat", "fat16", "fat32"}:
+            return ["fatlabel", device_path, label]
+        if filesystem == "exfat":
+            return ["exfatlabel", device_path, label]
+        if filesystem in {"ntfs", "ntfs3"}:
+            return ["ntfslabel", device_path, label]
+        raise ValueError(f"Renaming is not supported for {filesystem or 'this filesystem'} drives.")
+
     def mount_storage_volume(self, payload: dict) -> dict:
         device_path = str(payload.get("device_path", "")).strip()
         if not device_path:
@@ -2226,10 +2249,11 @@ class PortalState:
         expected = f"FORMAT {device_path}"
         if str(payload.get("confirm_text", "")).strip() != expected:
             raise ValueError(f'Type "{expected}" to confirm preparing this drive.')
+        label = self.validate_storage_label(payload.get("label", "SOPRDATA"))
         if volume.get("mounted"):
             self.run_storage_command(["umount", device_path], "Unable to unmount the selected drive.")
         self.run_storage_command(
-            ["mkfs.ext4", "-F", "-L", "SOPRDATA", device_path],
+            ["mkfs.ext4", "-F", "-L", label, device_path],
             "Unable to format the selected drive.",
         )
         refreshed_volume = self.storage_volume_by_device(device_path) or volume
@@ -2248,6 +2272,24 @@ class PortalState:
             "media/   extra media files\n"
         )
         self.sync_external_content_links()
+        return self.storage_health()
+
+    def rename_storage_volume(self, payload: dict) -> dict:
+        device_path = str(payload.get("device_path", "")).strip()
+        if not device_path:
+            raise ValueError("Choose a drive to rename.")
+        volume = self.storage_volume_by_device(device_path)
+        if not volume:
+            raise ValueError("That drive was not found.")
+        if volume.get("location") != "external":
+            raise ValueError("Only external drives can be renamed from SOPR.")
+        if not volume.get("is_partition"):
+            raise ValueError("Choose a partition instead of the whole disk.")
+        if not volume.get("filesystem"):
+            raise ValueError("This drive is not formatted yet. Prepare it first.")
+        label = self.validate_storage_label(payload.get("label", ""))
+        command = self.storage_label_command(volume, label)
+        self.run_storage_command(command, "Unable to rename the selected drive.")
         return self.storage_health()
 
     def storage_targets(self, volumes: list[dict]) -> list[dict]:
@@ -3241,6 +3283,18 @@ class PortalHandler(BaseHTTPRequestHandler):
         if self.path == "/api/system/storage/prepare":
             try:
                 state = self.portal_state.prepare_storage_volume(payload)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, status=400)
+                return
+            except RuntimeError as exc:
+                self.send_json({"error": str(exc)}, status=500)
+                return
+            self.send_json(state)
+            return
+
+        if self.path == "/api/system/storage/rename":
+            try:
+                state = self.portal_state.rename_storage_volume(payload)
             except ValueError as exc:
                 self.send_json({"error": str(exc)}, status=400)
                 return

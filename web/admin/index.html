@@ -456,6 +456,46 @@
       color: #ffd5d5;
     }
 
+    .external-storage-breakdowns {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .external-storage-breakdown {
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .external-storage-breakdown-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .external-storage-breakdown-header strong {
+      font-family: var(--ui-display);
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .external-storage-breakdown-header span {
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-align: right;
+    }
+
+    .external-storage-breakdown-note {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      line-height: 1.35;
+    }
+
     .progress-top {
       display: flex;
       align-items: center;
@@ -1171,6 +1211,7 @@
               </div>
             </div>
             <div class="content-storage-warning" id="storage-warning"></div>
+            <div class="external-storage-breakdowns" id="external-storage-breakdowns"></div>
           </div>
           <div class="actions">
             <button class="button" data-icon="↻" id="refresh-storage-button" type="button">Refresh Storage</button>
@@ -1770,6 +1811,7 @@
       const soprLabel = document.getElementById("storage-sopr-label");
       const freeLabel = document.getElementById("storage-free-label");
       const warning = document.getElementById("storage-warning");
+      const externalBreakdowns = document.getElementById("external-storage-breakdowns");
       const targetsList = document.getElementById("storage-targets-list");
       const volumesList = document.getElementById("storage-volumes-list");
       const note = document.getElementById("storage-status-note");
@@ -1784,6 +1826,7 @@
         freeLabel.textContent = "-";
         warning.className = "content-storage-warning";
         warning.textContent = "";
+        externalBreakdowns.innerHTML = "";
         targetsList.textContent = "Storage target details are unavailable.";
         volumesList.textContent = "Storage volume details are unavailable.";
         note.textContent = "Storage details are unavailable right now.";
@@ -1819,6 +1862,73 @@
       }
 
       const targets = Array.isArray(storage.targets) ? storage.targets : [];
+      const volumes = Array.isArray(storage.volumes) ? storage.volumes : [];
+      const soprBytesByVolume = new Map();
+      const seenResolvedPaths = new Set();
+      targets.forEach((target) => {
+        const resolvedPath = String(target?.resolved_path || "");
+        const volume = target?.volume || null;
+        const volumeKey = String(volume?.path || volume?.mountpoint || "");
+        if (!resolvedPath || !volumeKey || seenResolvedPaths.has(resolvedPath)) {
+          return;
+        }
+        seenResolvedPaths.add(resolvedPath);
+        soprBytesByVolume.set(
+          volumeKey,
+          Number(soprBytesByVolume.get(volumeKey) || 0) + Number(target.current_bytes || 0)
+        );
+      });
+
+      const mountedExternalVolumes = volumes.filter((volume) =>
+        volume
+        && volume.location === "external"
+        && volume.mounted
+        && Number(volume.size_bytes || 0) > 0
+      );
+      if (!mountedExternalVolumes.length) {
+        externalBreakdowns.innerHTML = "";
+      } else {
+        externalBreakdowns.innerHTML = mountedExternalVolumes.map((volume) => {
+          const volumeKey = String(volume.path || volume.mountpoint || "");
+          const totalVolumeBytes = Number(volume.size_bytes || 0);
+          const usedVolumeBytes = Number(volume.used_bytes || 0);
+          const freeVolumeBytes = Number(volume.free_bytes || 0);
+          const soprVolumeBytes = Math.min(Number(soprBytesByVolume.get(volumeKey) || 0), usedVolumeBytes);
+          const otherVolumeBytes = Math.max(0, usedVolumeBytes - soprVolumeBytes);
+          const otherVolumePercent = totalVolumeBytes > 0 ? Math.max(0, Math.min(100, (otherVolumeBytes / totalVolumeBytes) * 100)) : 0;
+          const soprVolumePercent = totalVolumeBytes > 0 ? Math.max(0, Math.min(100 - otherVolumePercent, (soprVolumeBytes / totalVolumeBytes) * 100)) : 0;
+          const freeVolumePercent = Math.max(0, 100 - otherVolumePercent - soprVolumePercent);
+          const title = volume.display_name || volume.label || volume.model || volume.path || "External Drive";
+          const mountpointText = volume.mountpoint ? `Mounted at ${volume.mountpoint}` : "Mounted";
+          return `<div class="external-storage-breakdown">
+            <div class="external-storage-breakdown-header">
+              <strong>${escapeHtml(title)}</strong>
+              <span>${escapeHtml(formatBytes(totalVolumeBytes))}</span>
+            </div>
+            <p class="external-storage-breakdown-note">${escapeHtml(mountpointText)}</p>
+            <div class="content-storage-bar" aria-hidden="true">
+              <div class="content-storage-segment other" style="width: ${otherVolumePercent}%"></div>
+              <div class="content-storage-segment content" style="width: ${soprVolumePercent}%"></div>
+              <div class="content-storage-segment free" style="width: ${freeVolumePercent}%"></div>
+            </div>
+            <div class="content-storage-legend">
+              <div class="content-storage-chip">
+                <strong>Other Used</strong>
+                <span>${escapeHtml(formatBytes(otherVolumeBytes))}</span>
+              </div>
+              <div class="content-storage-chip">
+                <strong>SOPR Data</strong>
+                <span>${escapeHtml(formatBytes(soprVolumeBytes))}</span>
+              </div>
+              <div class="content-storage-chip">
+                <strong>Free</strong>
+                <span>${escapeHtml(formatBytes(freeVolumeBytes))}</span>
+              </div>
+            </div>
+          </div>`;
+        }).join("");
+      }
+
       if (!targets.length) {
         targetsList.textContent = "No storage paths were detected.";
       } else {
@@ -1842,7 +1952,6 @@
         }).join("");
       }
 
-      const volumes = Array.isArray(storage.volumes) ? storage.volumes : [];
       if (!volumes.length) {
         volumesList.textContent = "No mounted or attached storage volumes were detected.";
       } else {
@@ -1869,6 +1978,9 @@
           }
           if (volume.can_prepare) {
             actions += `<button class="button secondary storage-action-button" data-icon="⚠" data-storage-action="prepare" data-device-path="${escapeHtml(volume.path || "")}" type="button">Prepare Drive</button>`;
+          }
+          if (volume.location === "external" && volume.is_partition && volume.filesystem) {
+            actions += `<button class="button secondary storage-action-button" data-icon="✎" data-storage-action="rename" data-device-path="${escapeHtml(volume.path || "")}" data-current-label="${escapeHtml(volume.label || "")}" type="button">Rename Drive</button>`;
           }
           return `<div class="storage-row">
             <div class="storage-row-main">
@@ -1964,12 +2076,13 @@
       cluster.classList.toggle("status-cursor", active);
     }
 
-    async function runStorageAction(action, devicePath) {
+    async function runStorageAction(action, devicePath, currentLabel = "") {
       if (!devicePath) {
         return;
       }
       const note = document.getElementById("storage-status-note");
       const refreshButton = document.getElementById("refresh-storage-button");
+      let requestBody = { device_path: devicePath };
       if (action === "mount") {
         note.textContent = `Mounting ${devicePath}...`;
         setStorageActionState(`Mounting ${devicePath}`, "status-chip--warn", true);
@@ -2000,8 +2113,31 @@
           setStorageActionState("Drive preparation canceled.", "status-chip--muted", false);
           return;
         }
+        const label = window.prompt(
+          "Name this SOPR drive. Letters, numbers, hyphens, and underscores only. 16 characters max.",
+          currentLabel || "SOPRDATA"
+        );
+        if (label === null) {
+          note.textContent = "Drive preparation canceled.";
+          setStorageActionState("Drive preparation canceled.", "status-chip--muted", false);
+          return;
+        }
+        requestBody = { device_path: devicePath, confirm_text: expected, label };
         note.textContent = `Preparing ${devicePath}. Formatting and creating SOPR folders. This may take a minute...`;
         setStorageActionState(`Preparing ${devicePath}`, "status-chip--warn", true);
+      } else if (action === "rename") {
+        const label = window.prompt(
+          "Choose a new volume name. Letters, numbers, hyphens, and underscores only. 16 characters max.",
+          currentLabel || "SOPRDATA"
+        );
+        if (label === null) {
+          note.textContent = "Drive rename canceled.";
+          setStorageActionState("Drive rename canceled.", "status-chip--muted", false);
+          return;
+        }
+        requestBody = { device_path: devicePath, label };
+        note.textContent = `Renaming ${devicePath}...`;
+        setStorageActionState(`Renaming ${devicePath}`, "status-chip--warn", true);
       }
 
       document.querySelectorAll(".storage-action-button").forEach((button) => {
@@ -2013,17 +2149,13 @@
           ? "/api/system/storage/mount"
           : action === "unmount"
             ? "/api/system/storage/unmount"
-            : "/api/system/storage/prepare";
+            : action === "rename"
+              ? "/api/system/storage/rename"
+              : "/api/system/storage/prepare";
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            action === "mount"
-              ? { device_path: devicePath }
-              : action === "unmount"
-                ? { device_path: devicePath }
-              : { device_path: devicePath, confirm_text: `FORMAT ${devicePath}` }
-          )
+          body: JSON.stringify(requestBody)
         });
         const payload = await response.json();
         if (!response.ok) {
@@ -2042,13 +2174,17 @@
           ? `Mounted ${devicePath}.`
           : action === "unmount"
             ? `Unmounted ${devicePath}.`
-            : `Prepared ${devicePath} and created maps, library, and media folders.`;
+            : action === "rename"
+              ? `Renamed ${devicePath}.`
+              : `Prepared ${devicePath} and created maps, library, and media folders.`;
         setStorageActionState(
           action === "mount"
             ? `Mounted ${devicePath}`
             : action === "unmount"
               ? `Unmounted ${devicePath}`
-              : `Prepared ${devicePath}`,
+              : action === "rename"
+                ? `Renamed ${devicePath}`
+                : `Prepared ${devicePath}`,
           "status-chip--ok",
           false
         );
@@ -3346,7 +3482,7 @@
       if (!button) {
         return;
       }
-      runStorageAction(button.dataset.storageAction, button.dataset.devicePath);
+      runStorageAction(button.dataset.storageAction, button.dataset.devicePath, button.dataset.currentLabel || "");
     });
     document.getElementById("save-map-button").addEventListener("click", saveMapSelection);
     document.getElementById("maps-install-target").addEventListener("change", saveMapsInstallTarget);
