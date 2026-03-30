@@ -290,6 +290,72 @@ class PortalState:
             {"categories": []},
         )
 
+    def kiwix_tier_catalog(self) -> dict[str, dict[str, object]]:
+        level_order = {
+            "essential": 1,
+            "standard": 2,
+            "comprehensive": 3,
+        }
+        document = self.kiwix_catalog()
+        categories = document.get("collections") if "collections" in document else document.get("categories", [])
+        loadout_key = "loadouts" if "collections" in document else "tiers"
+        resource_key = "library_items" if "collections" in document else "resources"
+        tier_details: dict[str, dict[str, object]] = {}
+
+        for label, selected_level in level_order.items():
+            seen_ids: set[str] = set()
+            size_mb = 0
+            summary_categories: list[dict[str, object]] = []
+            tier_description = ""
+
+            for category in categories:
+                category_name = str(category.get("name", "")).strip()
+                category_items: list[str] = []
+                for tier in category.get(loadout_key, []):
+                    tier_slug = str(tier.get("key") if loadout_key == "loadouts" else tier.get("slug", ""))
+                    level = 0
+                    for level_name, level_value in level_order.items():
+                        if tier_slug.endswith(f"-{level_name}"):
+                            level = level_value
+                            break
+                    if level == 0 or level > selected_level:
+                        continue
+                    if level == selected_level and not tier_description:
+                        tier_description = str(tier.get("description", "")).strip()
+
+                    for resource in tier.get(resource_key, []):
+                        resource_id = str(resource.get("key") if resource_key == "library_items" else resource.get("id", "")).strip()
+                        if not resource_id or resource_id in seen_ids:
+                            continue
+                        seen_ids.add(resource_id)
+                        title = str(resource.get("title", resource_id)).strip()
+                        size_value = resource.get("footprint_mb") if resource_key == "library_items" else resource.get("size_mb")
+                        try:
+                            size_mb += int(size_value or 0)
+                        except (TypeError, ValueError):
+                            pass
+                        if title:
+                            category_items.append(title)
+
+                if category_name and category_items:
+                    summary_categories.append(
+                        {
+                            "name": category_name,
+                            "items": category_items,
+                        }
+                    )
+
+            tier_details[label] = {
+                "id": label,
+                "name": label.capitalize(),
+                "description": tier_description,
+                "size_mb": size_mb,
+                "size_label": format_size_bytes(size_mb * 1024 * 1024),
+                "summary": summary_categories,
+            }
+
+        return tier_details
+
     def profile_library_size_mb(self, profile: str) -> int:
         level_order = {
             "essential": 1,
@@ -408,6 +474,36 @@ class PortalState:
             total_mb += int(resource.get("size_mb", 0) or 0)
         return total_mb
 
+    def missing_tier_size_mb(self, profile: str) -> int:
+        installed_names = {
+            str(item.get("name", "")).strip()
+            for item in self.list_installed_zims()
+            if str(item.get("name", "")).strip()
+        }
+        total_mb = 0
+        for resource in self.curated_resources(profile, ""):
+            filename = str(resource.get("filename", "")).strip()
+            if filename and filename in installed_names:
+                continue
+            total_mb += int(resource.get("size_mb", 0) or 0)
+        return total_mb
+
+    def missing_wikipedia_size_mb(self, wikipedia_choice: str) -> int:
+        installed_names = {
+            str(item.get("name", "")).strip()
+            for item in self.list_installed_zims()
+            if str(item.get("name", "")).strip()
+        }
+        for option in self.wikipedia_catalog().get("options", []):
+            if str(option.get("id", "")).strip() != wikipedia_choice:
+                continue
+            option_url = str(option.get("url", "")).strip()
+            filename = Path(urlparse(option_url).path).name if option_url else ""
+            if filename and filename in installed_names:
+                return 0
+            return int(option.get("size_mb", 0) or 0)
+        return 0
+
     def setup_storage_summary(self) -> dict:
         total, used, free = shutil.disk_usage("/")
         volumes = self.storage_volumes()
@@ -415,6 +511,7 @@ class PortalState:
         profile = env.get("PREPMASTER_ZIM_PROFILE", "essential").strip().lower() or "essential"
         if profile not in {"essential", "standard", "comprehensive"}:
             profile = "essential"
+        tier_catalog = self.kiwix_tier_catalog()
         kolibri_installed = Path("/usr/bin/kolibri").exists()
         try:
             maps_catalog = self.fetch_nomad_maps_catalog_cached(force_refresh=False)
@@ -447,9 +544,19 @@ class PortalState:
                 "free_gb": round(free / (1024 ** 3), 1),
             },
             "base_library_mb": self.profile_library_size_mb(profile),
+            "content_tiers": {
+                tier_id: {
+                    **details,
+                    "missing_mb": self.missing_tier_size_mb(tier_id),
+                }
+                for tier_id, details in tier_catalog.items()
+            },
+            "content_install_dir": str(self.preferred_zim_install_dir()),
+            "content_install_destinations": self.install_destinations("zims"),
+            "wikipedia_install_dir": str(self.preferred_wikipedia_install_dir()),
+            "wikipedia_install_destinations": self.install_destinations("zims"),
             "missing_by_wikipedia": {
-                str(option.get("id", "")).strip(): self.missing_curated_size_mb(
-                    profile,
+                str(option.get("id", "")).strip(): self.missing_wikipedia_size_mb(
                     str(option.get("id", "")).strip(),
                 )
                 for option in self.wikipedia_catalog().get("options", [])
@@ -477,7 +584,7 @@ class PortalState:
         ]
         wikipedia_option = prepmaster.get("PREPMASTER_WIKIPEDIA_OPTION", "top-mini")
         if wikipedia_ids and wikipedia_option not in wikipedia_ids:
-            wikipedia_option = wikipedia_ids[0]
+            wikipedia_option = "top-mini" if "top-mini" in wikipedia_ids else wikipedia_ids[0]
         try:
             maps_catalog = self.fetch_nomad_maps_catalog_cached(force_refresh=False)
         except RuntimeError:
@@ -532,6 +639,13 @@ class PortalState:
         configured = env.get("PREPMASTER_ZIM_INSTALL_DIR", "").strip()
         return Path(configured) if configured else self.kiwix_library_dir()
 
+    def preferred_wikipedia_install_dir(self) -> Path:
+        env = self.maps_env()
+        configured = env.get("PREPMASTER_WIKIPEDIA_INSTALL_DIR", "").strip()
+        if configured:
+            return Path(configured)
+        return self.preferred_zim_install_dir()
+
     def preferred_map_install_dir(self) -> Path:
         env = self.maps_env()
         configured = env.get("PREPMASTER_MAP_INSTALL_DIR", "").strip()
@@ -583,6 +697,11 @@ class PortalState:
         else:
             raise ValueError(f"Unsupported install destination kind: {kind}")
 
+        try:
+            internal_total, internal_used, internal_free = shutil.disk_usage(internal_path)
+        except OSError:
+            internal_total = internal_used = internal_free = 0
+
         options: list[dict[str, object]] = [
             {
                 "id": str(internal_path),
@@ -591,6 +710,9 @@ class PortalState:
                 "location": "internal",
                 "mounted": True,
                 "selected": str(selected_path) == str(internal_path),
+                "size_bytes": int(internal_total),
+                "used_bytes": int(internal_used),
+                "free_bytes": int(internal_free),
             }
         ]
 
@@ -625,6 +747,9 @@ class PortalState:
                     "location": "external",
                     "mounted": path.exists(),
                     "selected": str(selected_path) == str(path),
+                    "size_bytes": int(volume.get("size_bytes") or 0),
+                    "used_bytes": int(volume.get("used_bytes") or 0),
+                    "free_bytes": int(volume.get("free_bytes") or 0),
                 }
             )
         return options
@@ -716,7 +841,23 @@ class PortalState:
 
     def sync_external_content_links(self) -> None:
         self.sync_external_links("maps", self.maps_root(), self.external_storage_roots("maps"), ".pmtiles")
-        self.sync_external_links("zims", self.kiwix_library_dir(), self.external_storage_roots("library"), ".zim")
+        zim_roots = self.external_storage_roots("library")
+        wikipedia_root = self.preferred_wikipedia_install_dir()
+        if (
+            str(wikipedia_root) != str(self.kiwix_library_dir())
+            and str(wikipedia_root) != str(self.preferred_zim_install_dir())
+            and str(wikipedia_root).startswith("/media/")
+        ):
+            zim_roots.append(wikipedia_root)
+        deduped_roots: list[Path] = []
+        seen_roots: set[str] = set()
+        for root in zim_roots:
+            root_key = str(root.resolve(strict=False))
+            if root_key in seen_roots:
+                continue
+            seen_roots.add(root_key)
+            deduped_roots.append(root)
+        self.sync_external_links("zims", self.kiwix_library_dir(), deduped_roots, ".zim")
 
     def remove_managed_linked_content(self, kind: str, canonical_root: Path, names: set[str]) -> None:
         manifest = self.read_managed_links_manifest(kind)
@@ -1877,6 +2018,21 @@ class PortalState:
         }
         if valid_wikipedia_options and wikipedia_option not in valid_wikipedia_options:
             raise ValueError("Invalid wikipedia_option")
+        zim_profile = str(payload.get("zim_profile", "essential")).strip().lower()
+        if zim_profile not in {"essential", "standard", "comprehensive"}:
+            raise ValueError("Invalid zim_profile")
+        content_install_dir = payload.get("content_install_dir")
+        if content_install_dir is None:
+            content_install_dir = str(self.preferred_zim_install_dir())
+        content_install_dir = self.validate_install_destination("zims", str(content_install_dir).strip())
+        if zim_profile == "essential":
+            content_install_dir = str(self.kiwix_library_dir())
+        wikipedia_install_dir = payload.get("wikipedia_install_dir")
+        if wikipedia_install_dir is None:
+            wikipedia_install_dir = str(self.preferred_wikipedia_install_dir())
+        wikipedia_install_dir = self.validate_install_destination("zims", str(wikipedia_install_dir).strip())
+        if wikipedia_option == "top-mini":
+            wikipedia_install_dir = str(self.kiwix_library_dir())
         zim_mode = payload.get("zim_mode", "full")
         if zim_mode not in {"full", "quick-test", "custom"}:
             raise ValueError("Invalid zim_mode")
@@ -1926,6 +2082,9 @@ class PortalState:
             self.prepmaster_env,
             {
                 "PREPMASTER_WIKIPEDIA_OPTION": wikipedia_option,
+                "PREPMASTER_ZIM_PROFILE": zim_profile,
+                "PREPMASTER_ZIM_INSTALL_DIR": content_install_dir,
+                "PREPMASTER_WIKIPEDIA_INSTALL_DIR": wikipedia_install_dir,
                 "PREPMASTER_AP_ENABLED": "1" if ap_enabled else "0",
                 "PREPMASTER_ZIM_MODE": zim_mode,
                 "PREPMASTER_MAP_SELECTED_COLLECTIONS": ",".join(cleaned_map_collections),
@@ -2697,6 +2856,19 @@ class PortalState:
         )
         state["log_tail"] = self.read_log_tail()
         state.update(self.parse_apply_progress(state))
+        step = str(state.get("step") or "")
+        state["downloads_active"] = bool(
+            state.get("status") == "running"
+            and step in {
+                "Downloading selected Kiwix content",
+                "Downloading selected extra Kiwix content",
+                "Installing selected offline maps",
+            }
+        )
+        state["can_leave_to_home"] = bool(
+            state.get("status") == "succeeded"
+            or state.get("downloads_active")
+        )
         return state
 
     def save_apply_state(self, payload: dict) -> dict:
@@ -2818,20 +2990,28 @@ class PortalState:
 
         return [
             (
-                "Downloading selected Kiwix content",
-                [str(self.repo_root / "scripts" / "download_kiwix_zims.sh")],
-            ),
-            (
-                "Installing selected offline maps",
-                ["__internal_map_sync__"],
-            ),
-            (
                 "Installing optional components",
                 [str(self.repo_root / "scripts" / "install_optional_components.sh")],
             ),
             (
                 "Applying wireless AP settings",
                 [str(self.repo_root / "scripts" / "configure_access_point.sh")],
+            ),
+            (
+                "Restarting core services",
+                ["systemctl", "restart", "prepmaster-kiwix.service"],
+            ),
+            (
+                "Reloading Nginx",
+                ["systemctl", "reload", "nginx"],
+            ),
+            (
+                "Downloading selected Kiwix content",
+                [str(self.repo_root / "scripts" / "download_kiwix_zims.sh")],
+            ),
+            (
+                "Installing selected offline maps",
+                ["__internal_map_sync__"],
             ),
             (
                 "Rebuilding Kiwix library",

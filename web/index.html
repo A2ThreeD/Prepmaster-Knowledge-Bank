@@ -389,6 +389,191 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
+    .content-selector-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.9fr);
+      gap: 18px;
+      margin-bottom: 20px;
+      align-items: start;
+    }
+
+    .content-selector-panel,
+    .content-summary-panel {
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
+        rgba(8, 20, 34, 0.5);
+      padding: 16px;
+      min-height: 100%;
+    }
+
+    .content-selector-title {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--accent-strong);
+      font-family: var(--ui-display);
+      font-size: 0.84rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .content-tier-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .content-tier-button {
+      display: grid;
+      gap: 8px;
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #dcecff;
+      background:
+        linear-gradient(180deg, rgba(95, 124, 166, 0.98), rgba(40, 61, 91, 0.98));
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+      border-top-color: rgba(247, 251, 255, 0.98);
+      border-left-color: rgba(233, 243, 255, 0.98);
+      border-right-color: rgba(18, 28, 44, 0.96);
+      border-bottom-color: rgba(8, 14, 24, 0.98);
+      box-shadow:
+        inset 1px 1px 0 rgba(255, 255, 255, 0.34),
+        inset -1px -1px 0 rgba(6, 10, 18, 0.64),
+        0 8px 18px rgba(0, 0, 0, 0.2);
+      transition:
+        border-color 0.16s ease,
+        box-shadow 0.16s ease,
+        background-color 0.16s ease,
+        transform 0.08s ease;
+    }
+
+    .content-tier-button:hover {
+      border-color: rgba(255, 255, 255, 0.98);
+      box-shadow:
+        inset 1px 1px 0 rgba(255, 255, 255, 0.38),
+        inset -1px -1px 0 rgba(6, 10, 18, 0.68),
+        0 10px 22px rgba(0, 0, 0, 0.24);
+    }
+
+    .content-tier-button.selected {
+      background: linear-gradient(180deg, rgba(146, 196, 255, 0.96), rgba(64, 104, 164, 0.98));
+      border-color: rgba(164, 205, 255, 0.92);
+      border-top-color: rgba(247, 251, 255, 0.98);
+      border-left-color: rgba(236, 245, 255, 0.98);
+      border-right-color: rgba(20, 40, 70, 0.96);
+      border-bottom-color: rgba(11, 21, 38, 0.98);
+      box-shadow:
+        inset 1px 1px 0 rgba(255, 255, 255, 0.4),
+        inset -1px -1px 0 rgba(7, 17, 31, 0.58),
+        0 12px 26px rgba(0, 0, 0, 0.28);
+    }
+
+    .content-tier-button.storage-danger {
+      border-color: rgba(255, 118, 118, 0.86);
+      box-shadow:
+        inset 1px 1px 0 rgba(255, 255, 255, 0.28),
+        inset -1px -1px 0 rgba(32, 8, 8, 0.54),
+        0 10px 22px rgba(86, 10, 10, 0.24);
+    }
+
+    .content-tier-top,
+    .content-summary-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .content-tier-name,
+    .content-summary-head h3 {
+      font-family: var(--ui-display);
+      font-size: 0.95rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .content-tier-size {
+      color: var(--accent-strong);
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .content-tier-description,
+    .content-summary-subtext {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .content-summary-panel {
+      min-height: 320px;
+    }
+
+    .content-summary-scroll {
+      max-height: 252px;
+      overflow-y: auto;
+      margin-top: 12px;
+      padding-right: 6px;
+    }
+
+    .content-summary-category + .content-summary-category {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .content-summary-category strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--accent-strong);
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .content-summary-category ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--text);
+      font-size: 0.82rem;
+    }
+
+    .content-summary-category li + li {
+      margin-top: 4px;
+    }
+
+    .subsection-head {
+      margin: 4px 0 14px;
+    }
+
+    .subsection-head h3 {
+      font-size: 0.98rem;
+      margin-bottom: 6px;
+    }
+
+    .subsection-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .storage-target-select {
+      width: 100%;
+      margin-top: 8px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      background: rgba(9, 19, 32, 0.88);
+      color: var(--text);
+      font: inherit;
+    }
+
+    .storage-target-select:disabled {
+      opacity: 0.75;
+      cursor: not-allowed;
+    }
+
     .option-card {
       position: relative;
       width: 100%;
@@ -937,6 +1122,7 @@
       .stepper,
       .options-grid,
       .options-grid.three-up,
+      .content-selector-shell,
       .storage-legend,
       .review-grid,
       .dashboard-grid {
@@ -1022,8 +1208,8 @@
             <button class="step-button" data-step="1" type="button">
               <span class="step-index">2</span>
               <span class="step-meta">
-                <strong>Wikipedia</strong>
-                <span>Choose how much to include</span>
+                <strong>Content</strong>
+                <span>Choose content and Wikipedia</span>
               </span>
             </button>
             <button class="step-button" data-step="2" type="button">
@@ -1126,11 +1312,45 @@
           <section class="step-panel" data-step-panel="1">
             <div class="panel-head">
               <span class="eyebrow">Step 2</span>
-              <h2>Choose Your Wikipedia Size</h2>
-              <p>Choose the Wikipedia option that best fits your storage space and how much information you want available offline.</p>
+              <h2>Choose Your Wikipedia / Content</h2>
+              <p>Choose how much SOPR content to include, then pick the Wikipedia option that best fits your storage space.</p>
             </div>
 
-            <div class="options-grid three-up" id="wikipedia-options"></div>
+            <div class="content-selector-shell">
+              <div class="content-selector-panel">
+                <span class="content-selector-title">Choose Your Content Amount</span>
+                <div class="content-tier-list" id="content-tier-options"></div>
+              </div>
+
+              <aside class="content-summary-panel">
+                <div class="content-summary-head">
+                  <span class="eyebrow">Tier Summary</span>
+                  <h3 id="content-tier-summary-title">Essential</h3>
+                </div>
+                <p class="content-summary-subtext" id="content-tier-summary-subtext">Loading content summary.</p>
+                <div class="content-summary-scroll" id="content-tier-summary"></div>
+              </aside>
+            </div>
+
+            <div class="subsection-head">
+              <h3>Wikipedia Selection</h3>
+              <p>Choose the Wikipedia option that best fits your storage space and how much information you want available offline.</p>
+            </div>
+            <div class="content-selector-shell">
+              <div class="content-selector-panel">
+                <span class="content-selector-title">Choose Your Wikipedia Amount</span>
+                <div class="content-tier-list" id="wikipedia-options"></div>
+              </div>
+
+              <aside class="content-summary-panel">
+                <div class="content-summary-head">
+                  <span class="eyebrow">Wikipedia Summary</span>
+                  <h3 id="wikipedia-summary-title">Quick Reference</h3>
+                </div>
+                <p class="content-summary-subtext" id="wikipedia-summary-subtext">Loading Wikipedia summary.</p>
+                <div class="content-summary-scroll" id="wikipedia-summary"></div>
+              </aside>
+            </div>
             <p class="small-note" id="wikipedia-note">Wikipedia choices will appear here once setup information loads.</p>
           </section>
 
@@ -1196,7 +1416,7 @@
                 <p id="review-modules">Main library only.</p>
               </article>
               <article class="review-card">
-                <h3>Wikipedia Package</h3>
+                <h3>Wikipedia / Content</h3>
                 <p id="review-wikipedia">Loading Wikipedia package details.</p>
               </article>
               <article class="review-card">
@@ -1325,8 +1545,15 @@
     const educationModuleCard = document.getElementById("education-module-card");
     const networkStandardCard = document.getElementById("network-standard-card");
     const networkApCard = document.getElementById("network-ap-card");
+    const contentTierOptionsContainer = document.getElementById("content-tier-options");
+    const contentTierSummaryTitle = document.getElementById("content-tier-summary-title");
+    const contentTierSummarySubtext = document.getElementById("content-tier-summary-subtext");
+    const contentTierSummary = document.getElementById("content-tier-summary");
     const wikipediaOptionsContainer = document.getElementById("wikipedia-options");
     const wikipediaNote = document.getElementById("wikipedia-note");
+    const wikipediaSummaryTitle = document.getElementById("wikipedia-summary-title");
+    const wikipediaSummarySubtext = document.getElementById("wikipedia-summary-subtext");
+    const wikipediaSummary = document.getElementById("wikipedia-summary");
     const mapOptionsContainer = document.getElementById("map-options");
     const mapNote = document.getElementById("map-note");
 
@@ -1351,22 +1578,31 @@
 
     let currentStep = 0;
     let applyPollHandle = null;
+    let backgroundApplyPollHandle = null;
     let applyRunning = false;
     let applyNeedsAttention = false;
+    let canLeaveToHomeDuringApply = false;
     let storageLimitExceeded = false;
     let latestSetupComplete = false;
     let setupState = {
       installKolibri: false,
+      zimProfile: "essential",
+      contentInstallDir: "",
       wikipediaOption: "top-mini",
+      wikipediaInstallDir: "",
       mapCollections: [],
       apEnabled: false
     };
+    let contentTiers = [];
+    let contentInstallDestinations = [];
+    let wikipediaInstallDestinations = [];
     let wikipediaOptions = [];
     let mapCollections = [];
     let storageState = null;
     let activeMessageText = "";
     let activeMessageIsError = false;
     let driveNoticeText = "";
+    let applyNoticeText = "";
 
     function formatSize(sizeMb) {
       if (!sizeMb) return "Size not listed";
@@ -1421,7 +1657,7 @@
     }
 
     function renderTopMessage() {
-      const text = activeMessageText || driveNoticeText;
+      const text = activeMessageText || applyNoticeText || driveNoticeText;
       const isError = activeMessageText ? activeMessageIsError : false;
       if (!text) {
         message.textContent = "";
@@ -1437,6 +1673,27 @@
     function showMessage(text, isError = false) {
       activeMessageText = text;
       activeMessageIsError = isError;
+      renderTopMessage();
+    }
+
+    function updateApplyNotice(applyState) {
+      if (!applyState || applyState.status !== "running" || !applyState.downloads_active) {
+        applyNoticeText = "";
+        renderTopMessage();
+        return;
+      }
+
+      if (applyState.step === "Installing selected offline maps") {
+        applyNoticeText = "Offline map downloads are running in the background. You can keep using SOPR while they finish.";
+      } else {
+        const currentFile = String(applyState.current_file || "").trim();
+        const progress = applyState.download_current && applyState.download_total
+          ? ` (${applyState.download_current}/${applyState.download_total})`
+          : "";
+        applyNoticeText = currentFile
+          ? `Content downloads are running in the background${progress}: ${currentFile}`
+          : `Content downloads are running in the background${progress}.`;
+      }
       renderTopMessage();
     }
 
@@ -1480,6 +1737,38 @@
       return getWikipediaOptionById(setupState.wikipediaOption) || wikipediaOptions[0] || null;
     }
 
+    function getContentTierById(tierId) {
+      return contentTiers.find((tier) => tier.id === tierId) || null;
+    }
+
+    function selectedContentTier() {
+      return getContentTierById(setupState.zimProfile) || contentTiers[0] || null;
+    }
+
+    function getContentInstallDestination(pathValue) {
+      return contentInstallDestinations.find((option) => option.path === pathValue) || null;
+    }
+
+    function effectiveContentInstallDir() {
+      if (setupState.zimProfile === "essential") {
+        const internalDestination = contentInstallDestinations.find((option) => option.location === "internal");
+        return internalDestination?.path || setupState.contentInstallDir || "";
+      }
+      return setupState.contentInstallDir || contentInstallDestinations[0]?.path || "";
+    }
+
+    function getWikipediaInstallDestination(pathValue) {
+      return wikipediaInstallDestinations.find((option) => option.path === pathValue) || null;
+    }
+
+    function effectiveWikipediaInstallDir() {
+      if (setupState.wikipediaOption === "top-mini") {
+        const internalDestination = wikipediaInstallDestinations.find((option) => option.location === "internal");
+        return internalDestination?.path || setupState.wikipediaInstallDir || "";
+      }
+      return setupState.wikipediaInstallDir || wikipediaInstallDestinations[0]?.path || effectiveContentInstallDir();
+    }
+
     function getMapCollectionBySlug(slug) {
       return mapCollections.find((collection) => collection.slug === slug) || null;
     }
@@ -1503,12 +1792,53 @@
       );
     }
 
-    function selectedSetupAddedBytes(mapSelection = setupState.mapCollections, wikipediaOptionId = setupState.wikipediaOption) {
+    function selectedSetupAddedBytes(
+      mapSelection = setupState.mapCollections,
+      wikipediaOptionId = setupState.wikipediaOption,
+      zimProfile = setupState.zimProfile
+    ) {
+      const tierMb = Number(storageState?.content_tiers?.[zimProfile || ""]?.missing_mb || 0);
       const wikiMb = Number(storageState?.missing_by_wikipedia?.[wikipediaOptionId || ""] || 0);
       const kolibriMb = setupState.installKolibri && !storageState?.kolibri_installed
         ? Number(storageState?.kolibri_estimated_mb || 0)
         : 0;
-      return Math.round((wikiMb + kolibriMb + selectedMapCollectionMb(mapSelection)) * 1024 * 1024);
+      return Math.round((tierMb + wikiMb + kolibriMb + selectedMapCollectionMb(mapSelection)) * 1024 * 1024);
+    }
+
+    function selectedStorageCapacity(
+      contentInstallDir = effectiveContentInstallDir(),
+      wikipediaInstallDir = effectiveWikipediaInstallDir()
+    ) {
+      const internalDestination = contentInstallDestinations.find((option) => option.location === "internal")
+        || wikipediaInstallDestinations.find((option) => option.location === "internal");
+      const destinations = [
+        internalDestination,
+        getContentInstallDestination(contentInstallDir),
+        getWikipediaInstallDestination(wikipediaInstallDir)
+      ].filter(Boolean);
+      const seen = new Set();
+      let totalBytes = 0;
+      let usedBytes = 0;
+      let freeBytes = 0;
+      destinations.forEach((destination) => {
+        const key = destination.path || destination.id || destination.label;
+        if (!key || seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        const total = Number(destination.size_bytes || 0);
+        const used = Number(destination.used_bytes || 0);
+        const free = Number(destination.free_bytes || Math.max(total - used, 0));
+        totalBytes += total;
+        usedBytes += used;
+        freeBytes += free;
+      });
+      return {
+        internalDestination,
+        totalBytes,
+        usedBytes,
+        freeBytes
+      };
     }
 
     function updateCardPressedState(card, selected) {
@@ -1520,69 +1850,253 @@
       }
     }
 
+    function renderContentTiers() {
+      contentTierOptionsContainer.textContent = "";
+
+      if (!contentTiers.length) {
+        contentTierSummaryTitle.textContent = "Unavailable";
+        contentTierSummarySubtext.textContent = "Content tier details are unavailable right now.";
+        contentTierSummary.textContent = "";
+        return;
+      }
+
+      const selectedTier = selectedContentTier() || contentTiers[0];
+      const selectedDestination = getContentInstallDestination(effectiveContentInstallDir());
+      const destinationChoices = contentInstallDestinations.filter((option) =>
+        setupState.zimProfile === "essential" ? option.location === "internal" : true
+      );
+
+      contentTierSummaryTitle.textContent = selectedTier.name || "Content";
+      if (setupState.zimProfile === "essential") {
+        contentTierSummarySubtext.textContent = `${selectedTier.size_label || formatSize(Number(selectedTier.size_mb || 0))} of curated SOPR content. Essential stays on the internal disk.`;
+      } else {
+        const destinationLabel = selectedDestination?.label || "selected storage";
+        contentTierSummarySubtext.textContent = `${selectedTier.size_label || formatSize(Number(selectedTier.size_mb || 0))} of curated SOPR content. This tier will be stored on ${destinationLabel}.`;
+      }
+      contentTierSummary.textContent = "";
+
+      const summaryCategories = Array.isArray(selectedTier.summary) ? selectedTier.summary : [];
+      summaryCategories.forEach((category) => {
+        const section = document.createElement("section");
+        section.className = "content-summary-category";
+
+        const title = document.createElement("strong");
+        title.textContent = category.name || "Category";
+        section.appendChild(title);
+
+        const list = document.createElement("ul");
+        const items = Array.isArray(category.items) ? category.items : [];
+        items.forEach((item) => {
+          const li = document.createElement("li");
+          li.textContent = item;
+          list.appendChild(li);
+        });
+        section.appendChild(list);
+        contentTierSummary.appendChild(section);
+      });
+
+      contentTiers.forEach((tier) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "content-tier-button";
+        button.dataset.tierId = tier.id;
+        button.setAttribute("aria-pressed", tier.id === setupState.zimProfile ? "true" : "false");
+        if (tier.id === setupState.zimProfile) {
+          button.classList.add("selected");
+        }
+
+        const top = document.createElement("div");
+        top.className = "content-tier-top";
+
+        const name = document.createElement("span");
+        name.className = "content-tier-name";
+        name.textContent = tier.name;
+
+        const size = document.createElement("span");
+        size.className = "content-tier-size";
+        size.textContent = tier.size_label || formatSize(Number(tier.size_mb || 0));
+
+        top.appendChild(name);
+        top.appendChild(size);
+
+        const description = document.createElement("p");
+        description.className = "content-tier-description";
+        description.textContent = tier.description || "Curated SOPR content tier.";
+
+        button.appendChild(top);
+        button.appendChild(description);
+
+        button.addEventListener("click", () => {
+          setupState.zimProfile = tier.id;
+          if (tier.id === "essential") {
+            const internalDestination = contentInstallDestinations.find((option) => option.location === "internal");
+            setupState.contentInstallDir = internalDestination?.path || setupState.contentInstallDir;
+          } else if (!getContentInstallDestination(setupState.contentInstallDir)) {
+            setupState.contentInstallDir = destinationChoices[0]?.path || setupState.contentInstallDir;
+          }
+          renderContentTiers();
+          renderWikipediaOptions();
+          renderMapOptions();
+          renderSetupSummary();
+        });
+
+        contentTierOptionsContainer.appendChild(button);
+      });
+
+      if (destinationChoices.length > 1 || setupState.zimProfile !== "essential") {
+        const destinationPanel = document.createElement("div");
+        destinationPanel.className = "content-summary-category";
+
+        const title = document.createElement("strong");
+        title.textContent = "Content Storage Disk";
+        destinationPanel.appendChild(title);
+
+        const select = document.createElement("select");
+        select.className = "storage-target-select";
+        select.disabled = setupState.zimProfile === "essential";
+
+        destinationChoices.forEach((option) => {
+          const choice = document.createElement("option");
+          choice.value = option.path;
+          choice.textContent = option.label;
+          choice.selected = option.path === effectiveContentInstallDir();
+          select.appendChild(choice);
+        });
+
+        select.addEventListener("change", (event) => {
+          setupState.contentInstallDir = event.target.value;
+          renderContentTiers();
+          renderWikipediaOptions();
+          renderMapOptions();
+          renderSetupSummary();
+        });
+
+        const hint = document.createElement("p");
+        hint.className = "content-tier-description";
+        hint.textContent = setupState.zimProfile === "essential"
+          ? "Essential content is always stored on the internal disk."
+          : "Choose where the SOPR content tier and Wikipedia package will be stored.";
+
+        destinationPanel.appendChild(select);
+        destinationPanel.appendChild(hint);
+        contentTierSummary.appendChild(destinationPanel);
+      }
+    }
+
     function renderWikipediaOptions() {
       wikipediaOptionsContainer.textContent = "";
 
       if (!wikipediaOptions.length) {
         wikipediaNote.textContent = "Wikipedia choices are unavailable right now.";
+        wikipediaSummaryTitle.textContent = "Unavailable";
+        wikipediaSummarySubtext.textContent = "Wikipedia choices are unavailable right now.";
+        wikipediaSummary.textContent = "";
         return;
       }
 
       wikipediaNote.textContent = "Pick the Wikipedia option that best matches your available storage space.";
+      const selectedWikipedia = selectedWikipediaOption() || wikipediaOptions[0];
+      const selectedDestination = getWikipediaInstallDestination(effectiveWikipediaInstallDir());
+      const destinationChoices = wikipediaInstallDestinations.filter((option) =>
+        selectedWikipedia?.id === "top-mini" ? option.location === "internal" : true
+      );
+
+      wikipediaSummaryTitle.textContent = selectedWikipedia?.name || "Wikipedia";
+      if (selectedWikipedia?.id === "top-mini") {
+        wikipediaSummarySubtext.textContent = `${formatSize(Number(selectedWikipedia?.size_mb || 0))} on the internal disk only. Quick Reference is the default starter package.`;
+      } else {
+        wikipediaSummarySubtext.textContent = `${formatSize(Number(selectedWikipedia?.size_mb || 0))} stored on ${selectedDestination?.label || "selected storage"}.`;
+      }
+      wikipediaSummary.textContent = "";
+
+      const detailsPanel = document.createElement("section");
+      detailsPanel.className = "content-summary-category";
+      const descriptionTitle = document.createElement("strong");
+      descriptionTitle.textContent = "Included";
+      const descriptionText = document.createElement("p");
+      descriptionText.className = "content-tier-description";
+      descriptionText.textContent = selectedWikipedia?.description || "Offline Wikipedia package.";
+      detailsPanel.appendChild(descriptionTitle);
+      detailsPanel.appendChild(descriptionText);
+      wikipediaSummary.appendChild(detailsPanel);
+
+      const storagePanel = document.createElement("section");
+      storagePanel.className = "content-summary-category";
+      const storageTitle = document.createElement("strong");
+      storageTitle.textContent = "Wikipedia Storage Disk";
+      storagePanel.appendChild(storageTitle);
+      const select = document.createElement("select");
+      select.className = "storage-target-select";
+      select.disabled = selectedWikipedia?.id === "top-mini";
+      destinationChoices.forEach((option) => {
+        const choice = document.createElement("option");
+        choice.value = option.path;
+        choice.textContent = option.label;
+        choice.selected = option.path === effectiveWikipediaInstallDir();
+        select.appendChild(choice);
+      });
+      select.addEventListener("change", (event) => {
+        setupState.wikipediaInstallDir = event.target.value;
+        renderWikipediaOptions();
+        renderMapOptions();
+        renderSetupSummary();
+      });
+      const storageHint = document.createElement("p");
+      storageHint.className = "content-tier-description";
+      storageHint.textContent = selectedWikipedia?.id === "top-mini"
+        ? "Quick Reference is always stored on the internal disk."
+        : "Choose where this Wikipedia package should be stored.";
+      storagePanel.appendChild(select);
+      storagePanel.appendChild(storageHint);
+      wikipediaSummary.appendChild(storagePanel);
 
       wikipediaOptions.forEach((option) => {
-        const freeBytes = Number(storageState?.disk?.free_bytes || 0);
-        const projectedChoiceBytes = selectedSetupAddedBytes(setupState.mapCollections, option.id);
+        const freeBytes = Number(selectedStorageCapacity(effectiveContentInstallDir(), option.id === "top-mini"
+          ? (wikipediaInstallDestinations.find((item) => item.location === "internal")?.path || effectiveWikipediaInstallDir())
+          : effectiveWikipediaInstallDir()).freeBytes || 0);
+        const projectedChoiceBytes = selectedSetupAddedBytes(setupState.mapCollections, option.id, setupState.zimProfile);
         const exceedsFreeSpace = freeBytes > 0 && projectedChoiceBytes > freeBytes;
 
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "option-card";
+        button.className = "content-tier-button";
         button.dataset.optionId = option.id;
         button.setAttribute("aria-pressed", option.id === setupState.wikipediaOption ? "true" : "false");
+        if (option.id === setupState.wikipediaOption) {
+          button.classList.add("selected");
+        }
         if (exceedsFreeSpace) {
           button.classList.add("storage-danger");
           button.title = "This choice is larger than the free space currently available.";
         }
 
         const top = document.createElement("div");
-        top.className = "option-top";
+        top.className = "content-tier-top";
 
-        const badge = document.createElement("span");
-        badge.className = "option-badge";
-        badge.textContent = formatSize(option.size_mb);
+        const name = document.createElement("span");
+        name.className = "content-tier-name";
+        name.textContent = option.name;
 
-        const indicator = document.createElement("span");
-        indicator.className = "option-indicator";
-        indicator.textContent = option.id === setupState.wikipediaOption ? "✓" : "○";
+        const size = document.createElement("span");
+        size.className = "content-tier-size";
+        size.textContent = option.size_label || formatSize(Number(option.size_mb || 0));
 
-        top.appendChild(badge);
-        top.appendChild(indicator);
-
-        const title = document.createElement("h3");
-        title.textContent = option.name;
+        top.appendChild(name);
+        top.appendChild(size);
 
         const description = document.createElement("p");
+        description.className = "content-tier-description";
         description.textContent = option.description || "Offline Wikipedia package.";
 
-        const meta = document.createElement("div");
-        meta.className = "meta-line";
-
-        const version = document.createElement("span");
-        version.textContent = option.version ? `Release ${option.version}` : "Wikipedia";
-
-        meta.appendChild(version);
         button.appendChild(top);
-        button.appendChild(title);
         button.appendChild(description);
-        button.appendChild(meta);
-
-        if (option.id === setupState.wikipediaOption) {
-          button.classList.add("selected");
-        }
-
         button.addEventListener("click", () => {
           setupState.wikipediaOption = option.id;
+          if (option.id === "top-mini") {
+            setupState.wikipediaInstallDir = wikipediaInstallDestinations.find((item) => item.location === "internal")?.path || setupState.wikipediaInstallDir;
+          } else if (!getWikipediaInstallDestination(setupState.wikipediaInstallDir)) {
+            setupState.wikipediaInstallDir = wikipediaInstallDestinations[0]?.path || setupState.wikipediaInstallDir;
+          }
           renderWikipediaOptions();
           renderMapOptions();
           renderSetupSummary();
@@ -1601,7 +2115,7 @@
       }
 
       mapNote.textContent = "Choose one or more regions, or install all regions if you want the full offline map set.";
-      const freeBytes = Number(storageState?.disk?.free_bytes || 0);
+      const freeBytes = Number(selectedStorageCapacity().freeBytes || 0);
       const allChoice = {
         slug: "all",
         name: "All Regions",
@@ -1623,7 +2137,7 @@
           nextSelection = [...setupState.mapCollections, collection.slug];
         }
         nextSelection = normalizeMapSelection(nextSelection);
-        const projectedChoiceBytes = selectedSetupAddedBytes(nextSelection);
+        const projectedChoiceBytes = selectedSetupAddedBytes(nextSelection, setupState.wikipediaOption, setupState.zimProfile);
         const exceedsFreeSpace = freeBytes > 0 && projectedChoiceBytes > freeBytes;
 
         const button = document.createElement("button");
@@ -1690,14 +2204,15 @@
     }
 
     function renderSetupSummary() {
+      const selectedTier = selectedContentTier();
       const selectedWikipedia = selectedWikipediaOption();
       const selectedMaps = normalizeMapSelection(setupState.mapCollections);
       const modulesText = setupState.installKolibri
         ? "Main library + learning tools."
         : "Main library only.";
       const wikipediaText = selectedWikipedia
-        ? `${selectedWikipedia.name} (${formatSize(selectedWikipedia.size_mb)}).`
-        : "Wikipedia package not selected.";
+        ? `${selectedTier?.name || "Content"} content (${selectedTier?.size_label || formatSize(Number(selectedTier?.size_mb || 0))}) + ${selectedWikipedia.name} (${formatSize(selectedWikipedia.size_mb)}).`
+        : `${selectedTier?.name || "Content"} content selected.`;
       const mapsText = selectedMaps.includes("all")
         ? "All offline map regions."
         : selectedMaps.length
@@ -1726,8 +2241,10 @@
       const running = state.status === "running";
       applyNeedsAttention = state.status === "failed";
       applyRunning = running;
+      canLeaveToHomeDuringApply = Boolean(state.can_leave_to_home);
       applyConfigButton.disabled = running;
       applyStatusText.classList.toggle("running", running);
+      updateApplyNotice(state);
 
       if (running) {
         currentStep = totalSteps - 1;
@@ -1757,18 +2274,33 @@
         return;
       }
 
-      const disk = storageState.disk;
-      const totalBytes = Number(disk.total_bytes || 0);
-      const usedBytes = Number(disk.used_bytes || 0);
+      const internalDestination = contentInstallDestinations.find((option) => option.location === "internal")
+        || wikipediaInstallDestinations.find((option) => option.location === "internal");
+      const contentDestination = getContentInstallDestination(effectiveContentInstallDir()) || internalDestination;
+      const wikipediaDestination = getWikipediaInstallDestination(effectiveWikipediaInstallDir()) || internalDestination;
+      const contentDestinationIsInternal = !contentDestination || contentDestination.location === "internal";
+      const wikipediaDestinationIsInternal = !wikipediaDestination || wikipediaDestination.location === "internal";
+      const selectedTier = selectedContentTier();
       const selectedWikipedia = selectedWikipediaOption();
-      const baseMb = Number(storageState.missing_by_wikipedia?.[selectedWikipedia?.id || ""] || 0);
-      const wikiBytes = Math.round(baseMb * 1024 * 1024);
+      const tierMb = Number(storageState.content_tiers?.[selectedTier?.id || ""]?.missing_mb || 0);
+      const tierBytes = Math.round(tierMb * 1024 * 1024);
+      const wikiMb = Number(storageState.missing_by_wikipedia?.[selectedWikipedia?.id || ""] || 0);
+      const wikiBytes = Math.round(wikiMb * 1024 * 1024);
       const mapMb = selectedMapCollectionMb();
       const mapBytes = Math.round(mapMb * 1024 * 1024);
       const kolibriMb = setupState.installKolibri && !storageState.kolibri_installed
         ? Number(storageState.kolibri_estimated_mb || 0)
         : 0;
-      const addedBytes = Math.round((baseMb + kolibriMb + mapMb) * 1024 * 1024);
+      const contentBytesInternal = contentDestinationIsInternal ? tierBytes : 0;
+      const contentBytesExternal = contentDestinationIsInternal ? 0 : tierBytes;
+      const wikipediaBytesInternal = wikipediaDestinationIsInternal ? wikiBytes : 0;
+      const wikipediaBytesExternal = wikipediaDestinationIsInternal ? 0 : wikiBytes;
+      const internalAddedBytes = contentBytesInternal + wikipediaBytesInternal + mapBytes + Math.round(kolibriMb * 1024 * 1024);
+      const addedBytes = internalAddedBytes + contentBytesExternal + wikipediaBytesExternal;
+
+      const capacity = selectedStorageCapacity(effectiveContentInstallDir(), effectiveWikipediaInstallDir());
+      const totalBytes = capacity.totalBytes;
+      const usedBytes = capacity.usedBytes;
       const projectedUsedBytes = usedBytes + addedBytes;
       const projectedFreeBytes = totalBytes - projectedUsedBytes;
       const projectedFreePercent = totalBytes > 0 ? (projectedFreeBytes / totalBytes) * 100 : 0;
@@ -1787,13 +2319,21 @@
       storageUsedLabel.textContent = formatBytes(usedBytes);
       storageAddedLabel.textContent = formatBytes(addedBytes);
       storageFreeLabel.textContent = exceedsDisk ? "Not enough space" : formatBytes(projectedFreeBytes);
-      if (selectedWikipedia) {
-        const summaryParts = [`${formatBytes(wikiBytes)} for ${selectedWikipedia.name}`];
+      if (selectedTier || selectedWikipedia) {
+        const summaryParts = [];
+        if (selectedTier) {
+          const destinationLabel = contentDestinationIsInternal ? "internal storage" : (contentDestination?.label || "selected content storage");
+          summaryParts.push(`${formatBytes(tierBytes)} for ${selectedTier.name} content on ${destinationLabel}`);
+        }
+        if (selectedWikipedia) {
+          const destinationLabel = wikipediaDestinationIsInternal ? "internal storage" : (wikipediaDestination?.label || "selected Wikipedia storage");
+          summaryParts.push(`${formatBytes(wikiBytes)} for ${selectedWikipedia.name} on ${destinationLabel}`);
+        }
         if (mapBytes > 0) {
-          summaryParts.push(`${formatBytes(mapBytes)} for offline maps`);
+          summaryParts.push(`${formatBytes(mapBytes)} for offline maps on internal storage`);
         }
         if (kolibriMb > 0) {
-          summaryParts.push(`${formatBytes(Math.round(kolibriMb * 1024 * 1024))} for learning tools`);
+          summaryParts.push(`${formatBytes(Math.round(kolibriMb * 1024 * 1024))} for learning tools on internal storage`);
         }
         storageSummary.textContent = `This setup is estimated to add ${formatBytes(addedBytes)}, including ${summaryParts.join(", ")}.`;
       } else {
@@ -1839,21 +2379,29 @@
       nextStepButton.disabled = lockNavigation;
       nextStepButton.classList.toggle("hidden", currentStep === totalSteps - 1 || lockNavigation);
       applyConfigButton.classList.toggle("hidden", currentStep !== totalSteps - 1);
-      homeDoneButton.classList.toggle("hidden", !(currentStep === totalSteps - 1 && latestSetupComplete && !lockNavigation));
+      homeDoneButton.classList.toggle(
+        "hidden",
+        !(currentStep === totalSteps - 1 && (latestSetupComplete || canLeaveToHomeDuringApply))
+      );
       stepButtons.forEach((button) => {
         button.disabled = lockNavigation;
       });
 
       const notes = [
         "Step 1 of 5. Start by choosing what to include on this device.",
-        "Step 2 of 5. Choose how much Wikipedia to include.",
+        "Step 2 of 5. Choose your content tier, storage disk, and Wikipedia package.",
         "Step 3 of 5. Choose which offline map regions to include.",
         "Step 4 of 5. Choose how people will connect to this device.",
         "Step 5 of 5. Review your choices and complete setup when ready."
       ];
       footerNote.textContent = notes[currentStep];
+      if (currentStep === totalSteps - 1 && canLeaveToHomeDuringApply && applyRunning) {
+        footerNote.textContent = "Services are ready. You can go to Home now while the remaining downloads continue in the background.";
+      }
       if (lockNavigation) {
-        footerNote.textContent = "Setup is running. Downloads and service changes will continue in the background until complete.";
+        footerNote.textContent = canLeaveToHomeDuringApply
+          ? "Services are ready. You can go to Home now while the remaining downloads continue in the background."
+          : "Setup is running. Downloads and service changes will continue in the background until complete.";
       }
     }
 
@@ -1878,7 +2426,10 @@
           body: JSON.stringify({
             install_kolibri: setupState.installKolibri,
             install_ka_lite: false,
+            zim_profile: setupState.zimProfile,
+            content_install_dir: effectiveContentInstallDir(),
             wikipedia_option: setupState.wikipediaOption,
+            wikipedia_install_dir: effectiveWikipediaInstallDir(),
             map_collections: setupState.mapCollections,
             ap_enabled: setupState.apEnabled,
             setup_complete: setupComplete
@@ -1892,11 +2443,21 @@
 
         const latestProfile = payload.profile || {};
         setupState.installKolibri = Boolean(latestProfile.install_kolibri);
+        setupState.zimProfile = latestProfile.zim_profile || setupState.zimProfile;
         setupState.wikipediaOption = latestProfile.wikipedia_option || setupState.wikipediaOption;
         setupState.mapCollections = normalizeMapSelection(latestProfile.map_collections || setupState.mapCollections);
         setupState.apEnabled = Boolean(latestProfile.ap_enabled);
+        setupState.contentInstallDir = payload.storage?.content_install_dir || setupState.contentInstallDir;
+        setupState.wikipediaInstallDir = payload.storage?.wikipedia_install_dir || setupState.wikipediaInstallDir;
+        contentInstallDestinations = Array.isArray(payload.storage?.content_install_destinations)
+          ? payload.storage.content_install_destinations
+          : contentInstallDestinations;
+        wikipediaInstallDestinations = Array.isArray(payload.storage?.wikipedia_install_destinations)
+          ? payload.storage.wikipedia_install_destinations
+          : wikipediaInstallDestinations;
 
         renderSelectionCards();
+        renderContentTiers();
         renderWikipediaOptions();
         renderMapOptions();
         renderSetupSummary();
@@ -1917,15 +2478,29 @@
         const payload = await response.json();
         renderApplyState(payload);
         if (payload.status === "succeeded") {
-          showMessage("Configuration applied successfully. The dashboard is ready.");
+          showMessage("Configuration applied successfully. You can go to Home when you are ready.");
           renderMode({ setup_complete: latestSetupComplete || true });
-          window.location.assign("/");
         } else if (payload.status === "failed") {
           showMessage(payload.error || "Configuration apply failed. Review the log excerpt below.", true);
           renderMode({ setup_complete: latestSetupComplete });
         }
       } catch (error) {
         showMessage(error.message, true);
+      }
+    }
+
+    async function refreshBackgroundApplyState() {
+      try {
+        const response = await fetch(`${apiBase}/apply`, { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+        const payload = await response.json();
+        if (!applyRunning) {
+          updateApplyNotice(payload);
+        }
+      } catch (error) {
+        // Keep the normal page flow quiet if the apply-status poll fails.
       }
     }
 
@@ -1978,22 +2553,47 @@
         wikipediaOptions = Array.isArray(state.setup_options?.wikipedia?.options)
           ? state.setup_options.wikipedia.options
           : [];
+        contentTiers = Object.values(state.storage?.content_tiers || {});
+        contentInstallDestinations = Array.isArray(state.storage?.content_install_destinations)
+          ? state.storage.content_install_destinations
+          : [];
+        wikipediaInstallDestinations = Array.isArray(state.storage?.wikipedia_install_destinations)
+          ? state.storage.wikipedia_install_destinations
+          : [];
         mapCollections = Array.isArray(state.setup_options?.maps?.collections)
           ? state.setup_options.maps.collections
           : [];
 
         setupState.installKolibri = Boolean(state.profile.install_kolibri);
         setupState.apEnabled = Boolean(state.profile.ap_enabled);
+        setupState.zimProfile = state.profile.zim_profile || "essential";
+        setupState.contentInstallDir = state.storage?.content_install_dir || contentInstallDestinations[0]?.path || "";
         setupState.wikipediaOption = state.profile.wikipedia_option || "top-mini";
+        setupState.wikipediaInstallDir = state.storage?.wikipedia_install_dir || wikipediaInstallDestinations[0]?.path || "";
         setupState.mapCollections = normalizeMapSelection(state.profile.map_collections || []);
         storageState = state.storage || null;
         updateDriveNotice();
+
+        if (!state.profile.wikipedia_option && getWikipediaOptionById("top-mini")) {
+          setupState.wikipediaOption = "top-mini";
+        }
+
+        if (!getContentTierById(setupState.zimProfile) && contentTiers.length) {
+          setupState.zimProfile = contentTiers[0].id;
+        }
+        if (!getContentInstallDestination(setupState.contentInstallDir) && contentInstallDestinations.length) {
+          setupState.contentInstallDir = contentInstallDestinations[0].path;
+        }
+        if (!getWikipediaInstallDestination(setupState.wikipediaInstallDir) && wikipediaInstallDestinations.length) {
+          setupState.wikipediaInstallDir = wikipediaInstallDestinations[0].path;
+        }
 
         if (!getWikipediaOptionById(setupState.wikipediaOption) && wikipediaOptions.length) {
           setupState.wikipediaOption = wikipediaOptions[0].id;
         }
 
         renderSelectionCards();
+        renderContentTiers();
         renderWikipediaOptions();
         renderMapOptions();
         renderSetupSummary();
@@ -2003,8 +2603,12 @@
         renderMode(state);
         renderStorageEstimate();
         updateWizardStep();
+        if (backgroundApplyPollHandle === null) {
+          backgroundApplyPollHandle = window.setInterval(refreshBackgroundApplyState, 15000);
+        }
       } catch (error) {
         renderSelectionCards();
+        renderContentTiers();
         renderWikipediaOptions();
         renderMapOptions();
         renderSetupSummary();

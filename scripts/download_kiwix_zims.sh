@@ -30,6 +30,7 @@ fi
 source "$ENV_FILE"
 
 DOWNLOAD_LIBRARY_DIR="${PREPMASTER_ZIM_INSTALL_DIR:-$KIWIX_LIBRARY_DIR}"
+DOWNLOAD_WIKIPEDIA_DIR="${PREPMASTER_WIKIPEDIA_INSTALL_DIR:-$DOWNLOAD_LIBRARY_DIR}"
 
 if [[ "$ZIM_MODE" == "quick-test" ]]; then
   if [[ ! -f "$QUICK_TEST_FILE" ]]; then
@@ -59,7 +60,7 @@ fi
 
 install -d -m 0755 "$KIWIX_LIBRARY_DIR"
 install -d -m 0755 "$DOWNLOAD_LIBRARY_DIR"
-cd "$DOWNLOAD_LIBRARY_DIR"
+install -d -m 0755 "$DOWNLOAD_WIKIPEDIA_DIR"
 
 mapfile -t URLS < <(grep -v '^[[:space:]]*$' "$URL_FILE" | grep -v '^[[:space:]]*#')
 TOTAL_FILES="${#URLS[@]}"
@@ -70,24 +71,37 @@ for i in "${!URLS[@]}"; do
   url="${URLS[$i]}"
   file_name="$(basename "$url")"
   current=$((i + 1))
+  target_dir="$DOWNLOAD_LIBRARY_DIR"
+  if [[ "$url" == *"/zim/wikipedia/"* || "$file_name" == wikipedia_* ]]; then
+    target_dir="$DOWNLOAD_WIKIPEDIA_DIR"
+  fi
 
   echo "PROGRESS_DOWNLOAD_FILE|$current|$TOTAL_FILES|$file_name"
   echo "Downloading or refreshing: $url"
+  cd "$target_dir"
   wget -N -c "$url"
   echo "PROGRESS_DOWNLOAD_DONE|$current|$TOTAL_FILES|$file_name"
 done
 
 echo "PROGRESS_DOWNLOAD_COMPLETE|$TOTAL_FILES"
 
-if [[ "$DOWNLOAD_LIBRARY_DIR" != "$KIWIX_LIBRARY_DIR" ]]; then
+link_roots=("$DOWNLOAD_LIBRARY_DIR")
+if [[ "$DOWNLOAD_WIKIPEDIA_DIR" != "$DOWNLOAD_LIBRARY_DIR" ]]; then
+  link_roots+=("$DOWNLOAD_WIKIPEDIA_DIR")
+fi
+
+for root in "${link_roots[@]}"; do
+  if [[ "$root" == "$KIWIX_LIBRARY_DIR" ]]; then
+    continue
+  fi
   while IFS= read -r zim_path; do
     file_name="$(basename "$zim_path")"
     link_path="$KIWIX_LIBRARY_DIR/$file_name"
     if [[ ! -e "$link_path" && ! -L "$link_path" ]]; then
       ln -s "$zim_path" "$link_path"
     fi
-  done < <(find "$DOWNLOAD_LIBRARY_DIR" -maxdepth 1 -type f -name '*.zim' | sort)
-fi
+  done < <(find "$root" -maxdepth 1 -type f -name '*.zim' | sort)
+done
 
 if command -v kiwix-manage >/dev/null 2>&1; then
   "$REPO_ROOT/scripts/rebuild_kiwix_library.sh"

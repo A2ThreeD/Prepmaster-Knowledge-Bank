@@ -51,12 +51,6 @@ categories:
     description: Professional-level medical references and textbooks. Includes everything in Standard.
     includesTier: medicine-standard
     resources:
-    - id: wikipedia_en_medicine_maxi
-      version: 2026-01
-      title: Wikipedia Medicine
-      description: Curated medical articles from Wikipedia with images
-      url: https://download.kiwix.org/zim/wikipedia/wikipedia_en_medicine_maxi_2026-01.zim
-      size_mb: 2000
     - id: libretexts.org_en_med
       version: 2025-01
       title: LibreTexts Medicine
@@ -233,7 +227,7 @@ categories:
   tiers:
   - name: Essential
     slug: diy-essential
-    description: Core repair knowledge - woodworking basics and vehicle maintenance Q&A.
+    description: Core repair knowledge for home fixes, device repair, woodworking, and vehicle maintenance.
     recommended: true
     resources:
     - id: woodworking.stackexchange.com_en_all
@@ -248,28 +242,28 @@ categories:
       description: Stack Exchange Q&A for car and motorcycle repair
       url: https://download.kiwix.org/zim/stack_exchange/mechanics.stackexchange.com_en_all_2025-12.zim
       size_mb: 321
-  - name: Standard
-    slug: diy-standard
-    description: Home improvement expertise with thousands of Q&A threads. Includes Essential.
-    includesTier: diy-essential
-    resources:
     - id: diy.stackexchange.com_en_all
       version: 2025-12
       title: DIY & Home Improvement Q&A
       description: Stack Exchange Q&A for home repairs, electrical, plumbing, and construction
       url: https://download.kiwix.org/zim/stack_exchange/diy.stackexchange.com_en_all_2025-12.zim
       size_mb: 1900
-  - name: Comprehensive
-    slug: diy-comprehensive
-    description: Complete repair library with step-by-step guides for electronics and appliances. Includes Standard.
-    includesTier: diy-standard
-    resources:
     - id: ifixit_en_all
       version: 2025-12
       title: iFixit Repair Guides
       description: Step-by-step repair guides for electronics, appliances, and vehicles
       url: https://download.kiwix.org/zim/ifixit/ifixit_en_all_2025-12.zim
       size_mb: 3570
+  - name: Standard
+    slug: diy-standard
+    description: Includes the essential repair set without adding more curated sources yet.
+    includesTier: diy-essential
+    resources: []
+  - name: Comprehensive
+    slug: diy-comprehensive
+    description: Complete repair library with the essential repair set as the base. Includes Standard.
+    includesTier: diy-standard
+    resources: []
 - name: Agriculture & Food
   slug: agriculture
   icon: IconPlant
@@ -278,8 +272,25 @@ categories:
   tiers:
   - name: Essential
     slug: agriculture-essential
-    description: Quick recipes and cooking basics for everyday meal preparation.
+    description: Food production and preparedness essentials for growing, preserving, and storing food.
     recommended: true
+    resources:
+    - id: gardening.stackexchange.com_en_all
+      version: 2025-12
+      title: Gardening Q&A
+      description: Stack Exchange Q&A for growing your own food, plant care, and landscaping
+      url: https://download.kiwix.org/zim/stack_exchange/gardening.stackexchange.com_en_all_2025-12.zim
+      size_mb: 923
+    - id: zimgit-food-preparation_en
+      version: 2025-04
+      title: Food for Preppers
+      description: Recipes and techniques for food preservation and long-term storage
+      url: https://download.kiwix.org/zim/other/zimgit-food-preparation_en_2025-04.zim
+      size_mb: 98
+  - name: Standard
+    slug: agriculture-standard
+    description: Adds practical cooking knowledge and everyday meal preparation. Includes Essential.
+    includesTier: agriculture-essential
     resources:
     - id: foss.cooking_en_all
       version: 2025-11
@@ -293,29 +304,12 @@ categories:
       description: Simple, practical recipes from the community
       url: https://download.kiwix.org/zim/zimit/based.cooking_en_all_2025-11.zim
       size_mb: 16
-  - name: Standard
-    slug: agriculture-standard
-    description: Gardening knowledge and cooking expertise from community Q&A. Includes Essential.
-    includesTier: agriculture-essential
-    resources:
-    - id: gardening.stackexchange.com_en_all
-      version: 2025-12
-      title: Gardening Q&A
-      description: Stack Exchange Q&A for growing your own food, plant care, and landscaping
-      url: https://download.kiwix.org/zim/stack_exchange/gardening.stackexchange.com_en_all_2025-12.zim
-      size_mb: 923
     - id: cooking.stackexchange.com_en_all
       version: 2025-12
       title: Cooking Q&A
       description: Stack Exchange Q&A for cooking techniques, food safety, and recipes
       url: https://download.kiwix.org/zim/stack_exchange/cooking.stackexchange.com_en_all_2025-12.zim
       size_mb: 236
-    - id: zimgit-food-preparation_en
-      version: 2025-04
-      title: Food for Preppers
-      description: Recipes and techniques for food preservation and long-term storage
-      url: https://download.kiwix.org/zim/other/zimgit-food-preparation_en_2025-04.zim
-      size_mb: 98
   - name: Comprehensive
     slug: agriculture-comprehensive
     description: Complete self-sufficiency with homesteading videos, classic agricultural texts, and advanced techniques. Includes Standard.
