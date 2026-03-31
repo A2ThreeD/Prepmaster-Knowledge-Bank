@@ -3,7 +3,10 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="${PREPMASTER_ENV_FILE:-$REPO_ROOT/config/prepmaster.env}"
+ENV_FILE="${PREPMASTER_ENV_FILE:-${SOPR_ENV_FILE:-$REPO_ROOT/config/sopr.env}}"
+if [[ ! -f "$ENV_FILE" && -f "$REPO_ROOT/config/prepmaster.env" ]]; then
+  ENV_FILE="$REPO_ROOT/config/prepmaster.env"
+fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Missing config file: $ENV_FILE" >&2
@@ -31,7 +34,7 @@ if [[ -s "${KIWIX_LIBRARY_XML:-}" ]]; then
     --library "$KIWIX_LIBRARY_XML"
 fi
 
-PLACEHOLDER_DIR="${PREPMASTER_WEB_ROOT:-/srv/prepmaster/www}/kiwix-placeholder"
+PLACEHOLDER_DIR="${PREPMASTER_WEB_ROOT:-/srv/sopr/www}/kiwix-placeholder"
 mkdir -p "$PLACEHOLDER_DIR"
 
 if [[ ! -f "$PLACEHOLDER_DIR/index.html" ]]; then

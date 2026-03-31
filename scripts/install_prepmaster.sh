@@ -3,7 +3,10 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="${PREPMASTER_ENV_FILE:-$REPO_ROOT/config/prepmaster.env}"
+ENV_FILE="${PREPMASTER_ENV_FILE:-${SOPR_ENV_FILE:-$REPO_ROOT/config/sopr.env}}"
+if [[ ! -f "$ENV_FILE" && -f "$REPO_ROOT/config/prepmaster.env" ]]; then
+  ENV_FILE="$REPO_ROOT/config/prepmaster.env"
+fi
 PROFILE_FILE="${PREPMASTER_PROFILE_FILE:-$REPO_ROOT/config/install-profile.env}"
 
 if [[ $EUID -ne 0 ]]; then

@@ -19,9 +19,9 @@ Use this checklist when validating SOPR on a fresh Raspberry Pi or preparing a n
    ```
 2. Create the local runtime config:
    ```bash
-   cp config/prepmaster.env.example config/prepmaster.env
+   cp config/sopr.env.example config/sopr.env
    ```
-3. Set the important values in `config/prepmaster.env`:
+3. Set the important values in `config/sopr.env`:
    - `PREPMASTER_HOSTNAME`
    - `PREPMASTER_WIKIPEDIA_OPTION`
    - `PREPMASTER_ZIM_MODE`
@@ -36,8 +36,8 @@ Use this checklist when validating SOPR on a fresh Raspberry Pi or preparing a n
    ```
 2. Confirm core services are healthy:
    ```bash
-   systemctl status prepmaster-portal.service --no-pager
-   systemctl status prepmaster-kiwix.service --no-pager
+   systemctl status sopr-portal.service --no-pager
+   systemctl status sopr-kiwix.service --no-pager
    systemctl status nginx --no-pager
    ```
 
@@ -68,7 +68,7 @@ Verify these locations:
    ```
 3. Confirm the Kiwix service is using the expected bind address and port:
    ```bash
-   systemctl status prepmaster-kiwix.service --no-pager
+   systemctl status sopr-kiwix.service --no-pager
    ```
 
 ## Status And API Checks
@@ -120,7 +120,7 @@ Record these items for each release validation:
 
 Do not commit Pi-local runtime files:
 
-- `config/prepmaster.env`
+- `config/sopr.env`
 - `config/install-profile.env`
 - `config/kiwix-zim-urls.txt`
 

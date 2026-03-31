@@ -3,7 +3,10 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="${PREPMASTER_ENV_FILE:-$REPO_ROOT/config/prepmaster.env}"
+ENV_FILE="${PREPMASTER_ENV_FILE:-${SOPR_ENV_FILE:-$REPO_ROOT/config/sopr.env}}"
+if [[ ! -f "$ENV_FILE" && -f "$REPO_ROOT/config/prepmaster.env" ]]; then
+  ENV_FILE="$REPO_ROOT/config/prepmaster.env"
+fi
 
 if [[ $EUID -ne 0 ]]; then
   echo "Please run as root: sudo $0"
@@ -19,14 +22,14 @@ fi
 source "$ENV_FILE"
 
 if [[ "${PREPMASTER_AP_ENABLED:-0}" != "1" ]]; then
-  echo "Access point mode is disabled in config/prepmaster.env."
+  echo "Access point mode is disabled in config/sopr.env."
   echo "Stopping and disabling AP-related services."
   systemctl stop hostapd 2>/dev/null || true
   systemctl stop dnsmasq 2>/dev/null || true
-  systemctl stop prepmaster-ap-network.service 2>/dev/null || true
+  systemctl stop sopr-ap-network.service 2>/dev/null || true
   systemctl disable hostapd 2>/dev/null || true
   systemctl disable dnsmasq 2>/dev/null || true
-  systemctl disable prepmaster-ap-network.service 2>/dev/null || true
+  systemctl disable sopr-ap-network.service 2>/dev/null || true
   exit 0
 fi
 
@@ -84,7 +87,7 @@ address=/sopr.local/$PREPMASTER_AP_ADDRESS
 address=/prepmaster.local/$PREPMASTER_AP_ADDRESS
 EOF
 
-cat > /etc/systemd/system/prepmaster-ap-network.service <<EOF
+cat > /etc/systemd/system/sopr-ap-network.service <<EOF
 [Unit]
 Description=Configure SOPR AP network interface
 Before=hostapd.service dnsmasq.service
@@ -106,10 +109,11 @@ EOF
 echo "Reloading systemd and enabling AP services..."
 systemctl daemon-reload
 systemctl unmask hostapd || true
-systemctl enable prepmaster-ap-network.service
+systemctl enable sopr-ap-network.service
+ln -sfn /etc/systemd/system/sopr-ap-network.service /etc/systemd/system/prepmaster-ap-network.service
 systemctl enable hostapd
 systemctl enable dnsmasq
-systemctl restart prepmaster-ap-network.service
+systemctl restart sopr-ap-network.service
 systemctl restart hostapd
 systemctl restart dnsmasq
 

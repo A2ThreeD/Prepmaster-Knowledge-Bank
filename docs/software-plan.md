@@ -40,12 +40,12 @@ Installed by `scripts/bootstrap_pi.sh` and used by the current stack:
 
 The stack currently expects these service roles:
 
-- `prepmaster-portal.service` for setup state, status APIs, and background workflows
-- `prepmaster-kiwix.service` for `kiwix-serve`
+- `sopr-portal.service` for setup state, status APIs, and background workflows
+- `sopr-kiwix.service` for `kiwix-serve`
 - `nginx` for `/`, `/admin`, `/maps`, `/api`, and Kiwix proxying
 - `hostapd` when wireless AP mode is enabled
 - `dnsmasq` when wireless AP mode is enabled
-- `prepmaster-ap-network.service` when the device hotspot is enabled
+- `sopr-ap-network.service` when the device hotspot is enabled
 
 ## Current User-Facing Software Features
 
@@ -112,8 +112,8 @@ The current Kiwix behavior includes:
 
 ### Main Editable Runtime Config
 
-- `config/prepmaster.env`
-- `config/prepmaster.env.example`
+- `config/sopr.env`
+- `config/sopr.env.example`
 
 This covers:
 

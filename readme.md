@@ -29,7 +29,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `scripts/run_kiwix_service.sh` - runtime wrapper that starts Kiwix or a placeholder page when the library is empty
 - `scripts/install_nginx_site.sh` - installs the Nginx site that serves `/`, `/kiwix`, `/maps`, `/admin`, and `/api`
 - `app/prepmaster_portal.py` - lightweight API for persisted SOPR setup state and Raspberry Pi status
-- `config/prepmaster.env.example` - template for editable install settings
+- `config/sopr.env.example` - template for editable install settings
 - `config/install-profile.env.example` - template for first-start install profile defaults
 - `config/kiwix-zim-urls.quick-test.txt` - tiny starter manifest for fast Kiwix validation
 - `catalog/wikipedia.yaml` - selectable Wikipedia ZIM options for the configuration flow
@@ -58,7 +58,7 @@ On the Raspberry Pi:
 ```bash
 git clone <this-repo-url> sopr
 cd sopr
-cp config/prepmaster.env.example config/prepmaster.env
+cp config/sopr.env.example config/sopr.env
 sudo ./scripts/install_sopr.sh
 ```
 
@@ -90,7 +90,7 @@ sudo ./scripts/download_kiwix_zims.sh
 - `/maps` now expects a local PMTiles archive under the configured PMTiles root and renders it through MapLibre instead of a raster `z/x/y.png` tile tree.
 - Optional education add-ons are tracked separately: `Kolibri` as a modern add-on, and `KA Lite` as a legacy add-on.
 - `Kolibri` now has install automation in the repo. `KA Lite` requires an explicit legacy override and currently records the request rather than forcing a risky unattended install on modern Raspberry Pi OS.
-- Wireless AP mode can be enabled through `config/prepmaster.env` and applied by the installer or `scripts/configure_access_point.sh`.
+- Wireless AP mode can be enabled through `config/sopr.env` and applied by the installer or `scripts/configure_access_point.sh`.
 - The installer now provisions `kiwix-serve`, the portal API, and an Nginx site so `/`, `/maps`, `/admin`, and `/api` are served on the main site, while `/kiwix` redirects the browser to the dedicated Kiwix port.
 - The current UI typography now self-hosts `Michroma` from `web/fonts/Michroma-Regular.ttf` under the SIL Open Font License. The main display stack is `"Michroma Local", "Michroma", "OCR A Std", "OCR A Extended", "Aldrich", "Eurostile", "Bank Gothic", "Rajdhani", "Cascadia Mono", "Consolas", monospace`, and the body stack is `"Michroma Local", "Michroma", "OCR A Std", "OCR A Extended", "Aldrich", "Cascadia Mono", "Consolas", monospace`.
 - Scrollable panels use white scrollbars on a dark track as a shared SOPR design rule. New scrollable boxes should keep that treatment for consistency.
