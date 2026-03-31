@@ -98,4 +98,4 @@ sudo ./scripts/download_kiwix_zims.sh
 
 ## Validation
 
-Use [docs/release-checklist.md](/home/prepper/prepmaster/docs/release-checklist.md) when validating a fresh SOPR install or preparing a new release.
+Use [docs/release-checklist.md](/home/prepper/sopr/docs/release-checklist.md) when validating a fresh SOPR install or preparing a new release.

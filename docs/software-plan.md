@@ -224,8 +224,8 @@ These are the main areas still worth iterating on next:
 
 For release validation and fresh Pi testing, use:
 
-- [release-checklist.md](/home/prepper/prepmaster/docs/release-checklist.md)
+- [release-checklist.md](/home/prepper/sopr/docs/release-checklist.md)
 
 For structural and UX principles, use:
 
-- [architecture.md](/home/prepper/prepmaster/docs/architecture.md)
+- [architecture.md](/home/prepper/sopr/docs/architecture.md)
