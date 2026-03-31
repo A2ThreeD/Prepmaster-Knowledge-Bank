@@ -955,6 +955,69 @@
       color: var(--muted);
     }
 
+    .zim-installed-list {
+      min-height: 180px;
+      max-height: 460px;
+      overflow: auto;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(4, 10, 18, 0.5);
+    }
+
+    .zim-installed-header {
+      display: grid;
+      grid-template-columns: auto minmax(220px, 1fr) 96px;
+      gap: 10px;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(11, 21, 36, 0.95);
+    }
+
+    .zim-installed-header-button {
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0;
+    }
+
+    .zim-installed-header-spacer {
+      width: 16px;
+    }
+
+    .zim-installed-entry {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) 96px;
+      align-items: center;
+      gap: 6px 10px;
+      margin-bottom: 0;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 0.75rem;
+      line-height: 1.2;
+    }
+
+    .zim-installed-entry:last-child {
+      border-bottom: 0;
+    }
+
+    .zim-installed-size {
+      display: block;
+      justify-self: end;
+      color: var(--muted);
+      font-size: 0.74rem;
+      text-align: right;
+      white-space: nowrap;
+    }
+
     .pager {
       display: flex;
       align-items: center;
@@ -1643,6 +1706,8 @@
     let systemPollHandle = null;
     let currentContent = null;
     let currentContentCatalog = null;
+    let contentCatalogPollHandle = null;
+    let installedZimSort = { by: "name", dir: "asc" };
     let pendingCustomSelection = new Set();
     let currentContentCategory = "all";
     let currentContentPage = 1;
@@ -3391,33 +3456,78 @@
 
     function renderLocalInstalledZims(content) {
       const container = document.getElementById("content-local-list");
-      const items = content.installed_items || [];
+      container.className = "zim-installed-list";
+      const items = [...(content.installed_items || [])];
       if (!items.length) {
         container.textContent = "No ZIM files found in local storage.";
         return;
       }
 
-      container.innerHTML = items.map((item) => {
+      const sortBy = installedZimSort.by || "name";
+      const sortDir = installedZimSort.dir === "desc" ? -1 : 1;
+      items.sort((left, right) => {
+        if (sortBy === "size") {
+          return (Number(left.size_bytes || 0) - Number(right.size_bytes || 0)) * sortDir;
+        }
+        const leftName = friendlyZimTitle(left.name).toLowerCase();
+        const rightName = friendlyZimTitle(right.name).toLowerCase();
+        return leftName.localeCompare(rightName) * sortDir;
+      });
+
+      const sortIndicator = installedZimSort.dir === "asc" ? "▲" : "▼";
+      const headerHtml = `<div class="zim-installed-header">
+        <span class="zim-installed-header-spacer" aria-hidden="true"></span>
+        <button class="zim-installed-header-button" data-sort="name" type="button">
+          Name${sortBy === "name" ? `<span class="files-sort-indicator">${sortIndicator}</span>` : ""}
+        </button>
+        <button class="zim-installed-header-button" data-sort="size" type="button">
+          Size${sortBy === "size" ? `<span class="files-sort-indicator">${sortIndicator}</span>` : ""}
+        </button>
+      </div>`;
+
+      container.innerHTML = headerHtml + items.map((item) => {
+        const catalogItem = currentContentCatalog && Array.isArray(currentContentCatalog.items)
+          ? currentContentCatalog.items.find((entry) => entry.name === item.name)
+          : null;
+        const expectedSizeBytes = Number(catalogItem?.size_bytes || 0);
+        const localSizeBytes = Number(item.size_bytes || 0);
+        const likelyPartial = expectedSizeBytes > 0 && localSizeBytes > 0 && localSizeBytes < expectedSizeBytes;
         const details = [];
         const version = zimVersionLabel(item.name);
         if (version) details.push(version);
         if (item.selected) details.push("saved for library");
         details.push(item.location === "external" ? "external" : "internal");
-        if (item.size_label) details.push(item.size_label);
+        if (likelyPartial) {
+          details.push(`expected ${formatBytes(expectedSizeBytes)}`);
+        }
         const descriptionBits = [installedZimDescription(item), ...details].filter(Boolean);
         const descriptionText = descriptionBits.length
           ? `<span class="zim-entry-desc">- ${escapeHtml(descriptionBits.join(" - "))}</span>`
           : "";
-        const extraBadge = item.is_extra
-          ? `<span class="zim-entry-badge">Extra</span>`
-          : "";
-        return `<label class="zim-entry">
+        const badges = [
+          item.is_extra ? `<span class="zim-entry-badge">Extra</span>` : "",
+          likelyPartial ? `<span class="zim-entry-badge">Likely Partial</span>` : ""
+        ].join("");
+        const sizeLabel = item.size_label || formatBytes(Number(item.size_bytes || 0));
+        return `<label class="zim-installed-entry">
           <input type="checkbox" class="local-zim-checkbox" value="${escapeHtml(item.name)}">
           <span class="zim-entry-body">
-            <span class="zim-entry-title">${escapeHtml(friendlyZimTitle(item.name))}</span>${extraBadge}${descriptionText}
-          </span>
+            <span class="zim-entry-title">${escapeHtml(friendlyZimTitle(item.name))}</span>${badges}${descriptionText}
+          </span><span class="zim-installed-size">${escapeHtml(sizeLabel || "-")}</span>
         </label>`;
       }).join("");
+    }
+
+    function updateInstalledZimSort(sortBy) {
+      if (installedZimSort.by === sortBy) {
+        installedZimSort.dir = installedZimSort.dir === "asc" ? "desc" : "asc";
+      } else {
+        installedZimSort.by = sortBy;
+        installedZimSort.dir = sortBy === "name" ? "asc" : "desc";
+      }
+      if (currentContent) {
+        renderLocalInstalledZims(currentContent);
+      }
     }
 
     function contentCatalogWithCurrentLocalState(catalog) {
@@ -3991,13 +4101,37 @@
         const { payload } = result;
         currentContentCatalog = payload;
         renderZimCatalog(payload);
+        if (payload && payload.refreshing) {
+          scheduleContentCatalogPoll();
+        } else if (contentCatalogPollHandle !== null) {
+          window.clearTimeout(contentCatalogPollHandle);
+          contentCatalogPollHandle = null;
+        }
       } catch (error) {
         document.getElementById("zim-catalog-note").textContent = error.message;
         document.getElementById("zim-catalog-list").textContent = "Unable to load Kiwix catalog.";
+        if (contentCatalogPollHandle !== null) {
+          window.clearTimeout(contentCatalogPollHandle);
+          contentCatalogPollHandle = null;
+        }
       } finally {
         button.disabled = false;
         button.textContent = "Check Online Catalog";
       }
+    }
+
+    function scheduleContentCatalogPoll(delayMs = 2500) {
+      if (contentCatalogPollHandle !== null) {
+        window.clearTimeout(contentCatalogPollHandle);
+      }
+      contentCatalogPollHandle = window.setTimeout(async () => {
+        contentCatalogPollHandle = null;
+        try {
+          await refreshZimCatalog(false);
+        } catch (error) {
+          document.getElementById("zim-catalog-note").textContent = "Kiwix catalog refresh is taking longer than expected.";
+        }
+      }, delayMs);
     }
 
     async function removeLocalZims() {
@@ -4349,6 +4483,13 @@
     });
     document.getElementById("toggle-ap-clients-button").addEventListener("click", toggleAccessPointClients);
     document.getElementById("refresh-installed-zims-button").addEventListener("click", refreshInstalledZims);
+    document.getElementById("content-local-list").addEventListener("click", (event) => {
+      const button = event.target.closest(".zim-installed-header-button");
+      if (!button) {
+        return;
+      }
+      updateInstalledZimSort(button.dataset.sort || "name");
+    });
     document.getElementById("select-all-local-zims-button").addEventListener("click", selectAllLocalZims);
     document.getElementById("clear-local-zims-button").addEventListener("click", clearLocalZimSelection);
     document.getElementById("remove-local-zims-button").addEventListener("click", removeLocalZims);

@@ -64,6 +64,8 @@ fi
 install -d -m 0755 "$KIWIX_LIBRARY_DIR"
 install -d -m 0755 "$DOWNLOAD_LIBRARY_DIR"
 install -d -m 0755 "$DOWNLOAD_WIKIPEDIA_DIR"
+install -d -m 0755 "$DOWNLOAD_LIBRARY_DIR/.sopr-download-tmp"
+install -d -m 0755 "$DOWNLOAD_WIKIPEDIA_DIR/.sopr-download-tmp"
 
 mapfile -t URLS < <(grep -v '^[[:space:]]*$' "$URL_FILE" | grep -v '^[[:space:]]*#')
 TOTAL_FILES="${#URLS[@]}"
@@ -81,6 +83,7 @@ for i in "${!URLS[@]}"; do
 
   echo "PROGRESS_DOWNLOAD_FILE|$current|$TOTAL_FILES|$file_name"
   echo "Downloading or refreshing: $url"
+  export TMPDIR="$target_dir/.sopr-download-tmp"
   cd "$target_dir"
   wget -N -c "$url"
   echo "PROGRESS_DOWNLOAD_DONE|$current|$TOTAL_FILES|$file_name"
