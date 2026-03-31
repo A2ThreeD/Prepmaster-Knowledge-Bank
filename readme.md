@@ -28,7 +28,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 - `scripts/rebuild_kiwix_library.sh` - rebuilds the Kiwix `library.xml` from downloaded ZIM files
 - `scripts/run_kiwix_service.sh` - runtime wrapper that starts Kiwix or a placeholder page when the library is empty
 - `scripts/install_nginx_site.sh` - installs the Nginx site that serves `/`, `/kiwix`, `/maps`, `/admin`, and `/api`
-- `app/prepmaster_portal.py` - lightweight API for persisted SOPR setup state and Raspberry Pi status
+- `app/sopr_portal.py` - lightweight API for persisted SOPR setup state and Raspberry Pi status
 - `config/sopr.env.example` - template for editable install settings
 - `config/install-profile.env.example` - template for first-start install profile defaults
 - `config/kiwix-zim-urls.quick-test.txt` - tiny starter manifest for fast Kiwix validation

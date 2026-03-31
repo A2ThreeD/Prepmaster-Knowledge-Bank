@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 
 # Local runtime/config state
+config/sopr.env
 config/prepmaster.env
 config/install-profile.env
 config/kiwix-zim-urls.txt

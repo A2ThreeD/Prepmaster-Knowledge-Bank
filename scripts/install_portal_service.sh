@@ -23,8 +23,8 @@ source "$ENV_FILE"
 
 install -d -m 0755 "$PREPMASTER_ROOT/app"
 install -d -m 0755 "$PREPMASTER_DATA_ROOT"
-install -m 0755 "$REPO_ROOT/app/prepmaster_portal.py" "$PREPMASTER_ROOT/app/prepmaster_portal.py"
-ln -sfn "$PREPMASTER_ROOT/app/prepmaster_portal.py" "$PREPMASTER_ROOT/app/sopr_portal.py"
+install -m 0755 "$REPO_ROOT/app/sopr_portal.py" "$PREPMASTER_ROOT/app/sopr_portal.py"
+ln -sfn "$PREPMASTER_ROOT/app/sopr_portal.py" "$PREPMASTER_ROOT/app/prepmaster_portal.py"
 
 cat > /etc/systemd/system/sopr-portal.service <<EOF
 [Unit]
