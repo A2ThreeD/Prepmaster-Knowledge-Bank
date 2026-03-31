@@ -11,8 +11,9 @@ fi
 source /etc/os-release
 
 if [[ -f "$ENV_FILE" ]]; then
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
+# shellcheck source=./load_env.sh
+source "$REPO_ROOT/scripts/load_env.sh"
+load_sopr_env "$ENV_FILE"
 fi
 
 if [[ $EUID -ne 0 ]]; then

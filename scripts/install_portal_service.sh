@@ -18,8 +18,9 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-# shellcheck disable=SC1090
-source "$ENV_FILE"
+# shellcheck source=./load_env.sh
+source "$REPO_ROOT/scripts/load_env.sh"
+load_sopr_env "$ENV_FILE"
 
 install -d -m 0755 "$PREPMASTER_ROOT/app"
 install -d -m 0755 "$PREPMASTER_DATA_ROOT"

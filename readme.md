@@ -81,7 +81,7 @@ sudo ./scripts/download_kiwix_zims.sh
 - The generated manifest in `config/kiwix-zim-urls.txt` is built from that catalog JSON using `PREPMASTER_ZIM_PROFILE`.
 - The selected Wikipedia variant is controlled by `PREPMASTER_WIKIPEDIA_OPTION` and sourced from `catalog/wikipedia.yaml`.
 - Supported profiles are `essential`, `standard`, and `comprehensive`.
-- Set `PREPMASTER_ZIM_MODE=quick-test` if you want a small validation download before pulling the full content set.
+- Set `SOPR_ZIM_MODE=quick-test` if you want a small validation download before pulling the full content set.
 - The main page is now intended to be a first-start configuration screen with base install selected by default.
 - The main page now switches automatically between first-start setup mode and the normal dashboard based on saved setup state.
 - The setup page can now save preferences and trigger the backend apply workflow directly from the browser.

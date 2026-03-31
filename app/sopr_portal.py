@@ -36,11 +36,35 @@ def read_env_file(path: Path) -> dict[str, str]:
             continue
         key, value = stripped.split("=", 1)
         values[key] = value
+    for key, value in list(values.items()):
+        if key.startswith("PREPMASTER_"):
+            values.setdefault(f"SOPR_{key[11:]}", value)
+        elif key.startswith("SOPR_"):
+            values.setdefault(f"PREPMASTER_{key[5:]}", value)
     return values
 
 
 def update_env_file(path: Path, updates: dict[str, str]) -> None:
     lines = path.read_text().splitlines() if path.exists() else []
+    existing_keys: set[str] = set()
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            key, _ = stripped.split("=", 1)
+            existing_keys.add(key)
+
+    normalized_updates: dict[str, str] = {}
+    for key, value in updates.items():
+        target_key = key
+        if key not in existing_keys:
+            if key.startswith("PREPMASTER_"):
+                alias = f"SOPR_{key[11:]}"
+                target_key = alias if alias in existing_keys else alias
+            elif key.startswith("SOPR_"):
+                alias = f"PREPMASTER_{key[5:]}"
+                target_key = alias if alias in existing_keys and key not in existing_keys else key
+        normalized_updates[target_key] = value
+
     seen: set[str] = set()
     result: list[str] = []
 
@@ -48,13 +72,13 @@ def update_env_file(path: Path, updates: dict[str, str]) -> None:
         stripped = line.strip()
         if stripped and not stripped.startswith("#") and "=" in stripped:
             key, _ = stripped.split("=", 1)
-            if key in updates:
-                result.append(f"{key}={updates[key]}")
+            if key in normalized_updates:
+                result.append(f"{key}={normalized_updates[key]}")
                 seen.add(key)
                 continue
         result.append(line)
 
-    for key, value in updates.items():
+    for key, value in normalized_updates.items():
         if key not in seen:
             result.append(f"{key}={value}")
 
@@ -1530,6 +1554,7 @@ class PortalState:
 
         env = dict(os.environ)
         env.update(read_env_file(self.sopr_env))
+        env["SOPR_ENV_FILE"] = str(self.sopr_env)
         env["PREPMASTER_ENV_FILE"] = str(self.sopr_env)
         subprocess.run(
             [str(self.repo_root / "scripts" / "rebuild_kiwix_library.sh")],
@@ -2454,6 +2479,7 @@ class PortalState:
 
         env = dict(os.environ)
         env.update(read_env_file(self.sopr_env))
+        env["SOPR_ENV_FILE"] = str(self.sopr_env)
         env["PREPMASTER_ENV_FILE"] = str(self.sopr_env)
         subprocess.run(
             [str(self.repo_root / "scripts" / "rebuild_kiwix_library.sh")],
@@ -2745,6 +2771,7 @@ class PortalState:
     def run_access_point_config(self) -> str:
         script = self.repo_root / "scripts" / "configure_access_point.sh"
         env = os.environ.copy()
+        env["SOPR_ENV_FILE"] = str(self.sopr_env)
         env["PREPMASTER_ENV_FILE"] = str(self.sopr_env)
         try:
             result = subprocess.run(
@@ -3077,6 +3104,7 @@ class PortalState:
         env.update(read_env_file(self.sopr_env))
         env.update(
             {
+                "SOPR_ENV_FILE": str(self.sopr_env),
                 "PREPMASTER_ENV_FILE": str(self.sopr_env),
                 "PREPMASTER_PROFILE_FILE": str(self.install_profile_env),
                 "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",

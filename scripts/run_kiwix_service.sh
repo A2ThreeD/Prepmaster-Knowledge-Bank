@@ -13,8 +13,9 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-# shellcheck disable=SC1090
-source "$ENV_FILE"
+# shellcheck source=./load_env.sh
+source "$REPO_ROOT/scripts/load_env.sh"
+load_sopr_env "$ENV_FILE"
 
 resolve_kiwix_bind_address() {
   if [[ "${KIWIX_BIND_ADDRESS:-auto}" != "auto" ]]; then

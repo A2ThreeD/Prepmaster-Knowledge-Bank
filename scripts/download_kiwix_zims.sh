@@ -29,8 +29,9 @@ if [[ ! -f "$URL_FILE" ]]; then
   exit 1
 fi
 
-# shellcheck disable=SC1090
-source "$ENV_FILE"
+# shellcheck source=./load_env.sh
+source "$REPO_ROOT/scripts/load_env.sh"
+load_sopr_env "$ENV_FILE"
 
 DOWNLOAD_LIBRARY_DIR="${PREPMASTER_ZIM_INSTALL_DIR:-$KIWIX_LIBRARY_DIR}"
 DOWNLOAD_WIKIPEDIA_DIR="${PREPMASTER_WIKIPEDIA_INSTALL_DIR:-$DOWNLOAD_LIBRARY_DIR}"
