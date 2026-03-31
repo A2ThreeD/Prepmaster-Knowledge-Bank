@@ -15,7 +15,7 @@ The current plan is to build on a fresh Raspberry Pi OS Lite install and automat
 
 - `instructions.md` - original project requirements
 - `scripts/bootstrap_pi.sh` - prepares a clean Raspberry Pi OS Lite system
-- `scripts/install_prepmaster.sh` - top-level installer for SOPR
+- `scripts/install_sopr.sh` - top-level installer for SOPR
 - `scripts/build_kiwix_zim_manifest.py` - generates the ZIM manifest from the SOPR curated catalog
 - `scripts/download_kiwix_zims.sh` - curated Kiwix ZIM downloader
 - `scripts/select_install_profile.sh` - records first-start install choices for optional education add-ons
@@ -56,10 +56,10 @@ This is an initial scaffold for a fully custom stack. It is designed to give us 
 On the Raspberry Pi:
 
 ```bash
-git clone <this-repo-url> prepmaster
-cd prepmaster
+git clone <this-repo-url> sopr
+cd sopr
 cp config/prepmaster.env.example config/prepmaster.env
-sudo ./scripts/install_prepmaster.sh
+sudo ./scripts/install_sopr.sh
 ```
 
 If you want to only prepare the OS first:

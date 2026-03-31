@@ -14,8 +14,8 @@ Use this checklist when validating SOPR on a fresh Raspberry Pi or preparing a n
 
 1. Clone the repository on the Pi:
    ```bash
-   git clone <repo-url> prepmaster
-   cd prepmaster
+   git clone <repo-url> sopr
+   cd sopr
    ```
 2. Create the local runtime config:
    ```bash
@@ -32,7 +32,7 @@ Use this checklist when validating SOPR on a fresh Raspberry Pi or preparing a n
 
 1. Run the installer:
    ```bash
-   sudo ./scripts/install_prepmaster.sh
+   sudo ./scripts/install_sopr.sh
    ```
 2. Confirm core services are healthy:
    ```bash
@@ -45,7 +45,7 @@ Use this checklist when validating SOPR on a fresh Raspberry Pi or preparing a n
 
 1. Open the main site:
    - `http://<pi-ip>/`
-   - or `http://prepmaster.local/` if mDNS resolves
+   - or `http://sopr.local/` if mDNS resolves
 2. Complete setup in the browser.
 3. Click `Apply Configuration`.
 4. Confirm the dashboard becomes the default homepage after setup.

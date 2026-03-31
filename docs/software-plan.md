@@ -149,7 +149,7 @@ These now act as SOPR’s local source-of-truth catalogs for:
 ### Installation / System
 
 - `scripts/bootstrap_pi.sh`
-- `scripts/install_prepmaster.sh`
+- `scripts/install_sopr.sh`
 - `scripts/install_portal_service.sh`
 - `scripts/install_kiwix_service.sh`
 - `scripts/install_nginx_site.sh`
