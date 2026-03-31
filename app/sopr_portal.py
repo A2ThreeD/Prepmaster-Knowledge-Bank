@@ -3455,10 +3455,14 @@ class PortalState:
     def request_power_action(self, action: str) -> dict:
         if action not in {"restart", "shutdown"}:
             raise ValueError("Invalid power action")
+        systemctl_action = {
+            "restart": "reboot",
+            "shutdown": "poweroff",
+        }[action]
 
         try:
             result = subprocess.run(
-                ["systemctl", action],
+                ["systemctl", systemctl_action],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -3467,7 +3471,7 @@ class PortalState:
             raise RuntimeError("systemctl is not available on this system") from exc
 
         if result.returncode != 0:
-            message = (result.stderr or result.stdout or "").strip() or f"systemctl {action} failed"
+            message = (result.stderr or result.stdout or "").strip() or f"systemctl {systemctl_action} failed"
             raise RuntimeError(message)
 
     def restart_system_service(self, service_id: str) -> dict:
