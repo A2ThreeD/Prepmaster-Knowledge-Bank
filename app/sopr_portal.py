@@ -10,11 +10,16 @@ import subprocess
 import threading
 import time
 import yaml
+from collections import deque
 from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib import error, parse, request
+
+APPLY_LOG_MAX_BYTES = 5 * 1024 * 1024
+APPLY_LOG_KEEP_BYTES = 4 * 1024 * 1024
+APPLY_PROGRESS_SCAN_BYTES = 1024 * 1024
 
 
 def parse_args() -> argparse.Namespace:
@@ -101,6 +106,80 @@ def read_json(path: Path, default: dict) -> dict:
         return loaded if isinstance(loaded, dict) else default
     except yaml.YAMLError:
         return default
+
+
+def read_last_lines(path: Path, lines: int = 30, *, max_bytes: int = 65536) -> list[str]:
+    if not path.exists():
+        return []
+
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            file_size = handle.tell()
+            read_size = min(max_bytes, file_size)
+            handle.seek(-read_size, os.SEEK_END)
+            chunk = handle.read(read_size)
+    except OSError:
+        return []
+
+    text = chunk.decode("utf-8", errors="replace")
+    if read_size < file_size:
+        newline_index = text.find("\n")
+        text = text[newline_index + 1 :] if newline_index != -1 else text
+    return list(deque(text.splitlines(), maxlen=lines))
+
+
+def read_recent_text(path: Path, *, max_bytes: int) -> str:
+    if not path.exists():
+        return ""
+
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            file_size = handle.tell()
+            read_size = min(max_bytes, file_size)
+            handle.seek(-read_size, os.SEEK_END)
+            chunk = handle.read(read_size)
+    except OSError:
+        return ""
+
+    text = chunk.decode("utf-8", errors="replace")
+    if read_size < file_size:
+        newline_index = text.find("\n")
+        text = text[newline_index + 1 :] if newline_index != -1 else ""
+    return text
+
+
+def compact_log_file(
+    path: Path,
+    *,
+    max_bytes: int = APPLY_LOG_MAX_BYTES,
+    keep_bytes: int = APPLY_LOG_KEEP_BYTES,
+) -> bool:
+    if keep_bytes <= 0 or max_bytes <= keep_bytes:
+        return False
+    if not path.exists():
+        return False
+
+    try:
+        file_size = path.stat().st_size
+    except OSError:
+        return False
+
+    if file_size <= max_bytes:
+        return False
+
+    tail_text = read_recent_text(path, max_bytes=keep_bytes)
+    retained_bytes = len(tail_text.encode("utf-8", errors="replace"))
+    notice = (
+        f"== Log truncated automatically after reaching {format_size_bytes(file_size)}. "
+        f"Keeping the most recent {format_size_bytes(retained_bytes)}. ==\n"
+    )
+    try:
+        path.write_text(notice + tail_text.lstrip("\n"))
+    except OSError:
+        return False
+    return True
 
 
 def inspect_pmtiles_file(path: Path) -> dict[str, object]:
@@ -1453,7 +1532,11 @@ class PortalState:
         updates: dict[str, str] = {}
         install_dir = payload.get("install_dir")
         if install_dir is not None:
-            updates["PREPMASTER_ZIM_INSTALL_DIR"] = self.validate_install_destination("zims", str(install_dir).strip())
+            validated_install_dir = self.validate_install_destination("zims", str(install_dir).strip())
+            updates["PREPMASTER_ZIM_INSTALL_DIR"] = validated_install_dir
+            # The Content settings page exposes a single destination selector for
+            # new ZIM downloads, so keep the Wikipedia-specific path aligned too.
+            updates["PREPMASTER_WIKIPEDIA_INSTALL_DIR"] = validated_install_dir
         if library_preset == "quick-test":
             updates["PREPMASTER_ZIM_MODE"] = "quick-test"
         elif library_preset == "custom":
@@ -1858,9 +1941,7 @@ class PortalState:
         return self.maps_status()
 
     def read_map_sync_log_tail(self, lines: int = 30) -> list[str]:
-        if not self.map_sync_log_file.exists():
-            return []
-        return self.map_sync_log_file.read_text().splitlines()[-lines:]
+        return read_last_lines(self.map_sync_log_file, lines)
 
     def recover_interrupted_map_sync(self) -> None:
         state = read_json(self.map_sync_state_file, {})
@@ -2948,10 +3029,7 @@ class PortalState:
         return self.load_apply_state()
 
     def read_log_tail(self, lines: int = 30) -> list[str]:
-        if not self.apply_log_file.exists():
-            return []
-        content = self.apply_log_file.read_text().splitlines()
-        return content[-lines:]
+        return read_last_lines(self.apply_log_file, lines)
 
     def launch_apply(
         self,
@@ -2964,6 +3042,7 @@ class PortalState:
         if clear_log:
             self.apply_log_file.write_text("")
         else:
+            compact_log_file(self.apply_log_file)
             with self.apply_log_file.open("a", encoding="utf-8") as log_handle:
                 log_handle.write(
                     "\n== Resuming interrupted apply workflow after restart ==\n"
@@ -3154,6 +3233,7 @@ class PortalState:
                     )
                     log_handle.flush()
                     self.run_map_sync(selected_files)
+                    compact_log_file(self.apply_log_file)
                     map_sync_state = self.load_map_sync_state()
                     if map_sync_state.get("status") != "succeeded":
                         exit_code = 1
@@ -3161,19 +3241,14 @@ class PortalState:
                         break
                     continue
 
-                result = subprocess.run(
+                return_code = self.run_logged_command(
                     command,
-                    cwd=self.repo_root,
                     env=env,
-                    stdout=log_handle,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    check=False,
+                    log_handle=log_handle,
                 )
-                log_handle.flush()
-                if result.returncode != 0:
-                    exit_code = result.returncode
-                    error_message = f"{step} failed with exit code {result.returncode}"
+                if return_code != 0:
+                    exit_code = return_code
+                    error_message = f"{step} failed with exit code {return_code}"
                     break
 
         final_status = "succeeded" if exit_code == 0 else "failed"
@@ -3189,6 +3264,39 @@ class PortalState:
                 "step": None if exit_code == 0 else step,
             }
         )
+
+    def run_logged_command(
+        self,
+        command: list[str],
+        *,
+        env: dict[str, str],
+        log_handle,
+    ) -> int:
+        process = subprocess.Popen(
+            command,
+            cwd=self.repo_root,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        lines_since_compaction = 0
+        try:
+            if process.stdout:
+                for line in process.stdout:
+                    log_handle.write(line)
+                    lines_since_compaction += 1
+                    if lines_since_compaction >= 100:
+                        log_handle.flush()
+                        compact_log_file(self.apply_log_file)
+                        lines_since_compaction = 0
+            return process.wait()
+        finally:
+            if process.stdout:
+                process.stdout.close()
+            log_handle.flush()
+            compact_log_file(self.apply_log_file)
 
     def parse_apply_progress(self, state: dict) -> dict:
         progress = {
@@ -3210,7 +3318,11 @@ class PortalState:
                 ((current_step_index - 1) / total_steps) * 100
             )
 
-        if not self.apply_log_file.exists():
+        recent_log_text = read_recent_text(
+            self.apply_log_file,
+            max_bytes=APPLY_PROGRESS_SCAN_BYTES,
+        )
+        if not recent_log_text:
             return progress
 
         total_pattern = re.compile(r"^PROGRESS_DOWNLOAD_TOTAL\|(\d+)$")
@@ -3223,7 +3335,7 @@ class PortalState:
         current_index = None
         last_done_index = None
 
-        for line in self.apply_log_file.read_text().splitlines():
+        for line in recent_log_text.splitlines():
             total_match = total_pattern.match(line)
             if total_match:
                 download_total = int(total_match.group(1))
@@ -3473,6 +3585,11 @@ class PortalState:
         if result.returncode != 0:
             message = (result.stderr or result.stdout or "").strip() or f"systemctl {systemctl_action} failed"
             raise RuntimeError(message)
+
+        return {
+            "action": action,
+            "message": f"System {action} requested. Controls locked until the device changes state.",
+        }
 
     def restart_system_service(self, service_id: str) -> dict:
         services = {service["id"]: service for service in self.system_service_definitions()}

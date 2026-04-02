@@ -50,12 +50,12 @@
       "selected": true
     },
     {
-      "path": "wikipedia/wikipedia_en_all_maxi_2025-08.zim",
-      "name": "wikipedia_en_all_maxi_2025-08.zim",
+      "path": "wikipedia/wikipedia_en_all_mini_2026-03.zim",
+      "name": "wikipedia_en_all_mini_2026-03.zim",
       "category": "wikipedia",
-      "download_url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_maxi_2025-08.zim",
-      "size_bytes": 119185342464,
-      "size_label": "111G",
+      "download_url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_mini_2026-03.zim",
+      "size_bytes": 12884901888,
+      "size_label": "12G",
       "installed": false,
       "installed_size_bytes": 0,
       "installed_size_label": "",
@@ -74,5 +74,5 @@
       "selected": true
     }
   ],
-  "saved_at": "2026-03-30T23:32:00Z"
+  "saved_at": "2026-04-02T05:08:48Z"
 }

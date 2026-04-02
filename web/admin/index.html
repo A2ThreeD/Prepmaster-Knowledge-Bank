@@ -3315,10 +3315,11 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action })
         }, 4000);
+        const details = payload && typeof payload === "object" ? payload : {};
         if (!response.ok) {
-          throw new Error(payload.error || `Unable to ${action}`);
+          throw new Error(details.error || `Unable to ${action}`);
         }
-        statusEl.textContent = payload.message || `System ${action} requested. Controls locked until the device changes state.`;
+        statusEl.textContent = details.message || `System ${action} requested. Controls locked until the device changes state.`;
       } catch (error) {
         statusEl.textContent = `${actionLabel} failed: ${error.message}`;
         restartButton.disabled = false;
@@ -3349,15 +3350,16 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ service: serviceId })
         }, 6000);
+        const details = payload && typeof payload === "object" ? payload : {};
         if (!response.ok) {
-          throw new Error(payload.error || "Unable to restart the selected service.");
+          throw new Error(details.error || "Unable to restart the selected service.");
         }
         currentStatus = {
           ...(currentStatus || {}),
-          services: payload.services || [],
+          services: details.services || [],
         };
-        renderSystemServices(payload.services || []);
-        statusEl.textContent = payload.message || "Service restarted.";
+        renderSystemServices(details.services || []);
+        statusEl.textContent = details.message || "Service restarted.";
       } catch (error) {
         statusEl.textContent = `Service restart failed: ${error.message}`;
         buttons.forEach((button) => {

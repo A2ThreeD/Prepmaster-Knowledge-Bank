@@ -2378,7 +2378,8 @@
       const allowDashboard = latestSetupComplete || canLeaveToHomeDuringApply;
       const shouldForceSetup = forceSetup;
       const keepSetupOpenDuringApply = enteredSetupFlow && applyRunning;
-      const setupMode = shouldForceSetup || keepSetupOpenDuringApply || !allowDashboard || applyNeedsAttention;
+      const keepSetupOpenForFailure = enteredSetupFlow && applyNeedsAttention;
+      const setupMode = shouldForceSetup || keepSetupOpenDuringApply || !allowDashboard || keepSetupOpenForFailure;
       setupView.classList.toggle("hidden", !setupMode);
       dashboardView.classList.toggle("hidden", setupMode);
       introText.classList.add("hidden");

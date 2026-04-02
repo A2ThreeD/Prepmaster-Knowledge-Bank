@@ -87,8 +87,42 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
+    location = /skin/viewer.js {
+        alias $PREPMASTER_WEB_ROOT/kiwix-skin/viewer.js;
+        default_type application/javascript;
+        expires 5m;
+        add_header Cache-Control "public";
+    }
+
     location ^~ /catalog/ {
         proxy_pass http://127.0.0.1:$KIWIX_PORT/catalog/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location = /search {
+        proxy_pass http://127.0.0.1:$KIWIX_PORT/search;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location = /suggest {
+        proxy_pass http://127.0.0.1:$KIWIX_PORT/suggest;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location = /random {
+        proxy_pass http://127.0.0.1:$KIWIX_PORT/random;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -125,6 +159,15 @@ server {
 
     location ^~ /raw/ {
         proxy_pass http://127.0.0.1:$KIWIX_PORT/raw/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location ^~ /catch/ {
+        proxy_pass http://127.0.0.1:$KIWIX_PORT/catch/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
